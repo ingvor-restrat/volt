@@ -1,8 +1,29 @@
-# `risk`: the Volt terminal demo
+# Volt live risk displays
+
+The browser and terminal presentations consume the same deterministic Rust
+simulation snapshots. JavaScript formats and charts the browser snapshot; it
+does not reproduce the pricing or portfolio logic.
+
+## Browser dashboard
+
+![The live Volt browser risk dashboard](risk-web.gif)
+
+Run the local server and open
+[http://127.0.0.1:8081](http://127.0.0.1:8081):
+
+```bash
+cargo run --example risk_server
+```
+
+The browser uses semantic tables, tabular numerals, and bounded chart panels
+so changing values remain aligned. Snapshots stream from Rust over
+Server-Sent Events.
+
+## Terminal monitor
 
 ![A live Volt options risk dashboard](risk.gif)
 
-`risk` is a practical hello world for the public options model:
+`risk` keeps the compact, keyboard-friendly feel of `top`:
 
 ```bash
 cargo run --example risk
@@ -44,13 +65,20 @@ Volt:      exact contracts -> canonical portfolio -> terminal payoff
 example:   synthetic path  -> teaching marks      -> live risk display
 ```
 
-## Rebuild the recording
+## Rebuild the recordings
 
-The committed GIF comes from deterministic frames emitted by `risk`:
+The terminal GIF comes from deterministic frames emitted by `risk`:
 
 ```bash
 python3 docs/markup/record.py
 ```
 
-The recorder needs Python and Pillow. It uses a fixed seed and invokes the real
-example, so the animation is reproducible rather than a hand-built mockup.
+The browser GIF comes from the live local server and headless Chrome:
+
+```bash
+python3 docs/markup/record_web.py
+```
+
+The recorders need Python and Pillow; the browser recorder also needs Chrome
+and `websocket-client`. Both use a fixed seed and invoke the real examples, so
+the animations are reproducible rather than hand-built mockups.

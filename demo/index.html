@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Volt — simulation risk monitor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b12;
+      --panel: rgba(14, 21, 32, .92);
+      --panel-raised: rgba(18, 28, 42, .94);
+      --line: rgba(148, 163, 184, .14);
+      --line-strong: rgba(148, 163, 184, .24);
+      --ink: #e7edf5;
+      --muted: #8290a3;
+      --cyan: #49d6e9;
+      --cyan-soft: rgba(73, 214, 233, .12);
+      --amber: #f0b85b;
+      --green: #53d59b;
+      --red: #ff7185;
+      --mono: "SFMono-Regular", "Roboto Mono", "Cascadia Code", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% -8%, rgba(29, 122, 140, .25), transparent 30rem),
+        radial-gradient(circle at 95% 15%, rgba(116, 75, 31, .16), transparent 32rem),
+        linear-gradient(180deg, #080d16 0%, var(--bg) 72%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+    main { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 26px 0 42px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+    .brand { display: flex; align-items: center; gap: 15px; }
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 43px;
+      height: 43px;
+      border: 1px solid rgba(73, 214, 233, .36);
+      border-radius: 12px;
+      color: var(--cyan);
+      background: var(--cyan-soft);
+      font: 700 18px/1 var(--mono);
+      box-shadow: inset 0 0 18px rgba(73, 214, 233, .06);
+    }
+    .eyebrow { color: var(--cyan); font: 650 11px/1.2 var(--mono); letter-spacing: .17em; text-transform: uppercase; }
+    h1 { margin: 5px 0 0; font-size: clamp(24px, 3vw, 36px); font-weight: 650; letter-spacing: -.035em; }
+    .status { display: flex; align-items: center; gap: 9px; color: var(--amber); font: 650 11px/1 var(--mono); letter-spacing: .1em; }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
+    .status.live { color: var(--green); }
+    .market-strip {
+      display: grid;
+      grid-template-columns: 1.2fr repeat(4, 1fr);
+      border: 1px solid var(--line-strong);
+      border-radius: 15px;
+      background: var(--panel-raised);
+      overflow: hidden;
+      margin-bottom: 12px;
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .22);
+    }
+    .market-cell { min-width: 0; padding: 14px 17px; border-right: 1px solid var(--line); }
+    .market-cell:last-child { border-right: 0; }
+    .label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; margin-bottom: 7px; }
+    .market-cell strong { display: block; font: 650 19px/1.15 var(--mono); white-space: nowrap; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(330px, .8fr); gap: 12px; }
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .17);
+      overflow: hidden;
+    }
+    .panel-head { display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 16px 17px 12px; border-bottom: 1px solid var(--line); }
+    .panel h2 { margin: 0; font-size: 13px; font-weight: 650; letter-spacing: .015em; }
+    .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .hash { max-width: 190px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font: 10px/1.4 var(--mono); white-space: nowrap; }
+    .chart-wrap { padding: 11px 14px 13px; }
+    canvas { display: block; width: 100%; height: 220px; }
+    .risk-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
+    .risk-metric { min-height: 87px; padding: 15px 17px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .risk-metric:nth-child(even) { border-right: 0; }
+    .risk-metric:nth-last-child(-n+2) { border-bottom: 0; }
+    .risk-metric strong { display: block; margin-top: 8px; font: 650 21px/1 var(--mono); text-align: right; }
+    .wide { grid-column: 1 / -1; }
+    .two-up { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr); gap: 12px; grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+    th { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    th:first-child, td:first-child { text-align: left; }
+    th:not(:first-child), td:not(:first-child) { text-align: right; }
+    td { color: #cbd6e2; }
+    .contract { color: var(--ink); font-weight: 650; }
+    .pill { display: inline-block; min-width: 41px; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 5px; text-align: center; color: var(--muted); font-size: 9px; }
+    .scenario-wrap { overflow-x: auto; }
+    .scenario-table th, .scenario-table td { min-width: 88px; }
+    .scenario-table th:first-child, .scenario-table td:first-child { position: sticky; left: 0; min-width: 116px; background: #0e1622; z-index: 1; }
+    .shock-grid { display: grid; grid-template-columns: 94px repeat(3, 1fr); font: 12px/1.2 var(--mono); }
+    .shock-grid > div { padding: 13px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: right; }
+    .shock-grid > div:nth-child(4n) { border-right: 0; }
+    .shock-grid > div:nth-last-child(-n+4) { border-bottom: 0; }
+    .shock-grid .axis { color: var(--muted); text-align: left; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+    .positive { color: var(--green) !important; }
+    .negative { color: var(--red) !important; }
+    .neutral { color: var(--ink) !important; }
+    footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 13px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    footer code { color: #aab8c8; font-family: var(--mono); }
+    @media (max-width: 980px) {
+      .layout, .two-up { grid-template-columns: 1fr; }
+      .wide, .two-up { grid-column: auto; }
+      .market-strip { grid-template-columns: repeat(2, 1fr); }
+      .market-cell { border-bottom: 1px solid var(--line); }
+      .market-cell:first-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 620px) {
+      main { width: min(100% - 22px, 1440px); padding-top: 17px; }
+      header { align-items: start; flex-direction: column; }
+      .market-strip { grid-template-columns: 1fr 1fr; }
+      .market-cell { padding: 12px; }
+      .market-cell strong { font-size: 16px; }
+      .risk-metric { padding: 13px; }
+      .panel-head { padding: 14px; }
+      th, td { padding: 10px; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">
+        <div class="mark">V</div>
+        <div>
+          <div class="eyebrow">Deterministic strategy simulation</div>
+          <h1>SIMX Iron Condor</h1>
+        </div>
+      </div>
+      <div class="status" id="connection">CONNECTING</div>
+    </header>
+
+    <section class="market-strip" aria-label="Market state">
+      <div class="market-cell"><span class="label">Underlying</span><strong id="spot">—</strong></div>
+      <div class="market-cell"><span class="label">Last tick</span><strong id="tick">—</strong></div>
+      <div class="market-cell"><span class="label">Implied vol</span><strong id="volatility">—</strong></div>
+      <div class="market-cell"><span class="label">Days to expiry</span><strong id="dte">—</strong></div>
+      <div class="market-cell"><span class="label">Path step</span><strong id="step">—</strong></div>
+    </section>
+
+    <section class="layout">
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Path monitor</h2><p>Spot and mark-to-model P&amp;L, last 90 simulation frames.</p></div>
+          <span class="hash" id="hash">—</span>
+        </div>
+        <div class="chart-wrap"><canvas id="history"></canvas></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Live portfolio risk</h2><p>Teaching-model marks; one contract multiplier included.</p></div>
+        </div>
+        <div class="risk-grid">
+          <div class="risk-metric"><span class="label">Portfolio mark</span><strong id="mark">—</strong></div>
+          <div class="risk-metric"><span class="label">Model P&amp;L</span><strong id="pnl">—</strong></div>
+          <div class="risk-metric"><span class="label">Delta</span><strong id="delta">—</strong></div>
+          <div class="risk-metric"><span class="label">Gamma</span><strong id="gamma">—</strong></div>
+          <div class="risk-metric"><span class="label">Vega / point</span><strong id="vega">—</strong></div>
+          <div class="risk-metric"><span class="label">Theta / day</span><strong id="theta">—</strong></div>
+        </div>
+      </article>
+
+      <div class="two-up">
+        <article class="panel">
+          <div class="panel-head">
+            <div><h2>Canonical positions</h2><p>Exact listed-contract legs and current simulated marks.</p></div>
+            <span class="hash"><span id="knots">—</span> payoff knots</span>
+          </div>
+          <div class="scenario-wrap">
+            <table>
+              <thead><tr><th>Contract</th><th>Type</th><th>Qty</th><th>Strike</th><th>Mark</th><th>IV</th><th>Delta</th><th>Leg P&amp;L</th></tr></thead>
+              <tbody id="legs"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div><h2>Expiration shape</h2><p>Projected terminal P&amp;L around live spot.</p></div>
+          </div>
+          <div class="chart-wrap"><canvas id="payoff"></canvas></div>
+        </article>
+      </div>
+
+      <article class="panel wide">
+        <div class="panel-head">
+          <div><h2>Expiration scenarios</h2><p>Same canonical terminal payoff evaluated across spot shocks.</p></div>
+          <span class="hash" id="bounds">—</span>
+        </div>
+        <div class="scenario-wrap">
+          <table class="scenario-table"><tbody id="expiry"></tbody></table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="panel-head">
+          <div><h2>Mark-to-model shock matrix</h2><p>Portfolio P&amp;L for paired spot and volatility shocks.</p></div>
+        </div>
+        <div class="shock-grid" id="shocks"></div>
+      </article>
+    </section>
+
+    <footer>
+      <span>Educational synthetic output. No market quote, brokerage connection, or trading authority.</span>
+      <code>Volt exact contracts → canonical portfolio → Rust snapshot → SSE</code>
+    </footer>
+  </main>
+
+  <script>
+    let latest = null;
+    const connection = document.querySelector("#connection");
+    const capture = new URLSearchParams(window.location.search).has("capture");
+    if (capture) {
+      fetch("/api/snapshot")
+        .then(response => response.json())
+        .then(snapshot => {
+          latest = snapshot;
+          connection.textContent = "CAPTURE · RUST SNAPSHOT";
+          connection.classList.add("live");
+          render(latest);
+          document.documentElement.dataset.ready = "true";
+        });
+    } else {
+      const source = new EventSource("/api/stream");
+      source.addEventListener("snapshot", event => {
+        latest = JSON.parse(event.data);
+        connection.textContent = "LIVE · SSE";
+        connection.classList.add("live");
+        render(latest);
+        document.documentElement.dataset.ready = "true";
+      });
+      source.onerror = () => {
+        connection.textContent = "RECONNECTING";
+        connection.classList.remove("live");
+      };
+    }
+    window.addEventListener("resize", () => {
+      if (latest) drawCharts(latest);
+    });
+
+    const usd = new Intl.NumberFormat("en-US", {
+      style: "currency", currency: "USD", signDisplay: "always",
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    const number = (value, digits = 2) =>
+      new Intl.NumberFormat("en-US", {
+        signDisplay: "always", minimumFractionDigits: digits, maximumFractionDigits: digits
+      }).format(value);
+    const percent = (value, digits = 2) => `${number(value * 100, digits)}%`;
+    const levelPercent = (value, digits = 2) => `${plain(value * 100, digits)}%`;
+    const plain = (value, digits = 2) =>
+      new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: digits, maximumFractionDigits: digits
+      }).format(value);
+    const tone = value => value > 0.000001 ? "positive" : value < -0.000001 ? "negative" : "neutral";
+
+    function setValue(id, text, value = null) {
+      const element = document.querySelector(`#${id}`);
+      element.textContent = text;
+      if (value !== null) element.className = tone(value);
+    }
+
+    function render(snapshot) {
+      setValue("spot", plain(snapshot.spot));
+      setValue("tick", percent(snapshot.last_return, 3), snapshot.last_return);
+      setValue("volatility", levelPercent(snapshot.volatility));
+      setValue("dte", plain(snapshot.days_to_expiry));
+      setValue("step", String(snapshot.step));
+      setValue("mark", usd.format(snapshot.metrics.mark), snapshot.metrics.mark);
+      setValue("pnl", usd.format(snapshot.metrics.pnl), snapshot.metrics.pnl);
+      setValue("delta", number(snapshot.metrics.delta), snapshot.metrics.delta);
+      setValue("gamma", number(snapshot.metrics.gamma, 3), snapshot.metrics.gamma);
+      setValue("vega", number(snapshot.metrics.vega), snapshot.metrics.vega);
+      setValue("theta", number(snapshot.metrics.theta), snapshot.metrics.theta);
+      document.querySelector("#hash").textContent = `${snapshot.portfolio_hash.slice(0, 16)}…`;
+      document.querySelector("#knots").textContent = snapshot.payoff_knots;
+      document.querySelector("#bounds").textContent =
+        `max ${usd.format(snapshot.bounds.max_profit)} · min ${usd.format(snapshot.bounds.max_loss)}`;
+      renderLegs(snapshot.legs);
+      renderExpiry(snapshot.expiry_curve);
+      renderShocks(snapshot.shock_grid);
+      drawCharts(snapshot);
+    }
+
+    function renderLegs(legs) {
+      const body = document.querySelector("#legs");
+      body.replaceChildren(...legs.map(leg => {
+        const row = document.createElement("tr");
+        const values = [
+          [leg.contract_id, "contract"],
+          [leg.right, "pill"],
+          [number(leg.quantity, 0)],
+          [plain(leg.strike)],
+          [plain(leg.mark, 3)],
+          [levelPercent(leg.volatility)],
+          [number(leg.delta)],
+          [usd.format(leg.pnl), tone(leg.pnl)]
+        ];
+        values.forEach(([text, className]) => {
+          const cell = document.createElement("td");
+          if (className === "pill") {
+            const pill = document.createElement("span");
+            pill.className = "pill";
+            pill.textContent = text;
+            cell.append(pill);
+          } else {
+            cell.textContent = text;
+            if (className) cell.className = className;
+          }
+          row.append(cell);
+        });
+        return row;
+      }));
+    }
+
+    function renderExpiry(points) {
+      const body = document.querySelector("#expiry");
+      const rows = [
+        ["Spot shock", ...points.map(point => point.shock === 0 ? "CURRENT" : percent(point.shock, 0))],
+        ["Terminal spot", ...points.map(point => plain(point.spot))],
+        ["Expiration P&L", ...points.map(point => usd.format(point.pnl))]
+      ];
+      body.replaceChildren(...rows.map((values, rowIndex) => {
+        const row = document.createElement("tr");
+        values.forEach((text, index) => {
+          const cell = document.createElement(rowIndex === 0 ? "th" : "td");
+          cell.textContent = text;
+          if (rowIndex === 2 && index > 0) cell.className = tone(points[index - 1].pnl);
+          row.append(cell);
+        });
+        return row;
+      }));
+    }
+
+    function renderShocks(cells) {
+      const grid = document.querySelector("#shocks");
+      const values = [
+        ["Spot / IV", "axis"], ["-5 pt", "axis"], ["Current", "axis"], ["+5 pt", "axis"]
+      ];
+      for (let row = 0; row < 3; row++) {
+        const slice = cells.slice(row * 3, row * 3 + 3);
+        values.push([percent(slice[0].spot_shock, 0), "axis"]);
+        slice.forEach(cell => values.push([usd.format(cell.pnl), tone(cell.pnl)]));
+      }
+      grid.replaceChildren(...values.map(([text, className]) => {
+        const cell = document.createElement("div");
+        cell.textContent = text;
+        cell.className = className;
+        return cell;
+      }));
+    }
+
+    function drawCharts(snapshot) {
+      drawHistory(document.querySelector("#history"), snapshot.spot_history, snapshot.pnl_history);
+      drawPayoff(document.querySelector("#payoff"), snapshot.expiry_curve);
+    }
+
+    function setup(canvas) {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      const context = canvas.getContext("2d");
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, rect.width, rect.height);
+      return { context, width: rect.width, height: rect.height };
+    }
+
+    function grid(context, width, height, pad) {
+      context.strokeStyle = "rgba(148,163,184,.12)";
+      context.lineWidth = 1;
+      for (let line = 0; line < 5; line++) {
+        const y = pad.top + line / 4 * (height - pad.top - pad.bottom);
+        context.beginPath();
+        context.moveTo(pad.left, y);
+        context.lineTo(width - pad.right, y);
+        context.stroke();
+      }
+    }
+
+    function drawHistory(canvas, spots, pnls) {
+      const { context, width, height } = setup(canvas);
+      const pad = { left: 11, right: 11, top: 22, bottom: 10 };
+      grid(context, width, height, pad);
+      series(context, spots, width, height, pad, "#49d6e9");
+      series(context, pnls, width, height, pad, "#f0b85b");
+      context.font = "10px ui-monospace, monospace";
+      context.fillStyle = "#49d6e9";
+      context.fillText("SPOT", 12, 12);
+      context.fillStyle = "#f0b85b";
+      context.fillText("P&L", 58, 12);
+    }
+
+    function series(context, values, width, height, pad, color) {
+      if (values.length < 2) return;
+      const minimum = Math.min(...values);
+      const maximum = Math.max(...values);
+      const range = Math.max(maximum - minimum, 1e-9);
+      context.strokeStyle = color;
+      context.lineWidth = 1.8;
+      context.beginPath();
+      values.forEach((value, index) => {
+        const x = pad.left + index / (values.length - 1) * (width - pad.left - pad.right);
+        const y = height - pad.bottom - (value - minimum) / range * (height - pad.top - pad.bottom);
+        index ? context.lineTo(x, y) : context.moveTo(x, y);
+      });
+      context.stroke();
+    }
+
+    function drawPayoff(canvas, points) {
+      const { context, width, height } = setup(canvas);
+      const pad = { left: 12, right: 12, top: 18, bottom: 22 };
+      const values = points.map(point => point.pnl);
+      const minimum = Math.min(0, ...values);
+      const maximum = Math.max(0, ...values);
+      const range = Math.max(maximum - minimum, 1);
+      const y = value => pad.top + (maximum - value) / range * (height - pad.top - pad.bottom);
+      context.strokeStyle = "rgba(148,163,184,.2)";
+      context.beginPath();
+      context.moveTo(pad.left, y(0));
+      context.lineTo(width - pad.right, y(0));
+      context.stroke();
+      context.strokeStyle = "#49d6e9";
+      context.lineWidth = 2;
+      context.beginPath();
+      points.forEach((point, index) => {
+        const x = pad.left + index / (points.length - 1) * (width - pad.left - pad.right);
+        index ? context.lineTo(x, y(point.pnl)) : context.moveTo(x, y(point.pnl));
+      });
+      context.stroke();
+      points.forEach((point, index) => {
+        const x = pad.left + index / (points.length - 1) * (width - pad.left - pad.right);
+        context.fillStyle = point.pnl >= 0 ? "#53d59b" : "#ff7185";
+        context.beginPath();
+        context.arc(x, y(point.pnl), 3, 0, Math.PI * 2);
+        context.fill();
+      });
+      context.fillStyle = "#8290a3";
+      context.font = "10px ui-monospace, monospace";
+      context.textAlign = "left";
+      context.fillText(`MIN ${usd.format(minimum)}`, pad.left, height - 5);
+      context.textAlign = "right";
+      context.fillText(`MAX ${usd.format(maximum)}`, width - pad.right, height - 5);
+    }
+  </script>
+</body>
+</html>

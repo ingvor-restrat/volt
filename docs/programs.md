@@ -24,6 +24,16 @@ cargo run -q --example risk -- --ticks 20 --seed 28695
 It is educational synthetic output, not a market-data source or production
 pricing model. See the [recorded walkthrough](markup/README.md).
 
+For the aligned browser presentation of the same simulation:
+
+```bash
+cargo run --example risk_server
+```
+
+Then open [http://127.0.0.1:8081](http://127.0.0.1:8081). The server publishes
+the current Rust snapshot as JSON and streams updates with Server-Sent Events;
+the browser owns presentation only.
+
 ## `zap`
 
 ```bash

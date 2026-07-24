@@ -37,15 +37,20 @@ For the fuller story, read:
 ```bash
 cargo test
 cargo run --example risk
+cargo run --example risk_server
 cargo run --example zap
 cargo run --example graph -- --output /tmp/volt-graphs.jsonl
 ```
 
-`risk` is the visual hello world: it runs a canonical four-leg *iron condor*
-through a correlated spot/volatility simulation and displays live marks,
+`risk` is the compact, `top`-like terminal monitor. `risk_server` serves the
+same Rust simulation as an aligned browser dashboard at
+[http://127.0.0.1:8081](http://127.0.0.1:8081). Both run a canonical four-leg
+*iron condor* through a correlated spot/volatility path and display live marks,
 Greeks, expiration P&L, and a spot/volatility shock grid. The pricer is an
 educational adapter; Volt remains the authority for exact contracts,
 canonicalization, and payoff algebra.
+
+[![Volt simulation-driven browser dashboard](docs/markup/risk-web.gif)](docs/markup/README.md)
 
 `zap` shows how exact portfolio canonicalization and terminal-payoff projection
 reduce a small option search space. `graph` emits deterministic JSON Lines
