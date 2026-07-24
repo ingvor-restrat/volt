@@ -1,11 +1,91 @@
-# volt
-Volt is a typed, composable representation and runtime for options portfolios. An options position is
-simultaneously a set of listed contracts, a payoff shape, a collection of volatility and path risks, and a
-state that evolves through exercise, assignment, expiry, and trading. Volt keeps those meanings together
-in one canonical portfolio graph, preserving relationships that flat tables and disconnected services lose.
+# Volt
 
-From that authoritative representation, Volt compiles consistent payoff, graph, tensor, simulation, and
-evidence views with shared financial semantics and provenance. Typed contracts and lifecycle transitions
-exclude invalid states, canonicalization removes equivalent constructions, and deterministic journals make
-results replayable and auditable. This gives strategy-discovery, optimization, and learning systems a
-stable foundation without allowing them to redefine what a portfolio means.
+Volt is a typed, composable representation and runtime for options
+portfolios. A portfolio is simultaneously a set of listed contracts, a payoff
+shape, a collection of path risks, and a state that evolves through exercise,
+assignment, expiry, and trading. Volt keeps those meanings together in one
+canonical model.
+
+The publishable Cargo package is named `volt-options`; its Rust library name
+remains `volt`.
+
+The initial Rust release provides:
+
+- typed call and put contracts with European, Bermudan, and American exercise;
+- cash and physical settlement;
+- exact portfolio canonicalization and stable semantic hashes;
+- terminal payoff projections without conflating them with dynamic equivalence;
+- deterministic exercise, assignment, expiry, and replay journals;
+- path simulation with explicit fill and transaction-cost models;
+- a point-in-time candidate grammar for strategy discovery;
+- versioned graph samples for optimization and learning systems; and
+- generated and historical market observations behind one trait.
+
+Volt is a financial-logic library. It does not contain brokerage connectivity,
+live data vendors, account policy, or order-submission authority.
+
+For the fuller story, read:
+
+- [How Volt fits together](https://github.com/ingvor-restrat/volt/blob/main/docs/architecture.md)
+- [Programs and naming](https://github.com/ingvor-restrat/volt/blob/main/docs/programs.md)
+- [`risk` live walkthrough](https://github.com/ingvor-restrat/volt/blob/main/docs/markup/README.md)
+- [Reproducible results](https://github.com/ingvor-restrat/volt/blob/main/docs/results.md)
+- [Long-form LaTeX papers](https://github.com/ingvor-restrat/volt/blob/main/docs/latex/README.md)
+
+## Quick start
+
+```bash
+cargo test
+cargo run --example risk
+cargo run --example zap
+cargo run --example graph -- --output /tmp/volt-graphs.jsonl
+```
+
+`risk` is the visual hello world: it runs a canonical four-leg *iron condor*
+through a correlated spot/volatility simulation and displays live marks,
+Greeks, expiration P&L, and a spot/volatility shock grid. The pricer is an
+educational adapter; Volt remains the authority for exact contracts,
+canonicalization, and payoff algebra.
+
+`zap` shows how exact portfolio canonicalization and terminal-payoff projection
+reduce a small option search space. `graph` emits deterministic JSON Lines
+fixtures built from synthetic marks and scenario weights. Short names are
+intentional: command names are part of the project vocabulary. The name `cog`
+is reserved for a real compiler rather than attached to a formatter or demo.
+
+## Core model
+
+```rust
+use volt::{
+    CanonicalPortfolio, ExerciseSchedule, OptionContract, OptionRight, Position,
+    PriceMicros, Settlement, TimestampNs,
+};
+
+let expiry = TimestampNs(1_800_000_000_000_000_000);
+let call = OptionContract::new(
+    "XYZ-C-100",
+    "XYZ",
+    "USD",
+    OptionRight::Call,
+    PriceMicros(100_000_000),
+    100,
+    ExerciseSchedule::European { expiry },
+    Settlement::Physical,
+)?;
+let portfolio = CanonicalPortfolio::from_positions(vec![Position::new(call, 1)?])?;
+let payoff = portfolio.terminal_payoff_projection()?;
+
+# Ok::<(), volt::VoltError>(())
+```
+
+All money values use integer micro-units. Timestamps use integer nanoseconds.
+Serialized structures carry explicit schema versions, and semantic hashes are
+computed from canonical serialized forms.
+
+## Extraction boundary
+
+This repository contains the reusable cog/options engine and its derivative
+examples. Application-specific data archives, cohort builders, training loops,
+services, and execution adapters remain outside Volt.
+
+Licensed under Apache-2.0.

@@ -1,0 +1,435 @@
+\documentclass{strategynet-report}
+
+\hypersetup{
+  pdftitle={Volt: Strategy Search},
+  pdfauthor={research@strategynet.ai}
+}
+
+\lstdefinestyle{volt}{
+  style=sncode
+}
+
+\newcommand{\VOLT}{\textsf{Volt}}
+\newcommand{\COG}{\texttt{cog}}
+\newcommand{\E}{\mathbb{E}}
+
+\tikzset{
+  discoverybox/.style={
+    draw=SNLine,
+    fill=SNPaper,
+    rounded corners=2pt,
+    text width=26mm,
+    minimum height=18mm,
+    align=center,
+    inner sep=2.5mm,
+    font=\sffamily\fontsize{8}{9.5}\selectfont
+  },
+  discoverylearn/.style={
+    discoverybox,
+    draw=SNSignalDark,
+    fill=SNSignal!6
+  },
+  discoveryflow/.style={
+    -{Latex[length=2mm]},
+    draw=SNInk,
+    line width=0.75pt
+  },
+  discoveryfeedback/.style={
+    -{Latex[length=2mm]},
+    draw=SNSignalDark,
+    dashed,
+    line width=0.75pt
+  }
+}
+
+\title{\VOLT{}: Strategy Search}
+\SNSubtitle{Finding useful portfolios without evaluating every candidate}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
+\SNDocumentType{Research architecture}
+\SNVersion{Version 0.2}
+\SNDate{July 2026}
+\SNStatus{Open-source working paper}
+\SNShortTitle{Volt: Strategy Search}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An option chain can produce more valid portfolios than a researcher can price,
+simulate, and review.  Many candidates are duplicates or slight variations;
+others look attractive only because their features used stale information or
+their labels ignored executable prices.  Exhaustive evaluation wastes a
+limited research budget, while an unconstrained ranker can learn the wrong
+lesson very efficiently.
+
+This paper describes a search process that spends evaluation effort on
+distinct, legal, point-in-time candidates.  Each candidate becomes a
+versioned \VOLT{} graph linked to its exact portfolio identity, bounded
+actions, and deterministic simulation evidence.  The proposed statistical
+layer learns over those graphs and adds dataset construction, candidate
+scoring, active acquisition, baseline comparisons, quote-backed labels, and
+chronological evaluation.  The public repository ships synthetic fixtures
+and semantic reduction results; it does not ship a trained ranker or make an
+alpha claim.  The \COG{} compiler and an account-aware legal mask remain
+future efficiency and integration work.
+\end{abstract}
+
+\SNtableofcontents
+
+\part{Research Design}
+
+\section{Discovery task}
+
+At a decision time \(t\), the research system receives a market and account
+state together with the contracts that were listed and observable at that
+time.  The implemented \texttt{CandidateGrammar} resolves typed actions
+against the caller-supplied listed universe and enforces structural and
+exercise-authority rules.  Caller policy must still apply liquidity, capital,
+margin, and account constraints.  A future \COG{} compiler may coordinate
+those decisions and their diagnostics; the discovery model should see
+candidates only after every deterministic decision has been recorded.
+
+The initial task is bounded.  Given an admissible set
+\(A_t\), estimate the outcome and risk of each candidate and rank the set under
+a declared objective.  A candidate may be a complete portfolio constructed
+from an empty account or a one-step transformation of existing inventory.
+Either formulation yields an ordinary supervised sample once the simulator or
+historical replay has supplied the outcome.  Exhaustive evaluation remains
+possible on small universes, which gives the experiment a known oracle and
+makes search efficiency measurable.
+
+This separation keeps the research question precise.  Contract validity,
+exercise authority, and settlement remain Volt runtime concerns; account
+admissibility remains an application concern.  The model is
+judged on how effectively it orders legal alternatives, how much expensive
+evaluation it saves, and whether its ranking remains useful after spreads,
+fees, and out-of-time market changes.
+
+\section{Artifact contract}
+
+The proposed research interface exposes a sample
+\[
+  d_t=(G_t,A_t,M_t,y_t,p_t),
+\]
+where \(G_t\) is the compiled graph, \(A_t\) contains feasible candidates,
+\(M_t\) is the legal mask, \(y_t\) carries outcome and risk labels, and \(p_t\)
+records provenance.  Every element is versioned.  The model may replace its
+graph schema, normalizers, features, and objective without changing the
+authoritative portfolio or the events that produced its label.  The current
+\texttt{PortfolioGraphSample} implements \(G_t\), exact and payoff hashes,
+and an optional compact target.  Volt does not yet serialize the complete
+five-part sample as one artifact.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}p{0.13\textwidth}X X@{}}
+\toprule
+Field & Financial content & Experimental use \\
+\midrule
+\(G_t\) & portfolio, exact option positions, underlying, expiry, and typed relations &
+model input and attribution anchor \\
+\(A_t\) & resolved candidate portfolios or transformations &
+objects to score under one acquisition budget \\
+\(M_t\) & authority, lifecycle, liquidity, and resource decisions &
+exclusion before ranking or normalization \\
+\(y_t\) & P\&L, drawdown, tail risk, turnover, costs, and scenario outcomes &
+regression, ranking, calibration, or Pareto targets \\
+\(p_t\) & timestamps, sources, hashes, assumptions, and split membership &
+replay, leakage checks, and result identity \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+The experiment manifest fixes the observation clock, prediction horizon,
+eligible grammar, execution models, scenario distribution, random seeds,
+objective, acquisition budget, and chronological split before fitting begins.
+Normalizers and learned categorical vocabularies use training data alone.
+Validation data select configurations; the test split remains sealed until
+the configuration and simulator budget have been frozen.
+
+\section{Candidate pool}
+
+The public fixtures use six synthetic same-expiry contracts.  The
+\texttt{graph} example enumerates quantities in \(\{-1,0,1\}\), producing
+all \(3^6=729\) graph samples.  Each sample carries a deterministic identifier,
+an exact portfolio hash, an optional terminal-payoff hash, typed nodes and
+edges, and a synthetic target.
+
+The \texttt{zap} example supplies two semantic controls.  Two ordered actions
+produce 144 raw sequences but 73 exact portfolios.  Independently, quantities
+in \(\{-2,-1,0,1,2\}\) across six contracts produce 15,625 exact portfolios
+and 13,321 terminal-payoff classes.  These fixtures test identity,
+canonicalization, and export plumbing; they contain no historical market
+cohort, trained model, liquidity filter, or economic claim.
+
+As the universe expands, exhaustive labels become too costly.  Candidate
+generation and evaluation must then be treated as separate budgets.  A future
+\COG{} compiler or caller application may enumerate or sample a large valid pool cheaply, while the
+acquisition policy chooses the smaller subset that receives scenario
+simulation or historical replay.
+
+\part{Models}
+
+\section{Graph view}
+
+\subsection{Schema}
+
+The implemented graph is derived from a \texttt{CanonicalPortfolio} plus a
+validated \texttt{GraphContext}.  Its node types are \texttt{Portfolio},
+\texttt{Underlying}, \texttt{Expiry}, and \texttt{OptionPosition}; its edge
+types are \texttt{PositionIn}, \texttt{WrittenOn}, and \texttt{ExpiresAt}.
+Every sample carries both exact-portfolio and terminal-payoff hashes.
+
+Position features include contract identity, right, settlement, exercise
+style, strike, declared mark, signed quantity, multiplier, first exercise
+time, and discrete opportunity count.  Context supplies one underlying,
+currency, valuation time, common expiry, reference spot, and a mark for every
+contract.  Account nodes, Greeks, spread, liquidity, lifecycle state, market
+events, and multi-expiry graphs are not part of schema version
+\texttt{volt.portfolio\_graph.v1}.
+
+The current view accommodates variable leg counts while remaining insensitive
+to canonical input order.  Future experiments may derive richer graph schemas
+without rewriting contract semantics, but each schema requires its own
+version and controls.  A set encoder and conventional engineered features
+remain essential comparisons \cite{relational}.
+
+\subsection{Encoding}
+
+Type-specific input transforms map nodes into a common latent dimension.
+Relation-specific message passing produces contextual node states, and a
+permutation-invariant readout gives a portfolio representation \(h_t\).
+Candidate \(a\) receives its own representation \(e(a)\), either from a
+separately compiled graph or from the proposed graph edit.  One useful score
+is
+\[
+  Q_\theta(G_t,a)
+    = f_\theta\!\left(h_t,e(a),h_t\odot e(a)\right).
+\]
+Companion heads may estimate an outcome distribution, named risk measures,
+and a behavioral embedding.  The legal mask is applied before ranking or
+probability normalization, so an invalid action cannot acquire probability
+through a numerical accident.
+
+\section{Training objective}
+
+No single scalar captures every use of an option portfolio.  A research
+dataset may therefore derive a vector
+\[
+\begin{aligned}
+  y=(&\text{net P\&L},\text{drawdown},\text{CVaR},\text{turnover},\\
+     &\text{capital use},\text{exercise loss},\text{scenario vector}),
+\end{aligned}
+\]
+from \texttt{SimulationResult} and additional named risk models.  The current
+result directly records fills, journals, pathwise and terminal P\&L, leg
+attribution, final state, and reproducibility hashes; it does not calculate
+drawdown, CVaR, or capital use automatically.  The manifest states how the
+experiment derives and uses any added targets.  A fitting loss may
+combine outcome regression, pairwise or listwise ranking, distribution
+calibration, and auxiliary risk targets:
+\[
+  \mathcal L
+    =\lambda_v\mathcal L_{\mathrm{value}}
+    +\lambda_r\mathcal L_{\mathrm{rank}}
+    +\lambda_c\mathcal L_{\mathrm{calibration}}
+    +\lambda_a\mathcal L_{\mathrm{aux}}.
+\]
+Coefficients, target transforms, and any scalar utility belong to the
+experiment record.  Changing them creates a new study while leaving candidate
+identity and financial labels intact.
+
+\section{Baselines}
+
+Graph models must justify their additional machinery against simpler
+alternatives.  Every comparison includes deterministic trading heuristics,
+linear or tree models on engineered features, a permutation-invariant set
+encoder, and random or unguided acquisition.  All models receive identical
+point-in-time information, candidate pools, labels, and evaluation budgets.
+Wall-clock measurements accompany simulator-call counts because a model that
+saves evaluations but consumes much more compute may still be unattractive.
+
+Deep Sets provides the closest structural control: it handles variable-sized,
+order-invariant collections without relation-specific message passing
+\cite{deepsets}.  GraphGym-style sweeps can standardize optimization and
+architecture comparisons \cite{graphgym}; PyTorch Geometric supplies the
+implementation substrate \cite{pyg}.  The Volt manifest continues to own
+financial objectives, data splits, and evidence identities.
+
+\section{Acquisition loop}
+
+\begin{center}
+\begin{tikzpicture}[node distance=4mm]
+  \node[discoverybox] (data) {\textbf{Volt samples}\\graphs, masks, labels,
+    evidence};
+  \node[discoverylearn,right=of data] (fit) {\textbf{Fit}\\value, rank, risk,
+    embedding};
+  \node[discoverybox,right=of fit] (rank) {\textbf{Rank pool}\\score legal,
+    unlabeled candidates};
+  \node[discoverylearn,right=of rank] (acquire) {\textbf{Acquire}\\top,
+    uncertain, and random};
+  \node[discoverybox,right=of acquire] (simulate) {\textbf{Evaluate}\\simulate,
+    validate, append};
+  \draw[discoveryflow] (data) -- (fit);
+  \draw[discoveryflow] (fit) -- (rank);
+  \draw[discoveryflow] (rank) -- (acquire);
+  \draw[discoveryflow] (acquire) -- (simulate);
+  \draw[discoveryfeedback] (simulate.south) -- ++(0,-5mm) -|
+    (data.south);
+\end{tikzpicture}
+\begingroup
+\captionsetup{hypcap=false}
+\captionof{figure}{Supervised discovery under a fixed acquisition budget.
+The feedback path carries immutable simulator evidence into a new dataset
+version; it never alters an existing label.}
+\label{fig:acquisition-loop}
+\endgroup
+\end{center}
+\par\medskip
+
+An initial labeled cohort fits the value and ranking heads.  The model then
+scores an unlabeled pool, after which the acquisition rule selects candidates
+for expensive evaluation.  High predicted utility alone is insufficient:
+early errors can concentrate the dataset around an accidental pattern.  The
+batch therefore combines promising candidates with uncertainty or diversity
+coverage and a compulsory random allocation.
+
+Each acquisition records the candidate universe, model checkpoint, score,
+selection reason, and probability where available.  Once evaluated, the new
+evidence is appended under a new dataset manifest and the model is retrained.
+Learning curves plot result quality against both simulator calls and elapsed
+compute.  The experiment stops at its preregistered budget rather than when a
+visually attractive backtest appears.
+
+\part{Evaluation}
+
+\section{Quote-backed labels}
+
+Marks and fills remain separate.  \texttt{ScenarioOptionPrice} records a
+declared mark and optional bid and ask.  \texttt{DeclaredMark} uses the mark as
+a synthetic or proxy fill; \texttt{CrossAtTouch} buys at the ask and sells at
+the bid, failing closed when the required side is absent.  Neither convention
+establishes that an order executed.
+
+The public repository does not ship historical quote-backed rankings.  A
+future ranking experiment should compare declared marks, quote midpoints, and
+executable-side conventions, record displayed-size and fill limitations, and
+report sensitivity to the spread rather than importing unpublished
+correlations into this paper.
+
+\section{Splits and metrics}
+
+No train/validation/test market cohort is included in Volt.  A future study
+must use chronological splits and, where repeated issuers are present, an
+issuer-aware split so company behavior cannot cross freely between training
+and evaluation.
+
+Primary measurements include:
+\begin{itemize}[nosep]
+  \item precision and normalized discounted cumulative gain at \(k\);
+  \item recovery of exhaustive-search top-decile candidates;
+  \item rank correlation and top-\(k\) overlap across execution assumptions;
+  \item distribution calibration and tail-risk error;
+  \item diversity and canonical uniqueness of acquired candidates;
+  \item out-of-time utility after declared costs;
+  \item simulator calls and elapsed compute required to reach a target score.
+\end{itemize}
+Invalid-action rate should remain zero after masking.  That is an integration
+requirement for the future compiler and policy layer, not a property currently
+proved for an unimplemented combined mask.
+
+\section{Research sequence}
+
+\subsection{Canonical search}
+
+The bounded enumeration supplies ground truth for raw constructions, exact
+portfolios, payoff classes, dominance, and clustering.  It supports direct
+measurement of reduction ratios and lets the ranker be compared with
+exhaustive search before acquisition becomes necessary.
+
+\subsection{Event portfolios}
+
+An earnings study expands the cohort to liquid U.S. names observed immediately
+before scheduled releases.  Delta buckets and expirations remain narrow enough
+to preserve an inspectable universe.  Post-event labels use executable quote
+conventions, and time and issuer splits limit memorization.
+
+\subsection{Volatility dynamics}
+
+Further studies separate fixed-contract changes from relative-coordinate
+changes in strike and maturity.  Term structure, forward variance, skew carry,
+and spot--volatility correlation are estimated by regime and observation
+horizon.  Their features must be constructed entirely from information
+available at the ranking clock.
+
+\subsection{Conformance}
+
+The current Rust tests verify exact canonicalization, terminal hinge payoff,
+exercise and assignment consequences, deterministic replay, quote authority,
+scenario fills, graph export, and candidate branching.  Future macro support
+for \emph{verticals}, \emph{straddles}, \emph{strangles},
+\emph{butterflies}, \emph{iron condors}, and \emph{calendars}
+will require independent expansion and ordering fixtures.  Such controls
+distinguish a model failure from a financial representation error.
+
+\section{Evidence and limits}
+
+Every prediction links to the graph and checkpoint that produced it.  Graph
+attributions and feature ablations describe the model; leg and scenario
+attribution reconcile the financial outcome; the Volt journal establishes the
+contracts, observations, and transitions.  Keeping those records separate
+prevents a persuasive model explanation from substituting for accounting
+evidence.
+
+The grammar, market cohort, simulation model, and objective place hard limits
+on discovery.  A learner may exploit an optimistic fill convention, a data
+revision, a simulator defect, or a narrow market regime as readily as it
+exploits a durable relationship.  Candidates selected for further study
+therefore face adversarial scenarios, alternative costs, capacity analysis,
+and untouched time periods before their apparent utility receives an economic
+interpretation.
+
+The current synthetic fixtures verify infrastructure only.  Their objective
+and scenario weights are declared synthetic inputs, and their
+cross-at-touch behavior is a modeled fill rule.  The next useful research
+result is an out-of-time acquisition curve on a public, point-in-time cohort,
+compared with the full baseline suite at equal evaluation budgets.
+
+\section{Conclusion}
+
+Volt supplies a stable financial search space; the discovery system learns how
+to traverse it economically.  This study keeps the decision static so
+candidate identity, labels, rankings, and acquisition cost can be audited
+against exhaustive ground truth.  Once that loop is reliable, the same graph
+encoder may support sequential control, but trajectory generation, delayed
+reward, and rollout allocation belong to a different experimental problem.
+
+\begin{thebibliography}{9}
+
+\bibitem{deepsets}
+M. Zaheer, S. Kottur, S. Ravanbakhsh, B. Póczos, R. Salakhutdinov, and
+A. Smola,
+\emph{Deep Sets},
+Advances in Neural Information Processing Systems, 2017,
+\url{https://arxiv.org/abs/1703.06114}.
+
+\bibitem{relational}
+P. Battaglia et al.,
+\emph{Relational Inductive Biases, Deep Learning, and Graph Networks},
+2018,
+\url{https://arxiv.org/abs/1806.01261}.
+
+\bibitem{pyg}
+M. Fey and J. E. Lenssen,
+\emph{Fast Graph Representation Learning with PyTorch Geometric},
+ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019,
+\url{https://arxiv.org/abs/1903.02428}.
+
+\bibitem{graphgym}
+J. You, R. Ying, and J. Leskovec,
+\emph{Design Space for Graph Neural Networks},
+Advances in Neural Information Processing Systems, 2020,
+\url{https://arxiv.org/abs/2011.08843}.
+
+\end{thebibliography}
+
+\end{document}
