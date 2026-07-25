@@ -1,10 +1,17 @@
 # Volt
 
+Typed, canonical options portfolio logic with deterministic lifecycle,
+simulation, and payoff analysis.
+
 Volt is a typed, composable representation and runtime for options
 portfolios. A portfolio is simultaneously a set of listed contracts, a payoff
 shape, a collection of path risks, and a state that evolves through exercise,
 assignment, expiry, and trading. Volt keeps those meanings together in one
 canonical model.
+
+Volt is part of the open-source analytical architecture behind strategynet.ai.
+Read the
+[Volt architecture overview](https://strategynet.ai/insights/volt-open-source-options-portfolio-logic).
 
 The publishable Cargo package is named `volt-options`; its Rust library name
 remains `volt`.
