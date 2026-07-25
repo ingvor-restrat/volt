@@ -3,15 +3,16 @@
 //! Marks, scenario probabilities, and targets are synthetic infrastructure
 //! fixtures. They are not return estimates or trading results.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use std::path::PathBuf;
 
 use volt::{
-    CanonicalPortfolio, ContractId, Currency, ExerciseSchedule, GraphContext, GraphTarget,
-    OptionContract, OptionRight, PortfolioGraphSample, Position, PriceMicros, Settlement,
-    TimestampNs, UnderlyingId,
+    CandidateAction, CandidateActionEffect, CandidateGrammar, CandidateMarketContext,
+    CanonicalPortfolio, ContractId, Currency, ExerciseSchedule, ExpiryBucket, GraphContext,
+    GraphTarget, OptionContract, OptionRight, PortfolioGraphSample, PriceMicros, Settlement,
+    StrikeOrDeltaBucket, TimestampNs, UnderlyingId,
 };
 
 const MICROS_PER_DOLLAR: i64 = 1_000_000;
@@ -21,6 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let expiry = TimestampNs(1_800_000_000_000_000_000);
     let valuation_time = TimestampNs(1_797_408_000_000_000_000);
     let contracts = fixture_contracts(expiry)?;
+    let (grammar, candidate_context) =
+        fixture_candidate_compiler(&contracts, valuation_time, expiry)?;
     let marks = fixture_marks(&contracts);
     let context = GraphContext {
         underlying: UnderlyingId("SPY".to_owned()),
@@ -46,15 +49,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for q4 in -1_i64..=1 {
                         for q5 in -1_i64..=1 {
                             let quantities = [q0, q1, q2, q3, q4, q5];
-                            let positions = contracts
-                                .iter()
-                                .zip(quantities)
-                                .filter(|(_, quantity)| *quantity != 0)
-                                .map(|(contract, quantity)| {
-                                    Position::new(contract.clone(), quantity).unwrap()
-                                })
-                                .collect::<Vec<_>>();
-                            let portfolio = CanonicalPortfolio::from_positions(positions)?;
+                            let portfolio = compile_portfolio(
+                                &grammar,
+                                &candidate_context,
+                                &contracts,
+                                &quantities,
+                            )?;
                             let target =
                                 synthetic_target(&portfolio, &context, &spots, &probabilities)?;
                             let sample = PortfolioGraphSample::from_portfolio(
@@ -74,6 +74,85 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writer.flush()?;
     eprintln!("wrote {rows} graph samples");
     Ok(())
+}
+
+fn fixture_candidate_compiler(
+    contracts: &[OptionContract],
+    valuation_time: TimestampNs,
+    expiry: TimestampNs,
+) -> Result<(CandidateGrammar, CandidateMarketContext), Box<dyn std::error::Error>> {
+    let time_to_expiry = expiry
+        .0
+        .checked_sub(valuation_time.0)
+        .ok_or("fixture expiry precedes valuation time")?;
+    let strike_buckets = [90_i64, 100, 110]
+        .into_iter()
+        .map(|strike| StrikeOrDeltaBucket::StrikeRange {
+            bucket_id: format!("strike-{strike}"),
+            minimum_strike_micros: strike * MICROS_PER_DOLLAR,
+            maximum_strike_micros: strike * MICROS_PER_DOLLAR,
+        })
+        .collect();
+    let allowed_quantities = BTreeSet::from([-1_i64, 1]);
+    let grammar = CandidateGrammar::new(
+        vec![ExpiryBucket {
+            bucket_id: "fixture-expiry".to_owned(),
+            minimum_time_to_expiry_ns: time_to_expiry,
+            maximum_time_to_expiry_ns: time_to_expiry,
+        }],
+        strike_buckets,
+        allowed_quantities.clone(),
+        allowed_quantities,
+    )?;
+    let context = CandidateMarketContext {
+        valuation_time,
+        reference_spot: PriceMicros(100 * MICROS_PER_DOLLAR),
+        absolute_delta_bps: BTreeMap::new(),
+    };
+    // Fail at fixture construction rather than halfway through enumeration.
+    for contract in contracts {
+        if contract.expiry() != expiry {
+            return Err("fixture contracts must share one expiry".into());
+        }
+    }
+    Ok((grammar, context))
+}
+
+fn compile_portfolio(
+    grammar: &CandidateGrammar,
+    context: &CandidateMarketContext,
+    contracts: &[OptionContract],
+    quantities: &[i64; 6],
+) -> Result<CanonicalPortfolio, Box<dyn std::error::Error>> {
+    let mut portfolio = CanonicalPortfolio::from_positions(Vec::new())?;
+    for (contract, quantity) in contracts.iter().zip(quantities) {
+        if *quantity == 0 {
+            continue;
+        }
+        let strike = contract.strike.0 / MICROS_PER_DOLLAR;
+        let action = CandidateAction::AddLeg {
+            right: contract.right,
+            expiry_bucket: "fixture-expiry".to_owned(),
+            strike_or_delta_bucket: format!("strike-{strike}"),
+            quantity: *quantity,
+        };
+        let compiled = grammar.compile_action(&action, &portfolio, contracts, context)?;
+        if compiled.len() != 1 {
+            return Err(format!(
+                "fixture action for {} compiled to {} branches",
+                contract.contract_id.0,
+                compiled.len()
+            )
+            .into());
+        }
+        portfolio = match compiled[0].apply(&portfolio)? {
+            CandidateActionEffect::Portfolio(next) => next,
+            CandidateActionEffect::Runtime(_) => {
+                return Err("fixture AddLeg unexpectedly compiled to a runtime action".into())
+            }
+        };
+    }
+    Ok(portfolio)
 }
 
 fn output_path() -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {

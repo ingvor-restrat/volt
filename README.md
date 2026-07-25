@@ -35,6 +35,7 @@ For the fuller story, read:
 
 - [How Volt fits together](https://github.com/ingvor-restrat/volt/blob/main/docs/architecture.md)
 - [Programs and naming](https://github.com/ingvor-restrat/volt/blob/main/docs/programs.md)
+- [Supervised graph learning](https://github.com/ingvor-restrat/volt/blob/main/docs/supervised-gnn.md)
 - [`risk` live walkthrough](https://github.com/ingvor-restrat/volt/blob/main/docs/markup/README.md)
 - [Reproducible results](https://github.com/ingvor-restrat/volt/blob/main/docs/results.md)
 - [Long-form LaTeX papers](https://github.com/ingvor-restrat/volt/blob/main/docs/latex/README.md)
@@ -64,6 +65,20 @@ reduce a small option search space. `graph` emits deterministic JSON Lines
 fixtures built from synthetic marks and scenario weights. Short names are
 intentional: command names are part of the project vocabulary. The name `cog`
 is reserved for a real compiler rather than attached to a formatter or demo.
+
+An optional reference training harness consumes the exact graph export and
+learns a relation-aware portfolio embedding:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-ml.txt
+PYTHON=.venv/bin/python scripts/run_supervised_demo.sh
+```
+
+It reports held-out performance against mean and linear pooled-feature
+baselines and retains the exact portfolio/payoff hashes with every embedding.
+See [Supervised graph learning](docs/supervised-gnn.md) for the semantic
+boundary, evaluation policy, and route to reinforcement learning.
 
 ## Core model
 
@@ -96,8 +111,9 @@ computed from canonical serialized forms.
 
 ## Extraction boundary
 
-This repository contains the reusable cog/options engine and its derivative
-examples. Application-specific data archives, cohort builders, training loops,
-services, and execution adapters remain outside Volt.
+This repository contains the reusable options-logic engine, its derivative
+examples, and a small synthetic reference training harness. Application-
+specific data archives, production cohort builders, trained policies, services,
+and execution adapters remain outside Volt.
 
 Licensed under Apache-2.0.

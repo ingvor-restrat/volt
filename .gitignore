@@ -13,6 +13,12 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
+# Optional Python learning environment and generated experiment artifacts
+.venv/
+__pycache__/
+*.py[cod]
+artifacts/
+
 # LaTeX intermediates (keep source and rendered PDFs)
 *.aux
 *.fdb_latexmk

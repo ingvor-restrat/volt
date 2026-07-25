@@ -57,10 +57,10 @@ use market data or estimate returns.
 cargo run --example graph -- --output /tmp/volt-graphs.jsonl
 ```
 
-`graph` enumerates bounded synthetic portfolios and emits one
-`PortfolioGraphSample` per line. The fixtures use declared synthetic marks and
-scenario probabilities so graph consumers have deterministic infrastructure
-data.
+`graph` enumerates bounded synthetic portfolios by compiling typed `AddLeg`
+actions through `CandidateGrammar`, then emits one `PortfolioGraphSample` per
+line. The fixtures use declared synthetic marks and scenario probabilities so
+graph consumers have deterministic infrastructure data.
 
 Without `--output`, JSON Lines are written to standard output. Progress is
 written to standard error.

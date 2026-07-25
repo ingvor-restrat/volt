@@ -120,6 +120,12 @@ without confusing them.
 Learning systems may score or propose portfolios. They do not redefine
 contract, payoff, lifecycle, or execution semantics.
 
+The optional [supervised graph-learning experiment](supervised-gnn.md) runs
+this boundary end to end: candidate-action compilation, exact
+canonicalization, graph export, relation-aware message passing, held-out
+evaluation, and embedding export. The experiment does not implement the
+reserved general `cog` compiler or an RL policy.
+
 ## Determinism and versioning
 
 Serialized public structures carry schema versions. Semantic hashes use
