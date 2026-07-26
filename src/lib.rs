@@ -20,6 +20,7 @@
 #![warn(missing_docs)]
 
 mod canonical;
+mod compiler;
 mod contract;
 mod hash;
 mod market;
@@ -32,6 +33,12 @@ pub use canonical::{
     CanonicalPortfolio, CanonicalPosition, PayoffKnot, TerminalPayoffProjection,
     CANONICAL_PORTFOLIO_SCHEMA_VERSION, TERMINAL_PAYOFF_SCHEMA_VERSION,
 };
+pub use compiler::{
+    CogCompiler, CogPositionSource, CogRuleSource, CogSource, CompilationReport,
+    CompiledActionCandidate, CompiledActionSet, CompiledCog, CompiledCogRule, CompiledStepResult,
+    CompilerDiagnostic, DiagnosticSeverity, GuardExpr, PositionSide, ScenarioObjectiveSource,
+    COG_SOURCE_SCHEMA_VERSION, COMPILED_ACTION_SET_SCHEMA_VERSION, COMPILED_COG_SCHEMA_VERSION,
+};
 pub use contract::{
     ContractId, Currency, ExerciseSchedule, OptionContract, OptionRight, Position, PriceMicros,
     Settlement, TimestampNs, UnderlyingId, CONTRACT_SCHEMA_VERSION,
@@ -43,8 +50,11 @@ pub use market::{
     PriceAuthority, MARKET_OBSERVATION_SCHEMA_VERSION, MARKET_SOURCE_SCHEMA_VERSION,
 };
 pub use ml::{
-    GraphContext, GraphEdge, GraphEdgeType, GraphExerciseStyle, GraphNode, GraphNodePayload,
-    GraphTarget, PortfolioGraphSample, GRAPH_SAMPLE_SCHEMA_VERSION,
+    CompiledPortfolioGraphSample, GraphActionKind, GraphContext, GraphEdge, GraphEdgeType,
+    GraphExerciseStyle, GraphNode, GraphNodePayload, GraphTarget, PortfolioGraphSample,
+    StateActionGraphEdge, StateActionGraphEdgeType, StateActionGraphNode, StateActionGraphSample,
+    StateGraphContext, COMPILED_PORTFOLIO_GRAPH_SCHEMA_VERSION, GRAPH_SAMPLE_SCHEMA_VERSION,
+    STATE_ACTION_GRAPH_SCHEMA_VERSION,
 };
 pub use runtime::{
     CogRuntime, ContractLifecycle, Emission, JournalEntry, MarketObservation, PortfolioState,

@@ -242,7 +242,14 @@ def render_baselines(parts: list[str]) -> None:
 
 def render_svg(embeddings: list[dict[str, Any]], graphs: list[dict[str, Any]]) -> str:
     selected = next(row for row in embeddings if row["split"] == "test")
-    graph_by_sample = {row["sample_id"]: row for row in graphs}
+    graph_by_sample = {
+        row["sample_id"]: (
+            row["portfolio_graph"]
+            if row.get("schema_version") == "volt.compiled_portfolio_graph.v1"
+            else row
+        )
+        for row in graphs
+    }
     quantities = selected_quantities(graph_by_sample[selected["sample_id"]])
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="title description">',

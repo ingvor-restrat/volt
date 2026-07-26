@@ -91,6 +91,21 @@ class GraphEncodingTest(unittest.TestCase):
         self.assertEqual(encoded.portfolio_node, 0)
         self.assertEqual(encoded.option_nodes, [3])
 
+    def test_compiled_wrapper_retains_cog_provenance(self) -> None:
+        graph = fixture(0, 0)
+        wrapped = {
+            "schema_version": "volt.compiled_portfolio_graph.v1",
+            "sample_id": "compiled-sample",
+            "compiled_cog_hash": "artifact-hash",
+            "source_hash": "source-hash",
+            "portfolio_graph": graph,
+        }
+        encoded = train_gnn.encode_sample(wrapped, 1)
+        self.assertEqual(encoded.sample_id, "compiled-sample")
+        self.assertEqual(encoded.compiled_cog_hash, "artifact-hash")
+        self.assertEqual(encoded.source_hash, "source-hash")
+        self.assertEqual(encoded.portfolio_hash, graph["portfolio_hash"])
+
     def test_equivalent_payoffs_never_cross_splits(self) -> None:
         samples = [
             train_gnn.encode_sample(fixture(index, index // 2), index + 1)

@@ -146,9 +146,10 @@ different order, so a graph provides a natural input to a relational learner
 while remaining useful to deterministic systems.  Validation,
 canonicalization, scenario evaluation, and graph export already operate over
 the same portfolio meaning.  Tensorization, account-aware masks, strategy
-macros, and a general compiler remain proposed layers.  The current candidate
-grammar resolves bounded actions against an explicitly supplied listed
-universe, preserving every matching branch in stable contract order.  The
+macros, and a fully general contract language remain proposed layers.  The
+implemented \COG{} options-design compiler validates guarded business rules,
+resolves bounded actions against an explicitly supplied listed universe, and
+preserves every matching branch in stable contract order.  The
 scenario layer applies declared fills and fees and delegates lifecycle actions
 to the deterministic runtime, returning outcomes with an auditable path back
 to the original contracts.
@@ -157,10 +158,11 @@ to the original contracts.
 
 The graph representation and the compiler serve different goals.  The graph
 is Volt's interface to learning, optimization, simulation, and explanation.
-The future \COG{} compiler can make that interface efficient and reliable by
+The implemented first \COG{} compiler makes that interface more reliable by
 expanding concise source forms, checking them, and lowering them to runtime,
-graph, or tensor targets.  Compilation matters because it preserves meaning
-across those targets; it is not the end product.
+portfolio-graph, and state/action-graph targets.  Tensor lowering and a more
+general expression language remain future work.  Compilation matters because
+it preserves meaning across those targets; it is not the end product.
 
 Machine-readable financial contracts have a substantial research lineage in
 programming languages and formal methods.  RISLA, developed in an
@@ -1147,15 +1149,16 @@ ranking, sequential control, and full orchestration are not release claims.}
 \endgroup
 \end{center}
 
-In the proposed application boundary, a compiler would emit a graph \(G_t\),
+In the implemented structural boundary, the compiler emits a graph \(G_t\),
 an admissible action set \(A_t\), and its legal mask \(M_t\).  Simulation or
 replay may add outcome labels \(y_t\) and an evidence record \(p_t\), producing
 \[
   d_t=(G_t,A_t,M_t,y_t,p_t).
 \]
-The current \texttt{PortfolioGraphSample} covers the graph component, and
-\texttt{ScenarioSimulator} can produce deterministic outcomes.  It does not
-yet combine those artifacts with an account-aware action mask in one dataset
+\texttt{StateActionGraphSample} combines the live portfolio graph, runtime
+context, compiler action slots, rejection reasons, and structural legal mask;
+\texttt{ScenarioSimulator} can produce deterministic outcomes.  Caller-owned
+liquidity, margin, and account-capital policy are not yet combined into that
 record.  The graph schema may evolve with an experiment, but exact contract
 definitions, portfolio state, action authority, and journals remain governed
 by the versioned Volt runtime.
@@ -1172,49 +1175,58 @@ Historical slices, candidates, scenario paths, model seeds, and independent
 environments could be distributed across workers.  Event order within one
 portfolio path remains causal, after which stable identifiers, deterministic
 sorting, and hashing assemble the partial results.  Parallelism may change
-elapsed time without changing the artifact that a future compiler identifies.
+elapsed time without changing the artifact that the compiler identifies.
 
-\section{Compiler as an efficiency layer}
+\section{Compiler as an efficiency and authority layer}
 
-The compiler is an important supporting layer, not Volt's organizing thesis.
-Its job is to construct the graph and its executable views efficiently while
-preserving their declared meaning.  The name \COG{} is reserved for this
-future Volt compiler.  Its source may eventually be a named strategy macro,
-an existing portfolio snapshot, or a sequence of primitive actions, resolved
-into an intermediate representation containing typed contracts, positions,
-relationships, account context, and lifecycle state.
+The compiler is the boundary at which user business logic becomes an
+executable, learnable financial program.  Its job is to construct graphs and
+executable views efficiently while preserving their declared meaning and
+keeping deterministic legality outside the learner.  \COG{} denotes the
+\emph{Contract Object Graph} compiler now implemented for an initial
+options-design language.
 
-The present crate does not claim that general compiler.  It implements one
-narrow pass, \texttt{CandidateGrammar::compile\_action}, which turns a typed
-candidate action into zero or more exact listed-contract branches.  It also
-provides separate validated lowerings to
-\texttt{TerminalPayoffProjection}, \texttt{PortfolioState}, and
-\texttt{PortfolioGraphSample}.  The complete pass sequence below is a roadmap
-for coordinating those pieces with future macro, constraint, and tensor
-layers.
+A versioned \texttt{volt.cog\_source.v1} document supplies the listed universe,
+candidate grammar, initial positions, guarded and prioritized rules, and an
+optional scenario objective.  Compilation aggregates source-addressed
+diagnostics, normalizes the program, resolves exact contract semantics, and
+emits an immutable \texttt{volt.compiled\_cog.v1} artifact with source, rule,
+and artifact hashes.  At a decision state the artifact emits aligned action
+slots and a hard legal mask.  Static design actions return a canonical
+portfolio; wait and exercise actions pass through the journaled runtime.
+Graph lowerings retain the compiler hashes so training data and learned
+embeddings remain tied to the exact financial program.
+
+This is intentionally an options-design compiler rather than the final
+general language.  Named strategy macros, arbitrary typed state and emission
+expressions, account capital and margin policy, multi-step execution plans,
+and tensor code generation remain extensions.
 
 The principal passes are:
 \begin{enumerate}
-  \item \textbf{expand (planned):} turn a macro such as
-        \texttt{IronCondor(90,95,105,110)} into signed call and put legs;
-  \item \textbf{type-check}: verify right, multiplier, exercise authority,
-        settlement, strike ordering, and expiration relationships;
+  \item \textbf{parse and diagnose}: validate versioned structured source and
+        report all source-addressed errors;
+  \item \textbf{type-check}: verify contract definitions, bucket references,
+        quantities, and exercise authority;
+  \item \textbf{expand (partly implemented):} lower typed candidate actions
+        into exact listed-contract branches; named strategy macros remain planned;
   \item \textbf{resolve}: select contracts that were actually listed and
         observable at the decision time;
-  \item \textbf{constrain (planned):} apply liquidity, position, capital, and account
-        rules;
+  \item \textbf{constrain}: evaluate guarded portfolio, spot, quantity, and
+        lifecycle conditions and emit a hard legal mask; liquidity, margin,
+        and account-capital policy remain caller-owned;
   \item \textbf{canonicalize}: merge exact offsets and compute economic
         projections without discarding execution identity;
-  \item \textbf{lower (partly implemented):} emit the representation required by a simulator,
-        graph learner, optimizer, API, or numerical kernel;
-  \item \textbf{attach evidence (partly implemented):} retain semantic hashes, source times,
-        assumptions, and reduction reasons.
+  \item \textbf{lower}: emit canonical portfolios, journaled runtime
+        transitions, portfolio graphs, and state/action graphs;
+  \item \textbf{attach evidence}: retain semantic hashes, source times,
+        assumptions, rejection reasons, and runtime journals.
 \end{enumerate}
 
 \begin{center}
 \begin{tikzpicture}[node distance=7mm and 7mm]
-  \node[voltcompile] (source) {Trader macros\\primitive actions};
-  \node[voltcompile,right=of source] (typed) {Future \COG\\IR};
+  \node[voltcompile] (source) {Versioned source\\guarded rules};
+  \node[voltcompile,right=of source] (typed) {Typed \COG\\IR};
   \node[voltcompile,right=of typed] (canon) {Validated and\\canonical IR};
   \node[voltcompile,below left=of canon] (cpu) {Event-driven\\CPU runtime};
   \node[voltcompile,below=of canon] (ml) {Heterogeneous\\ML graph};
@@ -1227,15 +1239,15 @@ The principal passes are:
 \end{tikzpicture}
 \end{center}
 
-Code generation is one possible final pass.  The nearer-term value of
-\COG{} would be a single diagnostic and artifact boundary over semantic
-operations that Volt already exposes separately.  Until that language,
-diagnostics model, artifact format, and execution contract exist, the short
-name remains reserved rather than attached to one example program.
+Code generation is one possible final pass.  The present value of \COG{} is a
+single diagnostic, immutable artifact, legal-action, and graph boundary over
+semantic operations that Volt previously exposed separately.  The
+\texttt{cog} example demonstrates the complete first implementation; the name
+does not imply that the broader general-purpose language is complete.
 
 \subsection{GPU lowerings}
 
-Some workloads a future compiler could produce are naturally parallel:
+Some workloads later compiler lowerings could produce are naturally parallel:
 \begin{itemize}
   \item evaluate many portfolios over the same spot/volatility scenario grid;
   \item price or compute sensitivities for large homogeneous option batches;
@@ -1508,11 +1520,12 @@ expensive evaluation.  Simulation supplies outcomes under declared market and
 execution assumptions, after which a discovery or control system may allocate
 its evaluation budget without acquiring authority over contract meaning.
 Provenance on definitions, observations, transitions, and labels keeps the
-result replayable as models and search methods change.  A future \COG{}
-compiler can expand concise strategy descriptions and lower validated graphs
-to runtime or tensor targets more efficiently.  That is a major engineering
-sub-goal, but the graph remains the representation that makes the resulting
-learning and optimization possible.
+result replayable as models and search methods change.  The implemented
+\COG{} compiler expands structured strategy rules and lowers validated
+programs to runtime and graph targets; concise named macros and tensor targets
+remain extensions.  The compiler is the authority boundary, while the graph
+is the representation through which learning and optimization consume that
+meaning.
 
 For a trader, the machinery should resolve into a coherent workflow: state a
 view, inspect the contracts and obligations through which it will be expressed,

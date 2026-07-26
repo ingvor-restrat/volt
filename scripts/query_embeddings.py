@@ -76,6 +76,8 @@ def summarize(row: dict[str, Any]) -> dict[str, Any]:
         "sample_id": row["sample_id"],
         "portfolio_hash": row["portfolio_hash"],
         "terminal_payoff_hash": row.get("terminal_payoff_hash"),
+        "compiled_cog_hash": row.get("compiled_cog_hash"),
+        "source_hash": row.get("source_hash"),
         "split": row.get("split"),
         "target": row.get("target"),
         "prediction": row.get("prediction"),

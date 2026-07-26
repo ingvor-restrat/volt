@@ -6,6 +6,10 @@
 \ProcessOptions\relax
 \LoadClass[10pt,twoside]{article}
 
+% TikZ loads xcolor transitively. Declare the palette's table requirement
+% before TikZ so the later palette import does not trigger an option clash.
+\PassOptionsToPackage{table}{xcolor}
+
 % Match the compact research-note typography used by BRCentralRiskBook:
 % Palatino for technical prose and Helvetica for the publication hierarchy.
 % TeX Gyre Pagella and Heros are the OpenType equivalents under LuaLaTeX.

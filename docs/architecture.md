@@ -106,9 +106,12 @@ AddLeg | RemoveLeg | ResizeLeg | Wait | Exercise
 An `AddLeg` bucket may compile to several exact listed contracts. Volt returns
 every branch in stable identity order; it never silently chooses one.
 
-This is a candidate-action compiler, not yet a general financial-logic
-compiler. The short program name `cog` is reserved for that larger compiler
-when its language and output contract exist.
+This candidate-action compiler is also the exact-resolution pass used by the
+structured [COG compiler](cog-compiler.md). `CogCompiler` adds source parsing,
+typed guarded rules, aggregate diagnostics, canonical immutable artifacts, and
+an execution contract. Its initial language targets options-design logic; it
+does not yet implement the broader arbitrary-state and structured-emission
+language described by the long-term architecture.
 
 ## Graph view
 
@@ -121,10 +124,10 @@ Learning systems may score or propose portfolios. They do not redefine
 contract, payoff, lifecycle, or execution semantics.
 
 The optional [supervised graph-learning experiment](supervised-gnn.md) runs
-this boundary end to end: candidate-action compilation, exact
-canonicalization, graph export, relation-aware message passing, held-out
-evaluation, and embedding export. The experiment does not implement the
-reserved general `cog` compiler or an RL policy.
+this boundary end to end: structured COG compilation, candidate-action
+resolution, exact canonicalization, compiler-bound graph export,
+relation-aware message passing, held-out evaluation, and embedding export.
+It does not implement an RL policy.
 
 ## Determinism and versioning
 

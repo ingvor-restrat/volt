@@ -3,8 +3,9 @@
 Volt now contains a runnable reference experiment that learns a portfolio graph
 representation while keeping financial semantics in the Rust library.
 
-This is the first learning vertical slice, not a claim that the reserved
-general-purpose `cog` compiler or reinforcement-learning policy is complete.
+This is the first learning vertical slice over the implemented structured COG
+compiler. It is not a claim that the broader arbitrary-state/emission language
+or a reinforcement-learning policy is complete.
 
 ## What runs end to end
 
@@ -12,7 +13,10 @@ general-purpose `cog` compiler or reinforcement-learning policy is complete.
 typed listed contracts
         |
         v
-CandidateGrammar::compile_action         Rust: typed candidate compiler
+CogCompiler                             Rust: source → immutable artifact
+        |
+        v
+CandidateGrammar::compile_action         Rust: exact action resolution
         |
         v
 CanonicalPortfolio                    Rust: exact meaning
@@ -118,9 +122,10 @@ label horizon, transaction costs, and strictly time-ordered validation.
 
 The reference command was run on 2026-07-25 with seed `28695`, PyTorch 2.13.0,
 and dataset SHA-256
-`bf0a735757cdfd812195627c6037c617b6c1ceabaa0306562322d573a38e6707`.
+`8d3ecb063ea2a6d3f8f9b64967fffd18c8f552feadd4029cbc5bd8db2e175043`.
 The 729 graphs formed 713 terminal-payoff groups. Grouped sample counts were
-509 train, 109 validation, and 111 test.
+509 train, 109 validation, and 111 test. Every row was produced as a
+`volt.compiled_portfolio_graph.v1` sample with source and artifact provenance.
 
 | Held-out model | RMSE (dollars) | MAE (dollars) | R-squared |
 |---|---:|---:|---:|
@@ -132,27 +137,23 @@ These are reproducibility measurements for the synthetic evaluator. They
 confirm that the implementation trains, exports an embedding, and generalizes
 within this fixture universe; they are not live-market performance.
 
-## Compiler status
+## Compiler boundary
 
-There are two real compilation steps in this experiment:
+There are now three explicit compilation boundaries in this experiment:
 
+- `CogCompiler` parses and validates versioned structured source, emits
+  diagnostics, canonicalizes rules, and produces a content-addressed
+  `CompiledCog`;
 - `CandidateGrammar::compile_action` resolves the implemented typed search
   vocabulary into exact listed-contract branches used to construct each
   candidate portfolio; and
 - `PortfolioGraphSample::from_portfolio` validates and compiles an exact
   canonical portfolio into the versioned graph schema consumed by the model.
 
-They are useful compiler components, but they are not the reserved general
-financial-logic `cog` compiler. That compiler still needs all four of the
-following before the name should be used:
-
-- a source language or versioned structured input;
-- source-aware diagnostics;
-- a stable compiled-artifact format; and
-- an execution contract mapping artifacts to `CogRuntime`.
-
-The supervised experiment intentionally does not hide that gap. It establishes
-the learning and semantic boundaries needed by the later compiler.
+Compiler-bound rows use `volt.compiled_portfolio_graph.v1` and retain
+`source_hash` plus `compiled_cog_hash` around the exact portfolio graph. The
+initial compiler is options-design focused; broader typed emissions and account
+or protocol state remain later language extensions.
 
 ## Path from supervised learning to RL
 

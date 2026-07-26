@@ -33,6 +33,7 @@ except ImportError as error:  # pragma: no cover - exercised by the CLI
 
 
 SCHEMA_VERSION = "volt.portfolio_graph.v1"
+COMPILED_SCHEMA_VERSION = "volt.compiled_portfolio_graph.v1"
 FEATURE_SCHEMA_VERSION = "volt.supervised_gnn_features.v1"
 EXPERIMENT_SCHEMA_VERSION = "volt.supervised_gnn_experiment.v1"
 SECONDS_PER_YEAR = 365.25 * 24.0 * 60.0 * 60.0
@@ -73,6 +74,8 @@ class EncodedGraph:
     sample_id: str
     portfolio_hash: str
     terminal_payoff_hash: str | None
+    compiled_cog_hash: str | None
+    source_hash: str | None
     objective_name: str
     target: float
     node_features: list[list[float]]
@@ -161,10 +164,19 @@ def _enum_value(value: Any) -> str:
 
 
 def encode_sample(document: dict[str, Any], line_number: int) -> EncodedGraph:
+    outer_schema = document.get("schema_version")
+    compiled_cog_hash = None
+    source_hash = None
+    outer_sample_id = None
+    if outer_schema == COMPILED_SCHEMA_VERSION:
+        outer_sample_id = str(document["sample_id"])
+        compiled_cog_hash = str(document["compiled_cog_hash"])
+        source_hash = str(document["source_hash"])
+        document = document["portfolio_graph"]
     if document.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(
-            f"line {line_number}: expected schema {SCHEMA_VERSION}, "
-            f"received {document.get('schema_version')!r}"
+            f"line {line_number}: expected schema {SCHEMA_VERSION} or "
+            f"{COMPILED_SCHEMA_VERSION}, received {outer_schema!r}"
         )
     target = document.get("target")
     if not isinstance(target, dict):
@@ -271,9 +283,11 @@ def encode_sample(document: dict[str, Any], line_number: int) -> EncodedGraph:
         )
 
     return EncodedGraph(
-        sample_id=str(document["sample_id"]),
+        sample_id=outer_sample_id or str(document["sample_id"]),
         portfolio_hash=str(document["portfolio_hash"]),
         terminal_payoff_hash=document.get("terminal_payoff_hash"),
+        compiled_cog_hash=compiled_cog_hash,
+        source_hash=source_hash,
         objective_name=str(target["objective_name"]),
         target=objective,
         node_features=features,
@@ -720,6 +734,9 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
             "canonicalization, lifecycle runtime, and payoff evaluator remain "
             "authoritative."
         ),
+        "compiled_program_samples": sum(
+            sample.compiled_cog_hash is not None for sample in samples
+        ),
     }
     write_json(args.output_dir / "metrics.json", experiment)
 
@@ -753,6 +770,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
                     "sample_id": sample.sample_id,
                     "portfolio_hash": sample.portfolio_hash,
                     "terminal_payoff_hash": sample.terminal_payoff_hash,
+                    "compiled_cog_hash": sample.compiled_cog_hash,
+                    "source_hash": sample.source_hash,
                     "split": split_name,
                     "objective_name": sample.objective_name,
                     "target": sample.target,

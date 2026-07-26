@@ -70,8 +70,9 @@ layer learns over those graphs and adds dataset construction, candidate
 scoring, active acquisition, baseline comparisons, quote-backed labels, and
 chronological evaluation.  The public repository ships synthetic fixtures
 and semantic reduction results; it does not ship a trained ranker or make an
-alpha claim.  The \COG{} compiler and an account-aware legal mask remain
-future efficiency and integration work.
+alpha claim.  The initial \COG{} compiler, compiler-bound graph dataset, and
+structural legal mask are implemented; account-aware margin and capital policy
+remain integration work.
 \end{abstract}
 
 \SNtableofcontents
@@ -85,8 +86,8 @@ state together with the contracts that were listed and observable at that
 time.  The implemented \texttt{CandidateGrammar} resolves typed actions
 against the caller-supplied listed universe and enforces structural and
 exercise-authority rules.  Caller policy must still apply liquidity, capital,
-margin, and account constraints.  A future \COG{} compiler may coordinate
-those decisions and their diagnostics; the discovery model should see
+margin, and account constraints.  The implemented \COG{} compiler coordinates
+the structural decisions and their diagnostics; the discovery model should see
 candidates only after every deterministic decision has been recorded.
 
 The initial task is bounded.  Given an admissible set
@@ -148,11 +149,12 @@ the configuration and simulator budget have been frozen.
 
 \section{Candidate pool}
 
-The public fixtures use six synthetic same-expiry contracts.  The
-\texttt{graph} example enumerates quantities in \(\{-1,0,1\}\), producing
-all \(3^6=729\) graph samples.  Each sample carries a deterministic identifier,
-an exact portfolio hash, an optional terminal-payoff hash, typed nodes and
-edges, and a synthetic target.
+The public fixtures use six synthetic same-expiry contracts.  In compiled
+mode, the \texttt{graph} example constructs and compiles one versioned source
+program for each quantity vector in \(\{-1,0,1\}\), producing all
+\(3^6=729\) compiler-bound graph samples.  Each sample carries source and
+artifact hashes, a deterministic identifier, an exact portfolio hash, an
+optional terminal-payoff hash, typed nodes and edges, and a synthetic target.
 
 The \texttt{zap} example supplies two semantic controls.  Two ordered actions
 produce 144 raw sequences but 73 exact portfolios.  Independently, quantities
@@ -162,10 +164,10 @@ canonicalization, and export plumbing; they contain no historical market
 cohort, trained model, liquidity filter, or economic claim.
 
 As the universe expands, exhaustive labels become too costly.  Candidate
-generation and evaluation must then be treated as separate budgets.  A future
-\COG{} compiler or caller application may enumerate or sample a large valid pool cheaply, while the
-acquisition policy chooses the smaller subset that receives scenario
-simulation or historical replay.
+generation and evaluation must then be treated as separate budgets.  The
+\COG{} compiler or caller application may enumerate or sample a large valid
+pool cheaply, while the acquisition policy chooses the smaller subset that
+receives scenario simulation or historical replay.
 
 \part{Models}
 
@@ -333,9 +335,9 @@ Primary measurements include:
   \item out-of-time utility after declared costs;
   \item simulator calls and elapsed compute required to reach a target score.
 \end{itemize}
-Invalid-action rate should remain zero after masking.  That is an integration
-requirement for the future compiler and policy layer, not a property currently
-proved for an unimplemented combined mask.
+Invalid-action rate should remain zero after masking.  Volt now validates the
+alignment and integrity of the compiler's structural mask; a production study
+must compose it with caller-owned liquidity, margin, and account policy.
 
 \section{Research sequence}
 

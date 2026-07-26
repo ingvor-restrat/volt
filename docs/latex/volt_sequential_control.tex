@@ -62,10 +62,11 @@ a graph of the current portfolio, its relationships, candidate actions, and
 observed state.  \VOLT{} exposes that structure to the learner while remaining
 responsible for contract meaning, fills, settlement, transitions, and replay.
 The public crate already provides the deterministic runtime, scenario paths,
-journals, and a static portfolio graph needed to begin such an environment.
-It does not yet provide account policy, a reward model, a trained policy, or a
-rollout scheduler.  A future \COG{} compiler could construct and coordinate
-the graph, candidate, and legal-action artifacts efficiently.  QUBO is
+journals, a static portfolio graph, and a compiler-produced state/action graph
+with a hard structural legal mask.  It does not yet provide account policy, a
+reward model, a trained policy, or a rollout scheduler.  The implemented
+\COG{} compiler constructs and coordinates the source, candidate,
+legal-action, and graph artifacts.  QUBO is
 considered only as a possible rollout-budget allocator and would need to beat
 simpler schedulers under the same budget.
 \end{abstract}
@@ -85,7 +86,7 @@ account without being chosen by its owner.  A useful state must carry these
 consequences forward rather than recomputing the position from a terminal
 payoff diagram.
 
-In the proposed control interface, \COG{} would emit
+In the control interface, \COG{} emits
 \[
   s_t=(G_t,A_t,M_t,p_t),
 \]
@@ -95,11 +96,13 @@ actions are presently admissible; and \(p_t\) identifies the definitions,
 observations, assumptions, and prior journal state.  The policy consumes this
 object but cannot edit its authority rules.
 
-Today these pieces are separate.  \texttt{PortfolioState} contains exact
-position lifecycle, cash, underlying units, sequence, and observation time;
-\texttt{CandidateGrammar} compiles bounded candidate actions; and
-\texttt{PortfolioGraphSample} provides a static portfolio graph.  There is no
-combined account-state graph or legal-mask artifact in the public release.
+The first implementation combines these pieces.
+\texttt{PortfolioState} contains exact position lifecycle, cash, underlying
+units, sequence, and observation time; \texttt{CandidateGrammar} resolves
+bounded candidate actions; and \texttt{StateActionGraphSample} combines the
+static portfolio graph, runtime context, every accepted or rejected action
+slot, typed edges, and an aligned legal mask.  The artifact enforces structural
+and lifecycle legality, not caller-owned account capital or margin policy.
 
 A proposed environment transition binds an action to versioned state:
 \[
@@ -116,12 +119,12 @@ Replaying the same versioned inputs reproduces state and emissions.
 
 \section{Actions and masks}
 
-The initial grammar contains \texttt{AddLeg}, \texttt{RemoveLeg},
+The implemented grammar contains \texttt{AddLeg}, \texttt{RemoveLeg},
 \texttt{ResizeLeg}, \texttt{Wait}, and holder-authorized \texttt{Exercise}.
 The runtime action vocabulary is distinct:
 \texttt{Hold}, \texttt{Close}, \texttt{Exercise}, \texttt{Assign}, and
-\texttt{Expire}.  No current compiler turns close, roll, hedge, take-profit,
-or reduce-risk instructions into a multi-step runtime plan.
+\texttt{Expire}.  The initial compiler does not yet turn close, roll, hedge,
+take-profit, or reduce-risk instructions into a multi-step runtime plan.
 Assignment remains an external event because a short writer does not possess
 the holder's exercise right.
 
@@ -381,7 +384,7 @@ relationship between those budgets.
 
 \section{Evidence and boundary}
 
-The policy should choose only actions authorized by the future compiler and
+The policy should choose only actions authorized by the compiler and composed
 application mask.  The scenario layer supplies declared close fills and fees;
 the runtime validates exact contract actions, handles exercise and assignment,
 updates cash and inventory, and journals the transition.  The

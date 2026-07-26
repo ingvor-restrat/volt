@@ -1,0 +1,228 @@
+{
+  "schema_version": "volt.cog_source.v1",
+  "program_id": "protective-overlay",
+  "description": "Add downside protection, preserve an exercise right, and retain a wait branch.",
+  "listed_universe": [
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-C-90",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "call",
+      "strike": 90000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    },
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-C-100",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "call",
+      "strike": 100000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    },
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-C-110",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "call",
+      "strike": 110000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    },
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-P-90",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "put",
+      "strike": 90000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    },
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-P-100",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "put",
+      "strike": 100000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    },
+    {
+      "schema_version": "volt.contract.v1",
+      "contract_id": "SPY-P-110",
+      "underlying": "SPY",
+      "currency": "USD",
+      "right": "put",
+      "strike": 110000000,
+      "multiplier": 100,
+      "exercise": {
+        "style": "american",
+        "first_exercise": 0,
+        "expiry": 100
+      },
+      "settlement": "physical"
+    }
+  ],
+  "candidate_grammar": {
+    "schema_version": "volt.candidate_grammar.v1",
+    "expiry_buckets": [
+      {
+        "bucket_id": "front",
+        "minimum_time_to_expiry_ns": 1,
+        "maximum_time_to_expiry_ns": 100
+      }
+    ],
+    "strike_or_delta_buckets": [
+      {
+        "coordinate": "strike_range",
+        "bucket_id": "strike-90",
+        "minimum_strike_micros": 90000000,
+        "maximum_strike_micros": 90000000
+      },
+      {
+        "coordinate": "strike_range",
+        "bucket_id": "strike-110",
+        "minimum_strike_micros": 110000000,
+        "maximum_strike_micros": 110000000
+      }
+    ],
+    "allowed_add_quantities": [
+      -1,
+      1
+    ],
+    "allowed_resize_quantities": [
+      -1,
+      1
+    ]
+  },
+  "initial_positions": [
+    {
+      "contract_id": "SPY-C-100",
+      "quantity": 1
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "add-downside-put",
+      "priority": 100,
+      "guard": {
+        "guard": "all",
+        "guards": [
+          {
+            "guard": "spot_at_most",
+            "spot_micros": 100000000
+          },
+          {
+            "guard": "gross_quantity_at_most",
+            "quantity": 3
+          }
+        ]
+      },
+      "action": {
+        "action": "add_leg",
+        "right": "put",
+        "expiry_bucket": "front",
+        "strike_or_delta_bucket": "strike-90",
+        "quantity": 1
+      }
+    },
+    {
+      "rule_id": "add-upside-call",
+      "priority": 80,
+      "guard": {
+        "guard": "spot_at_least",
+        "spot_micros": 110000000
+      },
+      "action": {
+        "action": "add_leg",
+        "right": "call",
+        "expiry_bucket": "front",
+        "strike_or_delta_bucket": "strike-110",
+        "quantity": -1
+      }
+    },
+    {
+      "rule_id": "exercise-call",
+      "priority": 70,
+      "guard": {
+        "guard": "all",
+        "guards": [
+          {
+            "guard": "has_live_position",
+            "contract_id": "SPY-C-100",
+            "side": "long"
+          },
+          {
+            "guard": "exercise_open",
+            "contract_id": "SPY-C-100"
+          }
+        ]
+      },
+      "action": {
+        "action": "exercise",
+        "contract": "SPY-C-100",
+        "quantity": 1
+      }
+    },
+    {
+      "rule_id": "wait",
+      "priority": 0,
+      "guard": {
+        "guard": "always"
+      },
+      "action": {
+        "action": "wait"
+      }
+    }
+  ],
+  "objective": {
+    "objective_name": "synthetic_risk_adjusted_terminal_pnl_dollars",
+    "scenario_spots_micros": [
+      80000000,
+      90000000,
+      100000000,
+      110000000,
+      120000000
+    ],
+    "probability_millionths": [
+      100000,
+      200000,
+      400000,
+      200000,
+      100000
+    ],
+    "downside_weight_bps": 3500,
+    "gross_contract_penalty_micros": 250000
+  }
+}

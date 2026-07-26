@@ -25,6 +25,7 @@ The initial Rust release provides:
 - deterministic exercise, assignment, expiry, and replay journals;
 - path simulation with explicit fill and transaction-cost models;
 - a point-in-time candidate grammar for strategy discovery;
+- a versioned structured COG compiler with diagnostics and immutable artifacts;
 - versioned graph samples for optimization and learning systems; and
 - generated and historical market observations behind one trait.
 
@@ -35,6 +36,7 @@ For the fuller story, read:
 
 - [How Volt fits together](https://github.com/ingvor-restrat/volt/blob/main/docs/architecture.md)
 - [Programs and naming](https://github.com/ingvor-restrat/volt/blob/main/docs/programs.md)
+- [COG compiler](https://github.com/ingvor-restrat/volt/blob/main/docs/cog-compiler.md)
 - [Supervised graph learning](https://github.com/ingvor-restrat/volt/blob/main/docs/supervised-gnn.md)
 - [`risk` live walkthrough](https://github.com/ingvor-restrat/volt/blob/main/docs/markup/README.md)
 - [Reproducible results](https://github.com/ingvor-restrat/volt/blob/main/docs/results.md)
@@ -47,6 +49,7 @@ cargo test
 cargo run --example risk
 cargo run --example risk_server
 cargo run --example zap
+cargo run --example cog -- --output /tmp/volt-cog.json
 cargo run --example graph -- --output /tmp/volt-graphs.jsonl
 ```
 
@@ -61,10 +64,11 @@ canonicalization, and payoff algebra.
 [![Volt simulation-driven browser dashboard](docs/markup/risk-web.gif)](docs/markup/README.md)
 
 `zap` shows how exact portfolio canonicalization and terminal-payoff projection
-reduce a small option search space. `graph` emits deterministic JSON Lines
-fixtures built from synthetic marks and scenario weights. Short names are
-intentional: command names are part of the project vocabulary. The name `cog`
-is reserved for a real compiler rather than attached to a formatter or demo.
+reduce a small option search space. `cog` compiles structured options-design
+business logic into an immutable artifact, produces a point-in-time legal
+action mask and state/action graph, and journals a runtime transition. `graph`
+emits deterministic JSON Lines fixtures built from synthetic marks and scenario
+weights.
 
 An optional reference training harness consumes the exact graph export and
 learns a relation-aware portfolio embedding:

@@ -65,12 +65,21 @@ graph consumers have deterministic infrastructure data.
 Without `--output`, JSON Lines are written to standard output. Progress is
 written to standard error.
 
-## Reserved: `cog`
+## `cog`
 
-`cog` is reserved for a proper financial-logic compiler. The present
-`CandidateGrammar::compile_action` performs one specific compilation step
-from typed candidate actions to exact listed-contract branches. It should not
-be marketed as the larger compiler before a language, diagnostics model,
-artifact format, and execution contract are implemented.
+```bash
+cargo run --example cog -- \
+  --source examples/cogs/protective-put.json \
+  --output /tmp/volt-cog.json
+```
 
-That distinction lets the short name retain meaning.
+`cog` now has the four boundaries for which its name was reserved:
+
+- a versioned structured financial-logic source language;
+- aggregate, source-addressable diagnostics;
+- a canonical immutable compiled-artifact format; and
+- an execution contract over exact candidate and lifecycle semantics.
+
+The example emits the compiled artifact, point-in-time action set and legal
+mask, state/action graph, and one journaled wait transition. See the
+[compiler documentation](cog-compiler.md).
