@@ -4,6 +4,19 @@ The browser and terminal presentations consume the same deterministic Rust
 simulation snapshots. JavaScript formats and charts the browser snapshot; it
 does not reproduce the pricing or portfolio logic.
 
+## Supervised graph learning
+
+![Volt supervised graph-learning experiment](gnn-learning.svg)
+
+The diagram uses the verified 729-sample synthetic experiment. It connects the
+typed candidate compiler to one exact portfolio graph, projects every learned
+64-dimensional embedding into two dimensions, plots held-out predictions
+against the Rust evaluator, and compares test RMSE with the two baselines.
+
+[Open the interactive graph-learning view](gnn-learning.html), where selecting
+or clicking a portfolio updates its exact graph, embedding position, and
+prediction together.
+
 ## Browser dashboard
 
 ![The live Volt browser risk dashboard](risk-web.gif)
@@ -77,6 +90,12 @@ The browser GIF comes from the live local server and headless Chrome:
 
 ```bash
 python3 docs/markup/record_web.py
+```
+
+The graph-learning SVG is rebuilt from the generated experiment artifacts:
+
+```bash
+.venv/bin/python docs/markup/render_gnn.py
 ```
 
 The recorders need Python and Pillow; the browser recorder also needs Chrome

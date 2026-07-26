@@ -1,0 +1,1550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Volt Gnn Learning</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Volt Gnn Learning" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Volt Gnn Learning&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;volt-gnn-learning&quot;&gt;
+  &lt;style&gt;
+    #volt-gnn-learning {
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      width: 100%;
+    }
+    #volt-gnn-learning .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    #volt-gnn-learning .pipeline-arrow {
+      color: var(--muted-foreground);
+    }
+    #volt-gnn-learning .viz-controls {
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #volt-gnn-learning .selector {
+      min-width: min(100%, 250px);
+    }
+    #volt-gnn-learning .selected-summary {
+      color: var(--muted-foreground);
+      font-variant-numeric: tabular-nums;
+    }
+    #volt-gnn-learning .selected-summary strong {
+      color: var(--foreground);
+      font-weight: 500;
+    }
+    #volt-gnn-learning .facet-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 20px;
+    }
+    #volt-gnn-learning .facet {
+      min-width: 0;
+    }
+    #volt-gnn-learning .facet h3 {
+      margin: 0 0 2px;
+      font-weight: 500;
+    }
+    #volt-gnn-learning .facet-note {
+      color: var(--muted-foreground);
+      margin-bottom: 4px;
+    }
+    #volt-gnn-learning .chart-wrap {
+      position: relative;
+    }
+    #volt-gnn-learning .full-width {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    #volt-gnn-learning .chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+    #volt-gnn-learning .performance-chart {
+      height: 300px;
+    }
+    #volt-gnn-learning .axis,
+    #volt-gnn-learning .gridline,
+    #volt-gnn-learning .network-edge {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+    #volt-gnn-learning .gridline {
+      opacity: 0.55;
+    }
+    #volt-gnn-learning .axis-label,
+    #volt-gnn-learning .tick-label,
+    #volt-gnn-learning .node-label,
+    #volt-gnn-learning .direct-label {
+      fill: var(--muted-foreground);
+      font-size: calc(var(--font-size-base) * 0.78);
+    }
+    #volt-gnn-learning .node-label,
+    #volt-gnn-learning .direct-label {
+      fill: var(--foreground);
+    }
+    #volt-gnn-learning .relation-position {
+      stroke: var(--foreground);
+      opacity: 0.58;
+    }
+    #volt-gnn-learning .relation-underlying {
+      stroke: var(--viz-series-2);
+      stroke-dasharray: 3 3;
+      opacity: 0.42;
+    }
+    #volt-gnn-learning .relation-expiry {
+      stroke: var(--viz-series-3);
+      stroke-dasharray: 7 4;
+      opacity: 0.42;
+    }
+    #volt-gnn-learning .context-node {
+      fill: color-mix(in srgb, var(--muted) 68%, transparent);
+      stroke: var(--border);
+    }
+    #volt-gnn-learning .portfolio-node {
+      fill: var(--primary);
+      stroke: var(--primary);
+    }
+    #volt-gnn-learning .portfolio-label {
+      fill: var(--primary-foreground);
+      font-size: calc(var(--font-size-base) * 0.78);
+    }
+    #volt-gnn-learning .option-node {
+      stroke-width: 1.5;
+    }
+    #volt-gnn-learning .long-node {
+      fill: color-mix(in srgb, var(--viz-series-2) 22%, var(--background));
+      stroke: var(--viz-series-2);
+    }
+    #volt-gnn-learning .short-node {
+      fill: color-mix(in srgb, var(--viz-series-5) 22%, var(--background));
+      stroke: var(--viz-series-5);
+    }
+    #volt-gnn-learning .point {
+      cursor: pointer;
+      stroke: var(--background);
+      stroke-width: 0.8;
+      opacity: 0.76;
+    }
+    #volt-gnn-learning .point:hover {
+      opacity: 1;
+    }
+    #volt-gnn-learning .q1 { fill: var(--viz-series-5); }
+    #volt-gnn-learning .q2 { fill: var(--viz-series-4); }
+    #volt-gnn-learning .q3 { fill: var(--viz-series-3); }
+    #volt-gnn-learning .q4 { fill: var(--viz-series-2); }
+    #volt-gnn-learning .q5 { fill: var(--viz-series-1); }
+    #volt-gnn-learning .performance-point {
+      fill: var(--viz-series-1);
+    }
+    #volt-gnn-learning .selected-point {
+      stroke: var(--foreground);
+      stroke-width: 3;
+      opacity: 1;
+    }
+    #volt-gnn-learning .neighbor-line {
+      stroke: var(--foreground);
+      stroke-width: 1;
+      stroke-dasharray: 2 3;
+      opacity: 0.48;
+    }
+    #volt-gnn-learning .identity-line {
+      stroke: var(--viz-series-2);
+      stroke-width: 2;
+    }
+    #volt-gnn-learning .residual-line {
+      stroke: var(--foreground);
+      stroke-width: 1.5;
+      stroke-dasharray: 3 3;
+    }
+    #volt-gnn-learning .legend {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
+    #volt-gnn-learning .swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    #volt-gnn-learning .swatch.q1 { background: var(--viz-series-5); }
+    #volt-gnn-learning .swatch.q2 { background: var(--viz-series-4); }
+    #volt-gnn-learning .swatch.q3 { background: var(--viz-series-3); }
+    #volt-gnn-learning .swatch.q4 { background: var(--viz-series-2); }
+    #volt-gnn-learning .swatch.q5 { background: var(--viz-series-1); }
+    #volt-gnn-learning .tooltip {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 2;
+      max-width: 210px;
+    }
+    @media (max-width: 560px) {
+      #volt-gnn-learning .facet-grid {
+        grid-template-columns: 1fr;
+      }
+      #volt-gnn-learning .viz-controls {
+        align-items: stretch;
+      }
+      #volt-gnn-learning .selector {
+        width: 100%;
+      }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;pipeline&quot; aria-label=&quot;Volt supervised graph-learning path&quot;&gt;
+    &lt;span class=&quot;viz-badge&quot;&gt;Typed actions&lt;/span&gt;
+    &lt;span class=&quot;pipeline-arrow&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;
+    &lt;span class=&quot;viz-badge&quot;&gt;Candidate compiler&lt;/span&gt;
+    &lt;span class=&quot;pipeline-arrow&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;
+    &lt;span class=&quot;viz-badge&quot;&gt;Exact portfolio graph&lt;/span&gt;
+    &lt;span class=&quot;pipeline-arrow&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;
+    &lt;span class=&quot;viz-badge&quot;&gt;GNN embedding&lt;/span&gt;
+    &lt;span class=&quot;pipeline-arrow&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;
+    &lt;span class=&quot;viz-badge&quot;&gt;Supervised score&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-controls&quot;&gt;
+    &lt;label class=&quot;form-label selector&quot; for=&quot;volt-example-select&quot;&gt;
+      Inspect portfolio
+      &lt;select class=&quot;form-select&quot; id=&quot;volt-example-select&quot;&gt;
+        &lt;option value=&quot;e7de935b&quot;&gt;Held-out query&lt;/option&gt;
+        &lt;option value=&quot;6e563460&quot;&gt;Nearest embedding · validation&lt;/option&gt;
+        &lt;option value=&quot;c543cf07&quot;&gt;Nearest embedding · train&lt;/option&gt;
+        &lt;option value=&quot;ee0943fe&quot;&gt;Third-nearest embedding · train&lt;/option&gt;
+      &lt;/select&gt;
+    &lt;/label&gt;
+    &lt;div class=&quot;selected-summary&quot; id=&quot;volt-selected-summary&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;facet-grid&quot;&gt;
+    &lt;section class=&quot;facet&quot; aria-labelledby=&quot;volt-graph-heading&quot;&gt;
+      &lt;h3 id=&quot;volt-graph-heading&quot;&gt;Compiled portfolio graph&lt;/h3&gt;
+      &lt;div class=&quot;facet-note text-small&quot;&gt;Solid: position · dotted: underlying · dashed: expiry&lt;/div&gt;
+      &lt;div class=&quot;chart-wrap&quot;&gt;
+        &lt;svg class=&quot;chart&quot; id=&quot;volt-network&quot; viewBox=&quot;0 0 360 280&quot; role=&quot;img&quot; aria-labelledby=&quot;volt-network-title volt-network-desc&quot;&gt;
+          &lt;title id=&quot;volt-network-title&quot;&gt;Selected exact portfolio graph&lt;/title&gt;
+          &lt;desc id=&quot;volt-network-desc&quot;&gt;A portfolio root linked to SPY, expiry, and its nonzero option positions.&lt;/desc&gt;
+        &lt;/svg&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;facet&quot; aria-labelledby=&quot;volt-embedding-heading&quot;&gt;
+      &lt;h3 id=&quot;volt-embedding-heading&quot;&gt;Learned embedding&lt;/h3&gt;
+      &lt;div class=&quot;facet-note text-small&quot;&gt;PCA projection · proximity means the GNN represents portfolios similarly&lt;/div&gt;
+      &lt;div class=&quot;chart-wrap&quot;&gt;
+        &lt;svg class=&quot;chart&quot; id=&quot;volt-embedding&quot; viewBox=&quot;0 0 360 280&quot; role=&quot;img&quot; aria-labelledby=&quot;volt-embedding-title volt-embedding-desc&quot;&gt;
+          &lt;title id=&quot;volt-embedding-title&quot;&gt;Two-dimensional projection of learned graph embeddings&lt;/title&gt;
+          &lt;desc id=&quot;volt-embedding-desc&quot;&gt;Held-out portfolios and the three closest learned neighbors to the selected query.&lt;/desc&gt;
+        &lt;/svg&gt;
+        &lt;div class=&quot;tooltip&quot; id=&quot;volt-embedding-tooltip&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;legend text-small&quot; aria-label=&quot;Objective color scale&quot;&gt;
+        &lt;span&gt;lower objective&lt;/span&gt;
+        &lt;span class=&quot;swatch q1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;swatch q2&quot;&gt;&lt;/span&gt;&lt;span class=&quot;swatch q3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;swatch q4&quot;&gt;&lt;/span&gt;&lt;span class=&quot;swatch q5&quot;&gt;&lt;/span&gt;
+        &lt;span&gt;higher objective&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/div&gt;
+
+  &lt;section class=&quot;facet full-width&quot; aria-labelledby=&quot;volt-performance-heading&quot;&gt;
+    &lt;h3 id=&quot;volt-performance-heading&quot;&gt;Held-out prediction&lt;/h3&gt;
+    &lt;div class=&quot;facet-note text-small&quot;&gt;GNN R² 0.992 · RMSE $28.25 &amp;nbsp; | &amp;nbsp; pooled linear RMSE $217.60&lt;/div&gt;
+    &lt;div class=&quot;chart-wrap&quot;&gt;
+      &lt;svg class=&quot;chart performance-chart&quot; id=&quot;volt-performance&quot; role=&quot;img&quot; aria-labelledby=&quot;volt-performance-title volt-performance-desc&quot;&gt;
+        &lt;title id=&quot;volt-performance-title&quot;&gt;Predicted objective versus exact evaluated objective&lt;/title&gt;
+        &lt;desc id=&quot;volt-performance-desc&quot;&gt;Each point is one held-out terminal-payoff class. Points near the diagonal are accurate predictions.&lt;/desc&gt;
+      &lt;/svg&gt;
+      &lt;div class=&quot;tooltip&quot; id=&quot;volt-performance-tooltip&quot;&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&quot;volt-gnn-learning&quot;);
+      const data = [{&quot;i&quot;:&quot;ee0943fe&quot;,&quot;x&quot;:3.108,&quot;y&quot;:1.751,&quot;t&quot;:6.7,&quot;p&quot;:-0.8,&quot;s&quot;:&quot;r&quot;,&quot;q&quot;:[-1,-1,0,1,-1,0]},{&quot;i&quot;:&quot;c543cf07&quot;,&quot;x&quot;:2.7,&quot;y&quot;:2.683,&quot;t&quot;:148.2,&quot;p&quot;:154.5,&quot;s&quot;:&quot;r&quot;,&quot;q&quot;:[-1,0,-1,-1,-1,1]},{&quot;i&quot;:&quot;6e563460&quot;,&quot;x&quot;:3.228,&quot;y&quot;:2.343,&quot;t&quot;:87.0,&quot;p&quot;:94.0,&quot;s&quot;:&quot;v&quot;,&quot;q&quot;:[-1,-1,0,-1,-1,1]},{&quot;i&quot;:&quot;e7de935b&quot;,&quot;x&quot;:2.972,&quot;y&quot;:2.349,&quot;t&quot;:89.4,&quot;p&quot;:82.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,-1,1,-1,0]},{&quot;i&quot;:&quot;883e9868&quot;,&quot;x&quot;:4.482,&quot;y&quot;:-0.642,&quot;t&quot;:-330.7,&quot;p&quot;:-340.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,-1,1,0,1]},{&quot;i&quot;:&quot;a0f3f2b1&quot;,&quot;x&quot;:4.388,&quot;y&quot;:0.614,&quot;t&quot;:-161.3,&quot;p&quot;:-158.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,0,-1,0,1]},{&quot;i&quot;:&quot;45243bc5&quot;,&quot;x&quot;:4.758,&quot;y&quot;:-0.512,&quot;t&quot;:-297.5,&quot;p&quot;:-277.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,0,0,0,1]},{&quot;i&quot;:&quot;12f0e57a&quot;,&quot;x&quot;:4.16,&quot;y&quot;:-0.115,&quot;t&quot;:-236.2,&quot;p&quot;:-224.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,0,1,0,0]},{&quot;i&quot;:&quot;c942be96&quot;,&quot;x&quot;:3.315,&quot;y&quot;:1.325,&quot;t&quot;:-67.7,&quot;p&quot;:-62.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,1,-1,0,0]},{&quot;i&quot;:&quot;8d444c6e&quot;,&quot;x&quot;:4.022,&quot;y&quot;:-0.211,&quot;t&quot;:-273.5,&quot;p&quot;:-276.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,1,-1,0,1]},{&quot;i&quot;:&quot;1e4088f8&quot;,&quot;x&quot;:2.687,&quot;y&quot;:2.017,&quot;t&quot;:45.9,&quot;p&quot;:45.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,1,0,-1,0]},{&quot;i&quot;:&quot;f5fc8b09&quot;,&quot;x&quot;:3.818,&quot;y&quot;:-2.555,&quot;t&quot;:-597.2,&quot;p&quot;:-593.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,-1,1,1,1,0]},{&quot;i&quot;:&quot;8195e8e3&quot;,&quot;x&quot;:3.277,&quot;y&quot;:2.208,&quot;t&quot;:83.4,&quot;p&quot;:81.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,-1,-1,0,0]},{&quot;i&quot;:&quot;75c2090e&quot;,&quot;x&quot;:2.501,&quot;y&quot;:1.029,&quot;t&quot;:-122.4,&quot;p&quot;:-110.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,-1,0,1,-1]},{&quot;i&quot;:&quot;ba97a899&quot;,&quot;x&quot;:1.667,&quot;y&quot;:1.73,&quot;t&quot;:-33.6,&quot;p&quot;:-12.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,-1,1,0,-1]},{&quot;i&quot;:&quot;167cc3f5&quot;,&quot;x&quot;:1.411,&quot;y&quot;:1.355,&quot;t&quot;:-68.1,&quot;p&quot;:-104.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,0,-1,1,-1]},{&quot;i&quot;:&quot;ca999ec6&quot;,&quot;x&quot;:3.711,&quot;y&quot;:0.727,&quot;t&quot;:-85.9,&quot;p&quot;:-82.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,0,0,-1,1]},{&quot;i&quot;:&quot;3d68d1bb&quot;,&quot;x&quot;:4.364,&quot;y&quot;:-1.743,&quot;t&quot;:-394.5,&quot;p&quot;:-379.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,0,0,1,0]},{&quot;i&quot;:&quot;fb463d5b&quot;,&quot;x&quot;:4.274,&quot;y&quot;:-2.403,&quot;t&quot;:-476.4,&quot;p&quot;:-476.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,0,1,0,1]},{&quot;i&quot;:&quot;d2244cb6&quot;,&quot;x&quot;:0.504,&quot;y&quot;:0.389,&quot;t&quot;:-195.2,&quot;p&quot;:-264.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,-1,1,-1]},{&quot;i&quot;:&quot;b227991a&quot;,&quot;x&quot;:-1.563,&quot;y&quot;:1.908,&quot;t&quot;:-173.9,&quot;p&quot;:-179.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,0,-1,-1]},{&quot;i&quot;:&quot;ec51ebcc&quot;,&quot;x&quot;:0.115,&quot;y&quot;:0.662,&quot;t&quot;:-155.9,&quot;p&quot;:-171.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,0,0,-1]},{&quot;i&quot;:&quot;a7863cf3&quot;,&quot;x&quot;:-0.026,&quot;y&quot;:-0.349,&quot;t&quot;:-203.5,&quot;p&quot;:-281.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,1,0,-1]},{&quot;i&quot;:&quot;a26970ee&quot;,&quot;x&quot;:2.939,&quot;y&quot;:-1.996,&quot;t&quot;:-396.7,&quot;p&quot;:-388.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,1,0,0]},{&quot;i&quot;:&quot;f46b1183&quot;,&quot;x&quot;:0.584,&quot;y&quot;:-2.378,&quot;t&quot;:-506.2,&quot;p&quot;:-537.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,1,1,-1]},{&quot;i&quot;:&quot;3ad09b4c&quot;,&quot;x&quot;:3.384,&quot;y&quot;:-4.377,&quot;t&quot;:-891.8,&quot;p&quot;:-853.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,0,1,1,1,1]},{&quot;i&quot;:&quot;64668b99&quot;,&quot;x&quot;:-1.688,&quot;y&quot;:2.848,&quot;t&quot;:-88.8,&quot;p&quot;:-96.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,-1,0,-1,-1]},{&quot;i&quot;:&quot;bde72694&quot;,&quot;x&quot;:3.558,&quot;y&quot;:-2.34,&quot;t&quot;:-552.7,&quot;p&quot;:-552.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,0,-1,1,1]},{&quot;i&quot;:&quot;e3cfb9b0&quot;,&quot;x&quot;:0.523,&quot;y&quot;:1.567,&quot;t&quot;:-44.8,&quot;p&quot;:-46.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,0,0,-1,0]},{&quot;i&quot;:&quot;886e06c8&quot;,&quot;x&quot;:3.396,&quot;y&quot;:-3.843,&quot;t&quot;:-707.6,&quot;p&quot;:-705.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,0,0,1,1]},{&quot;i&quot;:&quot;4f07319a&quot;,&quot;x&quot;:-2.88,&quot;y&quot;:1.452,&quot;t&quot;:-313.3,&quot;p&quot;:-331.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,0,1,-1,-1]},{&quot;i&quot;:&quot;5a3b51fa&quot;,&quot;x&quot;:0.117,&quot;y&quot;:0.868,&quot;t&quot;:-68.5,&quot;p&quot;:-123.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,0,1,-1,0]},{&quot;i&quot;:&quot;99f8320d&quot;,&quot;x&quot;:1.238,&quot;y&quot;:0.822,&quot;t&quot;:-158.0,&quot;p&quot;:-160.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,-1,-1,1]},{&quot;i&quot;:&quot;b947212c&quot;,&quot;x&quot;:-2.056,&quot;y&quot;:-0.603,&quot;t&quot;:-524.2,&quot;p&quot;:-517.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,-1,1,-1]},{&quot;i&quot;:&quot;f861e871&quot;,&quot;x&quot;:-1.082,&quot;y&quot;:0.639,&quot;t&quot;:-226.7,&quot;p&quot;:-233.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,0,-1,0]},{&quot;i&quot;:&quot;97d2899e&quot;,&quot;x&quot;:0.553,&quot;y&quot;:-1.93,&quot;t&quot;:-427.0,&quot;p&quot;:-438.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,0,0,0]},{&quot;i&quot;:&quot;9c6b4a33&quot;,&quot;x&quot;:1.872,&quot;y&quot;:-4.216,&quot;t&quot;:-736.5,&quot;p&quot;:-736.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,1,0,1]},{&quot;i&quot;:&quot;96325e53&quot;,&quot;x&quot;:-1.917,&quot;y&quot;:-3.118,&quot;t&quot;:-796.8,&quot;p&quot;:-807.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[-1,1,1,1,1,-1]},{&quot;i&quot;:&quot;81787c47&quot;,&quot;x&quot;:3.863,&quot;y&quot;:0.082,&quot;t&quot;:-171.9,&quot;p&quot;:-184.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,-1,1,1]},{&quot;i&quot;:&quot;e01ed699&quot;,&quot;x&quot;:2.972,&quot;y&quot;:2.403,&quot;t&quot;:180.7,&quot;p&quot;:180.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,0,-1,1]},{&quot;i&quot;:&quot;6f3b26ec&quot;,&quot;x&quot;:1.924,&quot;y&quot;:1.94,&quot;t&quot;:21.9,&quot;p&quot;:49.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,0,1,-1]},{&quot;i&quot;:&quot;60f67b9d&quot;,&quot;x&quot;:1.919,&quot;y&quot;:2.828,&quot;t&quot;:199.8,&quot;p&quot;:179.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,1,-1,0]},{&quot;i&quot;:&quot;5bef6bfc&quot;,&quot;x&quot;:1.095,&quot;y&quot;:2.476,&quot;t&quot;:102.6,&quot;p&quot;:109.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,1,0,-1]},{&quot;i&quot;:&quot;8cce609b&quot;,&quot;x&quot;:1.673,&quot;y&quot;:0.966,&quot;t&quot;:-100.5,&quot;p&quot;:-90.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,1,1,-1]},{&quot;i&quot;:&quot;c27660b7&quot;,&quot;x&quot;:3.94,&quot;y&quot;:-2.211,&quot;t&quot;:-443.5,&quot;p&quot;:-460.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,-1,1,1,1]},{&quot;i&quot;:&quot;e8f1e277&quot;,&quot;x&quot;:-0.315,&quot;y&quot;:1.305,&quot;t&quot;:-100.9,&quot;p&quot;:-140.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,1,-1,1,-1]},{&quot;i&quot;:&quot;d9b2b40d&quot;,&quot;x&quot;:0.148,&quot;y&quot;:-0.267,&quot;t&quot;:-136.0,&quot;p&quot;:-244.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,1,0,1,-1]},{&quot;i&quot;:&quot;6aaaf6d5&quot;,&quot;x&quot;:2.269,&quot;y&quot;:-0.979,&quot;t&quot;:-213.7,&quot;p&quot;:-203.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,1,1,0,0]},{&quot;i&quot;:&quot;1a59a387&quot;,&quot;x&quot;:-0.195,&quot;y&quot;:-1.465,&quot;t&quot;:-300.9,&quot;p&quot;:-404.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,-1,1,1,1,-1]},{&quot;i&quot;:&quot;64d3ada7&quot;,&quot;x&quot;:-1.636,&quot;y&quot;:3.229,&quot;t&quot;:-55.1,&quot;p&quot;:-56.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,-1,-1,-1]},{&quot;i&quot;:&quot;810d9ab8&quot;,&quot;x&quot;:3.144,&quot;y&quot;:1.271,&quot;t&quot;:40.2,&quot;p&quot;:39.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,-1,0,1]},{&quot;i&quot;:&quot;cff422d7&quot;,&quot;x&quot;:1.343,&quot;y&quot;:2.869,&quot;t&quot;:161.3,&quot;p&quot;:143.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,0,-1,0]},{&quot;i&quot;:&quot;30b21f91&quot;,&quot;x&quot;:2.526,&quot;y&quot;:1.968,&quot;t&quot;:147.9,&quot;p&quot;:156.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,0,-1,1]},{&quot;i&quot;:&quot;6dc483c2&quot;,&quot;x&quot;:0.466,&quot;y&quot;:1.038,&quot;t&quot;:-63.4,&quot;p&quot;:-82.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,0,1,-1]},{&quot;i&quot;:&quot;aef30952&quot;,&quot;x&quot;:2.397,&quot;y&quot;:0.373,&quot;t&quot;:-55.6,&quot;p&quot;:-28.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,1,0,0]},{&quot;i&quot;:&quot;82feebc2&quot;,&quot;x&quot;:3.422,&quot;y&quot;:-1.477,&quot;t&quot;:-231.1,&quot;p&quot;:-241.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,-1,1,0,1]},{&quot;i&quot;:&quot;b952b153&quot;,&quot;x&quot;:3.369,&quot;y&quot;:0.11,&quot;t&quot;:-73.0,&quot;p&quot;:-77.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,0,-1,0,1]},{&quot;i&quot;:&quot;5129a858&quot;,&quot;x&quot;:0.327,&quot;y&quot;:2.165,&quot;t&quot;:-25.5,&quot;p&quot;:-49.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,0,0,-1,0]},{&quot;i&quot;:&quot;0421200e&quot;,&quot;x&quot;:3.83,&quot;y&quot;:-2.392,&quot;t&quot;:-212.3,&quot;p&quot;:-279.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,0,0,0,1]},{&quot;i&quot;:&quot;2317fa3d&quot;,&quot;x&quot;:3.7,&quot;y&quot;:-3.587,&quot;t&quot;:-498.0,&quot;p&quot;:-473.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,0,0,1,1]},{&quot;i&quot;:&quot;6994fda5&quot;,&quot;x&quot;:2.153,&quot;y&quot;:-0.209,&quot;t&quot;:-94.5,&quot;p&quot;:-111.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,0,1,-1,1]},{&quot;i&quot;:&quot;97f567ea&quot;,&quot;x&quot;:-3.06,&quot;y&quot;:0.681,&quot;t&quot;:-409.5,&quot;p&quot;:-414.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,1,-1,0,-1]},{&quot;i&quot;:&quot;8f21c478&quot;,&quot;x&quot;:2.62,&quot;y&quot;:-3.061,&quot;t&quot;:-518.5,&quot;p&quot;:-506.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,1,-1,1,1]},{&quot;i&quot;:&quot;0c427881&quot;,&quot;x&quot;:1.417,&quot;y&quot;:-5.21,&quot;t&quot;:-827.8,&quot;p&quot;:-818.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,0,1,1,1,1]},{&quot;i&quot;:&quot;f416de8a&quot;,&quot;x&quot;:-1.785,&quot;y&quot;:2.681,&quot;t&quot;:-103.7,&quot;p&quot;:-112.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,-1,-1,-1,0]},{&quot;i&quot;:&quot;e5d36eb3&quot;,&quot;x&quot;:-1.028,&quot;y&quot;:-0.693,&quot;t&quot;:-299.9,&quot;p&quot;:-305.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,-1,1,0,0]},{&quot;i&quot;:&quot;c6a4c224&quot;,&quot;x&quot;:-0.793,&quot;y&quot;:-2.752,&quot;t&quot;:-545.7,&quot;p&quot;:-532.7,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,-1,1,1,0]},{&quot;i&quot;:&quot;95dae9d1&quot;,&quot;x&quot;:-1.018,&quot;y&quot;:0.453,&quot;t&quot;:-289.6,&quot;p&quot;:-270.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,-1,0,0]},{&quot;i&quot;:&quot;37049e3c&quot;,&quot;x&quot;:0.204,&quot;y&quot;:-0.007,&quot;t&quot;:-100.6,&quot;p&quot;:-136.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,0,-1,1]},{&quot;i&quot;:&quot;83f3ede1&quot;,&quot;x&quot;:-3.585,&quot;y&quot;:-1.522,&quot;t&quot;:-658.2,&quot;p&quot;:-637.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,0,1,-1]},{&quot;i&quot;:&quot;98dcfb85&quot;,&quot;x&quot;:-0.407,&quot;y&quot;:-1.15,&quot;t&quot;:-260.6,&quot;p&quot;:-298.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,1,-1,1]},{&quot;i&quot;:&quot;b32421e9&quot;,&quot;x&quot;:-2.174,&quot;y&quot;:-2.159,&quot;t&quot;:-517.4,&quot;p&quot;:-531.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,1,0,0]},{&quot;i&quot;:&quot;3ede6816&quot;,&quot;x&quot;:-0.056,&quot;y&quot;:-3.817,&quot;t&quot;:-544.7,&quot;p&quot;:-557.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,0,1,0,1]},{&quot;i&quot;:&quot;0cb17671&quot;,&quot;x&quot;:-5.463,&quot;y&quot;:-0.312,&quot;t&quot;:-781.2,&quot;p&quot;:-808.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,1,0,-1,-1]},{&quot;i&quot;:&quot;8baa9608&quot;,&quot;x&quot;:-0.025,&quot;y&quot;:-5.456,&quot;t&quot;:-907.7,&quot;p&quot;:-916.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,1,0,1,1]},{&quot;i&quot;:&quot;c249306e&quot;,&quot;x&quot;:-1.388,&quot;y&quot;:-2.617,&quot;t&quot;:-489.1,&quot;p&quot;:-533.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,1,1,-1,1]},{&quot;i&quot;:&quot;975bd244&quot;,&quot;x&quot;:-0.867,&quot;y&quot;:-4.72,&quot;t&quot;:-763.7,&quot;p&quot;:-781.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,1,1,0,1]},{&quot;i&quot;:&quot;3bd89317&quot;,&quot;x&quot;:-2.626,&quot;y&quot;:-4.417,&quot;t&quot;:-979.3,&quot;p&quot;:-974.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[0,1,1,1,1,0]},{&quot;i&quot;:&quot;ef4dc738&quot;,&quot;x&quot;:2.152,&quot;y&quot;:2.446,&quot;t&quot;:205.0,&quot;p&quot;:196.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,-1,0,1]},{&quot;i&quot;:&quot;b3b1ef85&quot;,&quot;x&quot;:-2.27,&quot;y&quot;:3.27,&quot;t&quot;:-89.6,&quot;p&quot;:-84.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,0,-1,-1]},{&quot;i&quot;:&quot;afb84935&quot;,&quot;x&quot;:1.358,&quot;y&quot;:2.411,&quot;t&quot;:171.8,&quot;p&quot;:150.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,0,0,0]},{&quot;i&quot;:&quot;3d1ce400&quot;,&quot;x&quot;:1.678,&quot;y&quot;:0.96,&quot;t&quot;:-0.6,&quot;p&quot;:7.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,0,1,0]},{&quot;i&quot;:&quot;f654b964&quot;,&quot;x&quot;:-2.443,&quot;y&quot;:2.995,&quot;t&quot;:-139.1,&quot;p&quot;:-122.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,1,-1,-1]},{&quot;i&quot;:&quot;52e445aa&quot;,&quot;x&quot;:2.472,&quot;y&quot;:0.157,&quot;t&quot;:-60.3,&quot;p&quot;:-52.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,1,0,1]},{&quot;i&quot;:&quot;40dc6312&quot;,&quot;x&quot;:-1.448,&quot;y&quot;:1.344,&quot;t&quot;:-158.0,&quot;p&quot;:-159.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,-1,1,1,-1]},{&quot;i&quot;:&quot;29e9379e&quot;,&quot;x&quot;:-2.579,&quot;y&quot;:2.272,&quot;t&quot;:-219.1,&quot;p&quot;:-227.5,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,0,-1,0,-1]},{&quot;i&quot;:&quot;c6290e8a&quot;,&quot;x&quot;:-3.22,&quot;y&quot;:2.235,&quot;t&quot;:-284.2,&quot;p&quot;:-288.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,0,0,-1,-1]},{&quot;i&quot;:&quot;762be1e9&quot;,&quot;x&quot;:1.049,&quot;y&quot;:1.399,&quot;t&quot;:62.1,&quot;p&quot;:77.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,0,1,-1,1]},{&quot;i&quot;:&quot;e663e084&quot;,&quot;x&quot;:-2.539,&quot;y&quot;:2.401,&quot;t&quot;:-185.1,&quot;p&quot;:-197.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,1,-1,-1,0]},{&quot;i&quot;:&quot;935335b1&quot;,&quot;x&quot;:-0.394,&quot;y&quot;:0.164,&quot;t&quot;:-167.7,&quot;p&quot;:-217.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,1,-1,1,0]},{&quot;i&quot;:&quot;0f85a5a5&quot;,&quot;x&quot;:-0.568,&quot;y&quot;:-1.562,&quot;t&quot;:-326.2,&quot;p&quot;:-366.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,1,0,1,0]},{&quot;i&quot;:&quot;2424d8b1&quot;,&quot;x&quot;:1.658,&quot;y&quot;:-3.389,&quot;t&quot;:-466.7,&quot;p&quot;:-491.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,1,0,1,1]},{&quot;i&quot;:&quot;658f4fb9&quot;,&quot;x&quot;:-1.283,&quot;y&quot;:-2.753,&quot;t&quot;:-489.1,&quot;p&quot;:-532.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,-1,1,1,1,0]},{&quot;i&quot;:&quot;d85a1f54&quot;,&quot;x&quot;:-0.978,&quot;y&quot;:2.091,&quot;t&quot;:-77.2,&quot;p&quot;:-79.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,-1,-1,0,0]},{&quot;i&quot;:&quot;283adf8f&quot;,&quot;x&quot;:-3.752,&quot;y&quot;:0.724,&quot;t&quot;:-444.1,&quot;p&quot;:-433.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,-1,1,0,-1]},{&quot;i&quot;:&quot;51f63a47&quot;,&quot;x&quot;:-1.585,&quot;y&quot;:0.421,&quot;t&quot;:-234.5,&quot;p&quot;:-246.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,-1,1,0,0]},{&quot;i&quot;:&quot;05db73cd&quot;,&quot;x&quot;:-2.992,&quot;y&quot;:1.732,&quot;t&quot;:-295.0,&quot;p&quot;:-316.4,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,0,-1,-1,0]},{&quot;i&quot;:&quot;6c04cc43&quot;,&quot;x&quot;:-2.741,&quot;y&quot;:-0.394,&quot;t&quot;:-334.5,&quot;p&quot;:-422.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,0,0,0,0]},{&quot;i&quot;:&quot;aaa4b7e6&quot;,&quot;x&quot;:-2.81,&quot;y&quot;:-1.104,&quot;t&quot;:-441.0,&quot;p&quot;:-470.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,0,1,0,0]},{&quot;i&quot;:&quot;36d2f28d&quot;,&quot;x&quot;:-4.37,&quot;y&quot;:-1.347,&quot;t&quot;:-708.9,&quot;p&quot;:-703.1,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,0,1,1,-1]},{&quot;i&quot;:&quot;4fbef22b&quot;,&quot;x&quot;:-2.721,&quot;y&quot;:-2.603,&quot;t&quot;:-608.3,&quot;p&quot;:-614.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,0,1,1,0]},{&quot;i&quot;:&quot;6a605e0e&quot;,&quot;x&quot;:-5.26,&quot;y&quot;:-0.21,&quot;t&quot;:-721.4,&quot;p&quot;:-719.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,1,-1,0,-1]},{&quot;i&quot;:&quot;673a1aa6&quot;,&quot;x&quot;:-1.521,&quot;y&quot;:-0.293,&quot;t&quot;:-292.7,&quot;p&quot;:-267.8,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,1,0,-1,1]},{&quot;i&quot;:&quot;15219649&quot;,&quot;x&quot;:-2.954,&quot;y&quot;:-2.903,&quot;t&quot;:-671.9,&quot;p&quot;:-676.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,1,0,1,0]},{&quot;i&quot;:&quot;9ec9b6bb&quot;,&quot;x&quot;:-4.239,&quot;y&quot;:-0.484,&quot;t&quot;:-604.2,&quot;p&quot;:-573.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,1,1,-1,0]},{&quot;i&quot;:&quot;480e1de4&quot;,&quot;x&quot;:-3.352,&quot;y&quot;:-3.352,&quot;t&quot;:-827.8,&quot;p&quot;:-809.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,0,1,1,1,0]},{&quot;i&quot;:&quot;eb5c6b84&quot;,&quot;x&quot;:-5.366,&quot;y&quot;:0.752,&quot;t&quot;:-641.5,&quot;p&quot;:-635.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,-1,-1,0,-1]},{&quot;i&quot;:&quot;d8c56094&quot;,&quot;x&quot;:-3.331,&quot;y&quot;:0.193,&quot;t&quot;:-464.8,&quot;p&quot;:-440.0,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,-1,-1,1,0]},{&quot;i&quot;:&quot;b37e4985&quot;,&quot;x&quot;:-2.182,&quot;y&quot;:1.159,&quot;t&quot;:-213.3,&quot;p&quot;:-220.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,-1,0,-1,1]},{&quot;i&quot;:&quot;cb366740&quot;,&quot;x&quot;:-4.42,&quot;y&quot;:-0.353,&quot;t&quot;:-604.7,&quot;p&quot;:-600.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,0,-1,0,0]},{&quot;i&quot;:&quot;b42e6a10&quot;,&quot;x&quot;:-6.243,&quot;y&quot;:-0.493,&quot;t&quot;:-967.3,&quot;p&quot;:-973.3,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,0,1,-1,-1]},{&quot;i&quot;:&quot;55b1c5ac&quot;,&quot;x&quot;:-6.447,&quot;y&quot;:-0.136,&quot;t&quot;:-1052.2,&quot;p&quot;:-1007.9,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,1,-1,-1,-1]},{&quot;i&quot;:&quot;46013b98&quot;,&quot;x&quot;:-6.211,&quot;y&quot;:-1.81,&quot;t&quot;:-1206.6,&quot;p&quot;:-1181.2,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,1,1,0,-1]},{&quot;i&quot;:&quot;832214ac&quot;,&quot;x&quot;:-5.949,&quot;y&quot;:-2.315,&quot;t&quot;:-1297.8,&quot;p&quot;:-1231.6,&quot;s&quot;:&quot;e&quot;,&quot;q&quot;:[1,1,1,1,1,-1]}];
+      const optionNames = [&quot;C90&quot;, &quot;C100&quot;, &quot;C110&quot;, &quot;P90&quot;, &quot;P100&quot;, &quot;P110&quot;];
+      const actualNeighbors = [&quot;6e563460&quot;, &quot;c543cf07&quot;, &quot;ee0943fe&quot;];
+      const svgNS = &quot;http://www.w3.org/2000/svg&quot;;
+      let selectedId = &quot;e7de935b&quot;;
+
+      const money = value =&gt; `${value &lt; 0 ? &quot;−&quot; : &quot;&quot;}$${Math.abs(value).toFixed(1)}`;
+      const splitName = code =&gt; ({r: &quot;train&quot;, v: &quot;validation&quot;, e: &quot;test&quot;})[code];
+      const findRow = id =&gt; data.find(row =&gt; row.i === id);
+      const svgElement = (name, attributes = {}, text = &quot;&quot;) =&gt; {
+        const element = document.createElementNS(svgNS, name);
+        Object.entries(attributes).forEach(([key, value]) =&gt; element.setAttribute(key, value));
+        if (text) element.textContent = text;
+        return element;
+      };
+      const removeDynamic = svg =&gt; svg.querySelectorAll(&quot;.dynamic&quot;).forEach(node =&gt; node.remove());
+      const extent = (values, padding = 0) =&gt; {
+        const minimum = Math.min(...values);
+        const maximum = Math.max(...values);
+        const span = maximum - minimum || 1;
+        return [minimum - span * padding, maximum + span * padding];
+      };
+      const scale = (domain, range) =&gt; value =&gt;
+        range[0] + (value - domain[0]) * (range[1] - range[0]) / (domain[1] - domain[0]);
+      const objectiveClass = value =&gt; {
+        if (value &lt; -800) return &quot;q1&quot;;
+        if (value &lt; -500) return &quot;q2&quot;;
+        if (value &lt; -200) return &quot;q3&quot;;
+        if (value &lt; 0) return &quot;q4&quot;;
+        return &quot;q5&quot;;
+      };
+      const showTooltip = (tooltip, svg, mark, row, event) =&gt; {
+        tooltip.innerHTML = `&lt;strong&gt;${row.i}&lt;/strong&gt;&lt;br&gt;${splitName(row.s)} · target ${money(row.t)}&lt;br&gt;prediction ${money(row.p)} · error ${money(row.p - row.t)}`;
+        tooltip.style.visibility = &quot;visible&quot;;
+        const host = svg.parentElement.getBoundingClientRect();
+        const box = mark.getBoundingClientRect();
+        const left = Math.max(4, Math.min(host.width - 214, box.left - host.left + box.width + 6));
+        const top = Math.max(4, Math.min(host.height - 72, box.top - host.top - 24));
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        event.stopPropagation();
+      };
+      const hideTooltip = tooltip =&gt; { tooltip.style.visibility = &quot;hidden&quot;; };
+
+      function drawNetwork(row) {
+        const svg = root.querySelector(&quot;#volt-network&quot;);
+        removeDynamic(svg);
+        const group = svgElement(&quot;g&quot;, {class: &quot;dynamic&quot;});
+        const positions = [
+          [34, 224], [92, 224], [150, 224], [210, 224], [268, 224], [326, 224]
+        ];
+        row.q.forEach((quantity, index) =&gt; {
+          if (!quantity) return;
+          const [x, y] = positions[index];
+          [
+            [180, 126, &quot;relation-position&quot;],
+            [82, 49, &quot;relation-underlying&quot;],
+            [278, 49, &quot;relation-expiry&quot;]
+          ].forEach(([targetX, targetY, relationClass]) =&gt; {
+            group.appendChild(svgElement(&quot;line&quot;, {
+              x1: x, y1: y - 16, x2: targetX, y2: targetY + 16,
+              class: `network-edge ${relationClass}`
+            }));
+          });
+        });
+        group.appendChild(svgElement(&quot;rect&quot;, {x: 32, y: 28, width: 100, height: 42, rx: 10, class: &quot;context-node&quot;}));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 82, y: 46, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;node-label&quot;}, &quot;Underlying&quot;));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 82, y: 61, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;tick-label&quot;}, &quot;SPY · $100&quot;));
+        group.appendChild(svgElement(&quot;rect&quot;, {x: 228, y: 28, width: 100, height: 42, rx: 10, class: &quot;context-node&quot;}));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 278, y: 46, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;node-label&quot;}, &quot;Expiry&quot;));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 278, y: 61, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;tick-label&quot;}, &quot;30 days&quot;));
+        group.appendChild(svgElement(&quot;circle&quot;, {cx: 180, cy: 126, r: 37, class: &quot;portfolio-node&quot;}));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 180, y: 123, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;portfolio-label&quot;}, &quot;Portfolio&quot;));
+        group.appendChild(svgElement(&quot;text&quot;, {x: 180, y: 140, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;portfolio-label&quot;}, `${row.q.filter(Boolean).length} legs`));
+        row.q.forEach((quantity, index) =&gt; {
+          if (!quantity) return;
+          const [x, y] = positions[index];
+          group.appendChild(svgElement(&quot;circle&quot;, {
+            cx: x, cy: y, r: 23,
+            class: `option-node ${quantity &gt; 0 ? &quot;long-node&quot; : &quot;short-node&quot;}`
+          }));
+          group.appendChild(svgElement(&quot;text&quot;, {x, y: y - 2, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;node-label&quot;}, optionNames[index]));
+          group.appendChild(svgElement(&quot;text&quot;, {x, y: y + 14, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;tick-label&quot;}, quantity &gt; 0 ? `+${quantity}` : `${quantity}`));
+        });
+        svg.appendChild(group);
+      }
+
+      function addAxes(svg, xScale, yScale, xDomain, yDomain, bounds, labels) {
+        const group = svgElement(&quot;g&quot;, {class: &quot;dynamic&quot;});
+        const [left, top, right, bottom] = bounds;
+        const ticks = 4;
+        for (let index = 0; index &lt;= ticks; index += 1) {
+          const xValue = xDomain[0] + (xDomain[1] - xDomain[0]) * index / ticks;
+          const yValue = yDomain[0] + (yDomain[1] - yDomain[0]) * index / ticks;
+          const x = xScale(xValue);
+          const y = yScale(yValue);
+          group.appendChild(svgElement(&quot;line&quot;, {x1: x, y1: top, x2: x, y2: bottom, class: &quot;gridline&quot;}));
+          group.appendChild(svgElement(&quot;line&quot;, {x1: left, y1: y, x2: right, y2: y, class: &quot;gridline&quot;}));
+          if (labels.numeric) {
+            group.appendChild(svgElement(&quot;text&quot;, {x, y: bottom + 18, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;tick-label&quot;}, Math.round(xValue)));
+            group.appendChild(svgElement(&quot;text&quot;, {x: left - 7, y: y + 4, &quot;text-anchor&quot;: &quot;end&quot;, class: &quot;tick-label&quot;}, Math.round(yValue)));
+          }
+        }
+        group.appendChild(svgElement(&quot;line&quot;, {x1: left, y1: bottom, x2: right, y2: bottom, class: &quot;axis&quot;}));
+        group.appendChild(svgElement(&quot;line&quot;, {x1: left, y1: top, x2: left, y2: bottom, class: &quot;axis&quot;}));
+        group.appendChild(svgElement(&quot;text&quot;, {x: (left + right) / 2, y: bottom + 35, &quot;text-anchor&quot;: &quot;middle&quot;, class: &quot;axis-label&quot;}, labels.x));
+        group.appendChild(svgElement(&quot;text&quot;, {x: left, y: top - 8, class: &quot;axis-label&quot;}, labels.y));
+        svg.appendChild(group);
+      }
+
+      function drawEmbedding() {
+        const svg = root.querySelector(&quot;#volt-embedding&quot;);
+        const tooltip = root.querySelector(&quot;#volt-embedding-tooltip&quot;);
+        removeDynamic(svg);
+        const xDomain = extent(data.map(row =&gt; row.x), 0.07);
+        const yDomain = extent(data.map(row =&gt; row.y), 0.09);
+        const xScale = scale(xDomain, [35, 345]);
+        const yScale = scale(yDomain, [248, 15]);
+        addAxes(svg, xScale, yScale, xDomain, yDomain, [35, 15, 345, 248], {x: &quot;embedding component 1&quot;, y: &quot;component 2&quot;, numeric: false});
+        const group = svgElement(&quot;g&quot;, {class: &quot;dynamic&quot;});
+        const selected = findRow(selectedId);
+        if (selectedId === &quot;e7de935b&quot;) {
+          actualNeighbors.forEach(id =&gt; {
+            const neighbor = findRow(id);
+            group.appendChild(svgElement(&quot;line&quot;, {
+              x1: xScale(selected.x), y1: yScale(selected.y),
+              x2: xScale(neighbor.x), y2: yScale(neighbor.y),
+              class: &quot;neighbor-line&quot;
+            }));
+          });
+        }
+        data.forEach(row =&gt; {
+          const circle = svgElement(&quot;circle&quot;, {
+            cx: xScale(row.x), cy: yScale(row.y),
+            r: row.i === selectedId ? 6.5 : 3.8,
+            class: `point ${objectiveClass(row.t)} ${row.i === selectedId ? &quot;selected-point&quot; : &quot;&quot;}`,
+            &quot;aria-label&quot;: `${row.i}, ${splitName(row.s)}, target ${row.t}, prediction ${row.p}`
+          });
+          circle.addEventListener(&quot;mouseenter&quot;, event =&gt; showTooltip(tooltip, svg, circle, row, event));
+          circle.addEventListener(&quot;mouseleave&quot;, () =&gt; hideTooltip(tooltip));
+          circle.addEventListener(&quot;click&quot;, () =&gt; selectRow(row.i));
+          group.appendChild(circle);
+        });
+        svg.appendChild(group);
+      }
+
+      function drawPerformance() {
+        const svg = root.querySelector(&quot;#volt-performance&quot;);
+        const tooltip = root.querySelector(&quot;#volt-performance-tooltip&quot;);
+        removeDynamic(svg);
+        const width = Math.max(300, svg.clientWidth);
+        const test = data.filter(row =&gt; row.s === &quot;e&quot;);
+        const combined = test.flatMap(row =&gt; [row.t, row.p]);
+        const domain = extent(combined, 0.06);
+        const xScale = scale(domain, [62, width - 18]);
+        const yScale = scale(domain, [252, 18]);
+        addAxes(svg, xScale, yScale, domain, domain, [62, 18, width - 18, 252], {x: &quot;exact evaluated objective ($)&quot;, y: &quot;GNN prediction ($)&quot;, numeric: true});
+        const group = svgElement(&quot;g&quot;, {class: &quot;dynamic&quot;});
+        group.appendChild(svgElement(&quot;line&quot;, {
+          x1: xScale(domain[0]), y1: yScale(domain[0]),
+          x2: xScale(domain[1]), y2: yScale(domain[1]),
+          class: &quot;identity-line&quot;
+        }));
+        const selected = findRow(selectedId);
+        if (selected &amp;&amp; selected.s === &quot;e&quot;) {
+          group.appendChild(svgElement(&quot;line&quot;, {
+            x1: xScale(selected.t), y1: yScale(selected.t),
+            x2: xScale(selected.t), y2: yScale(selected.p),
+            class: &quot;residual-line&quot;
+          }));
+        }
+        test.forEach(row =&gt; {
+          const circle = svgElement(&quot;circle&quot;, {
+            cx: xScale(row.t), cy: yScale(row.p),
+            r: row.i === selectedId ? 6 : 3.5,
+            class: `point performance-point ${row.i === selectedId ? &quot;selected-point&quot; : &quot;&quot;}`,
+            &quot;aria-label&quot;: `${row.i}, exact ${row.t}, predicted ${row.p}`
+          });
+          circle.addEventListener(&quot;mouseenter&quot;, event =&gt; showTooltip(tooltip, svg, circle, row, event));
+          circle.addEventListener(&quot;mouseleave&quot;, () =&gt; hideTooltip(tooltip));
+          circle.addEventListener(&quot;click&quot;, () =&gt; selectRow(row.i));
+          group.appendChild(circle);
+        });
+        svg.appendChild(group);
+      }
+
+      function selectRow(id) {
+        const row = findRow(id);
+        if (!row) return;
+        selectedId = id;
+        const select = root.querySelector(&quot;#volt-example-select&quot;);
+        const existingCustom = select.querySelector(&quot;option[data-custom]&quot;);
+        if (existingCustom) existingCustom.remove();
+        if ([...select.options].some(option =&gt; option.value === id)) {
+          select.value = id;
+        } else {
+          const custom = document.createElement(&quot;option&quot;);
+          custom.value = id;
+          custom.textContent = `Selected point · ${id}`;
+          custom.dataset.custom = &quot;true&quot;;
+          custom.selected = true;
+          select.appendChild(custom);
+        }
+        const error = row.p - row.t;
+        root.querySelector(&quot;#volt-selected-summary&quot;).innerHTML =
+          `&lt;strong&gt;${row.i}&lt;/strong&gt; · ${splitName(row.s)} · target ${money(row.t)} · predicted ${money(row.p)} · error ${money(error)}`;
+        drawNetwork(row);
+        drawEmbedding();
+        drawPerformance();
+      }
+
+      root.querySelector(&quot;#volt-example-select&quot;).addEventListener(&quot;change&quot;, event =&gt; selectRow(event.target.value));
+      selectRow(selectedId);
+      if (&quot;ResizeObserver&quot; in window) {
+        new ResizeObserver(() =&gt; drawPerformance()).observe(root.querySelector(&quot;#volt-performance&quot;).parentElement);
+      }
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

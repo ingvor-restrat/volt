@@ -71,6 +71,11 @@ The generated directory contains:
 - `embeddings.jsonl`: prediction and embedding for every sample, retaining
   `sample_id`, `portfolio_hash`, and `terminal_payoff_hash`.
 
+The [graphical experiment overview](markup/README.md#supervised-graph-learning)
+shows the compiler path, one exact graph, the learned embedding space, held-out
+predictions, and baseline errors. Its interactive version is
+[`docs/markup/gnn-learning.html`](markup/gnn-learning.html).
+
 Inspect the nearest portfolios in the learned space (by default, around the
 first held-out sample):
 
