@@ -1,1542 +1,525 @@
-\documentclass{strategynet-report}
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathpazo}
+\usepackage[scaled]{helvet}
+\usepackage{microtype}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{xurl}
+\usepackage{hyperref}
 
 \hypersetup{
-  pdftitle={Volt: Options Graph Logic},
-  pdfauthor={research@strategynet.ai}
+  pdftitle={Volt: Financial Semantics for Option Portfolio Graphs},
+  pdfauthor={research@strategynet.ai},
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!60!black
 }
 
-\lstdefinestyle{volt}{
-  style=sncode
-}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlist{nosep}
 
 \newcommand{\VOLT}{\textsf{Volt}}
-\newcommand{\COG}{\texttt{cog}}
-\newcommand{\strategy}[1]{\emph{#1}}
+\newcommand{\COG}{\texttt{COG}}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\Z}{\mathbb{Z}}
-\newcommand{\E}{\mathbb{E}}
-\newcommand{\1}{\mathbf{1}}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
 
-\tikzset{
-  voltportfolio/.style={
-    draw=SNSignalDark,
-    fill=SNSignal!7,
-    rounded corners,
-    align=center,
-    minimum height=8mm
-  },
-  voltleg/.style={
-    draw=SNInk,
-    fill=SNInk!6,
-    rounded corners,
-    align=center,
-    font=\small
-  },
-  voltfactor/.style={
-    draw=SNMuted,
-    fill=SNMuted!8,
-    rounded corners,
-    align=center,
-    font=\small
-  },
-  voltedge/.style={-{Latex[length=2mm]},semithick},
-  voltcompile/.style={
-    draw=SNSignalDark,
-    fill=SNSignal!6,
-    rounded corners,
-    align=center,
-    minimum width=25mm,
-    minimum height=10mm
-  }
-}
-
-\title{\VOLT{}: Options Graph Logic}
-\SNSubtitle{A graph for learning and optimizing options portfolios}
-\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
-\SNDocumentType{Foundations and architecture}
-\SNVersion{Version 0.5}
-\SNDate{July 2026}
-\SNStatus{Open-source working paper}
-\SNShortTitle{Volt: Options Graph Logic}
+\title{\VOLT{}: Financial Semantics for Option Portfolio Graphs}
+\author{research@strategynet.ai}
+\date{July 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Options portfolios are relational objects.  Legs share underlyings,
-expirations, strikes, risk factors, exercise rights, settlement paths, and
-management choices.  Flattening those relationships into a strategy name or
-an arbitrary row of leg features discards structure that learning,
-optimization, and search systems need.
-
-\VOLT{} represents that structure as a deterministic options graph connected
-to exact contracts, signed positions, market evidence, lifecycle state, and
-simulation outcomes.  The graph gives machine-learning models and optimizers
-a stable object on which to discover, compare, transform, and manage
-strategies without taking authority over their financial meaning.  The public
-crate implements the semantic runtime, canonical identities, bounded
-candidate actions, scenario evidence, and an initial graph export.  A future
-\COG{} compiler remains an important efficiency layer for constructing,
-validating, and lowering these graphs; it is a supporting goal rather than
-Volt's central purpose.
+An option portfolio appears in several operational forms: listed contracts and quantities, an expiration payoff, live exercise and assignment state, executions and cash movements, and model features.  Independent implementations of these forms can disagree about which position was evaluated or traded.  \VOLT{} defines the listed contracts and signed positions as the authoritative portfolio and derives payoff, runtime, compiler, and graph views from that object.  European, Bermudan, and American exercise share one exercise-opportunity representation; the runtime records exercise, assignment, expiry, cash, and delivered underlying as state transitions.  A deterministic graph connects each option position to its portfolio, underlying, and expiry while retaining hashes of the contract portfolio and expiration-payoff projection.  The \COG{} compiler resolves bounded semantic actions to listed contracts and emits aligned action nodes and legal masks.  This paper defines those financial semantics, identifies the equivalence represented by each derived view, and states the implemented boundary supplied to portfolio discovery and sequential control.
 \end{abstract}
 
-\SNtableofcontents
+\section{Introduction}
 
-\part{Motivation}
+The security master identifies the listed contract, the position service
+records quantity, the risk system attaches marks and sensitivities, the payoff
+tool projects expiration cash flows, and the execution ledger records fills.
+A research pipeline produces another representation when it converts the
+position into model features and outcomes.
 
-\section{Why an options graph}
+A terminal payoff groups portfolios by expiration geometry.  A runtime state
+records rights, obligations, cash, inventory, and lifecycle events.  A graph
+exposes relationships to a learning model.  An execution journal explains how
+the account reached its current state.  Each view retains the identity needed
+for its purpose and a link to the contract portfolio.
 
-\VOLT{} exists so that machine learning, AI, search, and numerical
-optimization can operate directly on options portfolios without first
-flattening away the relationships that make a strategy meaningful.  An
-options graph makes contracts, signed legs, shared market objects, lifecycle
-rights, observations, and outcomes explicit.  Its node ordering may change;
-the financial relationships do not.
+\VOLT{} begins with listed option contracts and signed quantities.  Contract
+terms remain fixed, market observations are timestamped context, and
+lifecycle events change an explicit portfolio state.  Terminal payoff and
+machine-learning graphs are derived views tied back to the contract portfolio
+by versioned content hashes.  The statistical model therefore receives a
+stable representation while pricing, execution, exercise, assignment, and
+settlement remain governed by declared financial components.
 
-A trader rarely begins with an option symbol.  The starting point is usually a
-view or a constraint:
-\begin{itemize}
-  \item ``I expect the underlying to remain between 95 and 105 through this
-        expiration.''
-  \item ``Front expiries look rich relative to back expiries.''
-  \item ``I want convex downside protection, but I can spend only 80 basis
-        points.''
-  \item ``I am willing to give up the upside above 110 to finance a put.''
-\end{itemize}
-An order ticket realizes such an idea at a particular moment, through
-particular listed instruments, yet the position immediately acquires several
-other identities.  It becomes a payoff over terminal spot, an exposure to
-implied volatility across strike and expiration, a consumer of margin and
-liquidity, a collection of exercise and assignment contingencies, and a state
-from which a management policy may act.  Research adds another identity when
-the position is converted into features and labels for a model.  Each view is
-legitimate, but their meanings must remain synchronized as the market moves
-and the portfolio evolves.
+The design supports two research problems.  Portfolio discovery evaluates and
+ranks entry portfolios constructed from listed contracts.  Portfolio control
+chooses actions repeatedly as the market and account state change.  Both
+consume the same contract, runtime, compiler, and graph semantics.
 
-Many trading systems materialize these views in different places: the security
-master knows the listed contract, the risk service maintains Greeks, the
-payoff tool draws a terminal diagram, the order system records fills, and the
-research pipeline stores feature rows.  The architecture appears modular until
-two copies disagree, at which point questions that ought to have mechanical
-answers require forensic work:
-\begin{itemize}
-  \item Did the model rank the position the simulator actually traded?
-  \item Did a ``\strategy{calendar}'' mean long the back month or long the front month?
-  \item Did a payoff deduplicator erase an economically important early
-        exercise or liquidity difference?
-  \item Can a result be replayed using only information available at the
-        decision time?
-\end{itemize}
+Research on financial contract languages established that a compact contract
+description can support several interpretations, including valuation,
+evolution, and executable lowering \cite{arnold1995,peytonjones2000}.  Later
+work added verified analyses and compilation to parallel payoff evaluation
+\cite{bahr2015,annenkov2018}.  Production and standards efforts have applied
+related ideas to derivative payouts and lifecycle events
+\cite{frankau2009,actus,cdm}.  \VOLT{} applies this separation of meaning and
+interpretation to listed-option portfolio search.
 
-\VOLT{} gives those systems a shared semantic source.  The public model records
-signed positions in exact listed option contracts; exercise schedules,
-settlement rules, observations, actions, emissions, cash, underlying units,
-and outcomes retain typed identities.  Derived payoff and graph views link
-back to exact portfolio hashes instead of becoming independent copies.
-Account policy, collateral, futures, brokerage orders, and general portfolio
-margin are outside the current crate.  They may later become
-inputs to a compiler or application layer without changing the meaning of the
-implemented option types.
+\section{Contracts, positions, and market state}
+\label{sec:portfolio}
 
-Discovery therefore shapes the representation from the beginning.  Legs that share an
-underlying, expiration, risk factor, or margin treatment interact through
-relationships that remain unchanged when the legs are displayed in a
-different order, so a graph provides a natural input to a relational learner
-while remaining useful to deterministic systems.  Validation,
-canonicalization, scenario evaluation, and graph export already operate over
-the same portfolio meaning.  Tensorization, account-aware masks, strategy
-macros, and a fully general contract language remain proposed layers.  The
-implemented \COG{} options-design compiler validates guarded business rules,
-resolves bounded actions against an explicitly supplied listed universe, and
-preserves every matching branch in stable contract order.  The
-scenario layer applies declared fills and fees and delegates lifecycle actions
-to the deterministic runtime, returning outcomes with an auditable path back
-to the original contracts.
+\subsection{Listed contracts}
 
-\section{Related work and scope}
-
-The graph representation and the compiler serve different goals.  The graph
-is Volt's interface to learning, optimization, simulation, and explanation.
-The implemented first \COG{} compiler makes that interface more reliable by
-expanding concise source forms, checking them, and lowering them to runtime,
-portfolio-graph, and state/action-graph targets.  Tensor lowering and a more
-general expression language remain future work.  Compilation matters because
-it preserves meaning across those targets; it is not the end product.
-
-Machine-readable financial contracts have a substantial research lineage in
-programming languages and formal methods.  RISLA, developed in an
-academic--industrial collaboration
-in the 1990s, described interest-rate products through their cash flows and
-compiled those descriptions into COBOL for use in a banking environment
-\cite{arnold1995}.  Peyton Jones, Eber, and Seward subsequently showed that a
-small collection of contract combinators could express a broad family of
-financial instruments while supporting several interpretations of the same
-description, including valuation and contract evolution
-\cite{peytonjones2000}.  Together these projects established the essential
-compiler idea: a financial product can be represented at a level above any
-particular pricing routine or operational implementation.
-
-Later research made the semantic guarantees considerably stronger.  Bahr,
-Berthold, and Elsman developed a multi-party contract language with a precise
-cash-flow semantics, a causality type system, symbolic contract reduction, and
-Coq-verified analyses and transformations \cite{bahr2015}.  Annenkov and
-Elsman then presented a certified compilation path from templated contracts to
-a payoff intermediate language, with generated Haskell and Futhark code used
-in a data-parallel Monte Carlo engine \cite{annenkov2018}.  That work is
-especially close to the compiler boundary developed here because it connects
-declarative contract meaning, verified lowering, stochastic evaluation, and
-GPGPU execution without allowing the numerical backend to redefine the
-contract.
-
-Comparable representations have been used in production derivatives systems.
-Frankau, Spinellis, Nassuphis, and Burgard \cite{frankau2009} describe a
-functional payout framework for exotic derivatives whose embedded language
-supported pricing, analysis, and lifecycle processing through several
-interpreters within a wider front-office system.  LexiFi's
-contract-description language represents the commercial continuation of the
-algebraic approach \cite{lexifi}, while ACTUS and the FINOS Common Domain Model
-pursue standardization of contract, product, trade, and lifecycle semantics
-\cite{actus,cdm}.  These efforts answer different institutional questions, yet
-they share the conviction that product meaning should be explicit enough to
-interpret, transform, and execute.
-
-\VOLT{} begins from that foundation and turns toward portfolio search.  Its
-implemented central object is an exact canonical collection of option
-positions.  A terminal-payoff projection exposes one explicitly weaker
-equivalence, a graph sample exposes a deterministic learning view, and runtime
-state preserves lifecycle and ledger consequences.  Account state,
-collateral, learned ranking, and general numerical lowerings are research
-extensions.  Interoperability with broader contract standards may eventually
-be useful, but the immediate question is whether a compact public semantic
-core lets other systems explore strategy space without loosening the
-financial meaning of what they explore.
-
-\section{Strategy workflow}
-
-At a trader's level, the envisioned process begins with a market view and
-account constraints, expands them into admissible contracts and actions,
-evaluates the resulting portfolios, and returns a ranked set of alternatives
-with their risks and supporting evidence.  The public crate currently covers
-the semantic middle of that path: exact contracts, bounded action resolution,
-canonical forms, deterministic simulation, journals, and graph samples.
-Figure~\ref{fig:learning-cycle} develops the larger research workflow,
-including layers not yet implemented in this repository.
-
-For example, the phrase ``\strategy{long the 100 call calendar}'' conveys a recognizable
-view but leaves most of the executable position unresolved.  Under the usual
-convention it calls for a short near-dated 100 call and a long far-dated
-100 call, after which a future compiler would identify the listed contracts,
-quantities, multipliers, exercise styles, settlement rules, contemporaneous
-quotes, and account context.  When the near expiration arrives, the short leg
-may expire, be closed, or assign an underlying position while the far option
-continues to carry time value and strike- and tenor-dependent volatility risk.
-A faithful representation must therefore preserve both the compact strategy
-pattern and the state that remains after its first lifecycle event.
-
-\subsection{Options profile}
-
-Listed U.S. options provide the initial proving ground because they combine
-composable payoffs with nontrivial market and lifecycle semantics.  The same
-representation pattern can later include underlying positions, futures,
-financing, hedges, events, constraints, and other contracts without changing
-the meaning of the acronym.  The near-term objective is more
-specific: represent, discover, and evaluate portfolios of listed U.S. options
-from simple primitives:
+At decision time \(t\), let
 \[
-  \ell = (u,r,K,T,q,m,\chi,\zeta),
+  \mathcal U_t=\{o_1,\ldots,o_d\}
 \]
-where \(u\) is an underlying, \(r\in\{\mathrm{call},\mathrm{put}\}\),
-\(K\) is strike, \(T\) is expiration, \(q\) is signed quantity, \(m\) is
-the contract multiplier, \(\chi\) is an exercise opportunity specification,
-and \(\zeta\) is a settlement specification.
-
-The larger research system would need to:
-\begin{enumerate}[nosep]
-  \item construct only well-typed and admissible contracts and actions;
-  \item canonicalize exact redundancies without erasing execution differences;
-  \item simulate American exercise, assignment, expiration, and portfolio
-        continuation;
-  \item generate reproducible outcome and factor datasets;
-  \item train models that rank legal strategy transformations;
-  \item retain enough provenance to explain every result.
-\end{enumerate}
-
-Named structures such as \strategy{verticals}, \strategy{calendars}, and
-\strategy{butterflies} are proposed
-as trader-facing macros whose expansions would be fully typed.  Below that
-interface, the discovery system operates on legs, rights, state, and
-transformations, which lets it reproduce a familiar strategy, vary its
-implementation, or construct a valid portfolio with no conventional name.
-Part I develops this vocabulary through worked examples and identifies the
-relationships each graph must preserve.  Part II gives those examples precise
-mathematical and executable semantics, and Part III distinguishes implemented
-candidate, simulator, and graph contracts from the proposed compiler and
-integration architecture.  Separate papers
-develop graph-based discovery and sequential portfolio control against those
-interfaces.
-
-\subsection{Path outcomes}
-
-For any path, the outcome is determined jointly by:
+be the eligible listed contracts.  Contract \(o_i\) contains
 \[
-\boxed{
-  \begin{gathered}
-    \text{contract semantics}+\text{portfolio realization}\\
-    +\text{world/execution model}+\text{policy}
-    =\text{path outcome}.
-  \end{gathered}
-}
+  o_i=(\mathrm{id}_i,u_i,c_i,r_i,K_i,T_i,m_i,
+       \mathcal E_i,\zeta_i),
 \]
-Contract semantics define rights, obligations, exercise opportunities, and
-settlement consequences.  The portfolio realization identifies the listed
-instruments, signed quantities, fills, financing, and margin treatment.  The
-world and execution model supplies option quotes, implied-volatility
-observations, dividends, borrow, transaction costs, fills, assignment events,
-and scenario probabilities.  Finally, the policy selects admissible actions
-such as hold, hedge, close, roll, or exercise.
+where \(\mathrm{id}\) is the contract identifier, \(u\) the underlying, \(c\)
+the settlement currency, \(r\) the call or put right, \(K\) the strike, \(T\)
+the expiry, \(m\) the multiplier, \(\mathcal E\) the exercise-opportunity set,
+and \(\zeta\) the settlement rule.
 
-Keeping these objects separate prevents assumptions from migrating into the
-wrong layer.  A leg definition establishes the events that its holder and
-writer may face, the realization records what was actually bought or sold, the
-world model supplies the prices and events that occurred, and the policy
-selects the trader's actions along that path.  A backtest result is the joint
-product of all four, so it can be reproduced only when each contribution is
-identified and versioned.
+A portfolio is a sparse quantity assignment
+\[
+  q=(q_1,\ldots,q_d)\in\Z^d.
+\]
+Positive quantities are long and negative quantities are short.  Repeated
+trades in one contract are netted into one \(q_i\).  The fills and fees remain
+in the execution journal even when the current quantity becomes zero.
 
-\SNsectionpage
+Market observations form a separate state \(c_t\).  Spot, option marks, bid
+and ask prices, volatility coordinates, rates, dividends, and liquidity
+measurements can change without changing contract identity.  This separation
+also determines the unit of a learning example: a portfolio \(q\) observed in
+market state \(c_t\).
 
-\section{Strategy macros}
+\subsection{Admissible portfolios}
 
-Named strategies can provide an efficient human interface to the graph.  Terms
-such as ``\strategy{iron condor}'' and ``\strategy{long call calendar}'' carry a recognizable
-geometry and market view, allowing a trader to specify a useful starting point
-without enumerating every relationship by hand.  The name expands into a small
-graph template, after which a future compiler would supply the signed quantities,
-contract identifiers, strike and expiration ordering, settlement conventions,
-and account-dependent constraints that desk shorthand leaves implicit.
+The position algebra admits every integer quantity vector.  Trading and
+research constraints define
+\[
+  \mathcal C_t
+  =\{q\in\mathcal Q^d:g_j(q,c_t,a_t)\leq0,\ j=1,\ldots,J\},
+\]
+where \(\mathcal Q\) is a bounded quantity set and \(a_t\) is account state.
+The functions \(g_j\) may impose leg-count, gross-quantity, liquidity,
+exposure, capital, and margin limits.
 
-Write \(C(K,T)\) for a call and \(P(K,T)\) for a put.  A positive sign is long
-and a negative sign is short.  Premium, fees, and financing are omitted from
-the compact leg expressions below; an executable realization adds them.
-In the diagrams, dark graphite nodes are portfolios, charcoal nodes are signed
-positions, and light gray nodes are shared economic objects such as
-underlyings and expirations.  The diagrams intentionally omit quote, account,
-right, and provenance nodes when those would obscure the strategy's basic
-anatomy.
+\VOLT{} implements contract validity, exercise authority, bounded quantity
+grammar, point-in-time contract resolution, and several portfolio guards.
+Account capital, portfolio margin, and broker eligibility remain inputs from
+the application that owns the account.
 
-\subsection{Single legs}
+\section{Derived identities}
+\label{sec:identity}
+
+The system retains four identities under four equivalence relations.
 
 \begin{center}
-\begin{tabular}{@{}p{0.18\linewidth}p{0.19\linewidth}p{0.53\linewidth}@{}}
+\begin{tabular}{@{}P{0.23\linewidth}P{0.31\linewidth}P{0.37\linewidth}@{}}
 \toprule
-Position & Leg expression & What the graph must make explicit \\
+Identity & Equal when & Information retained \\
 \midrule
-Long call
-  & \(+C(K,T)\)
-  & Bullish convex exposure; premium at risk; holder controls exercise; may
-    create long stock and a cash payment under physical settlement. \\
-Short call
-  & \(-C(K,T)\)
-  & Premium received; potentially uncapped upside loss; assignment is
-    external to the holder's policy; may create short stock. \\
-Long put
-  & \(+P(K,T)\)
-  & Downside convexity; premium at risk; exercise may sell or create a short
-    position in the underlying, depending on account inventory. \\
-Short put
-  & \(-P(K,T)\)
-  & Premium received in exchange for downside obligation; assignment may
-    purchase stock at the strike and consume capital. \\
+Contract portfolio &
+The net quantity of every listed contract agrees &
+Contract terms, exercise style, settlement, multiplier, and quantity \\
+Expiration payoff &
+The selected-horizon payoff functions agree &
+Cash, underlying exposure, and payoff changes at strike knots \\
+Runtime state &
+The versioned positions, lifecycle, cash, inventory, and sequence agree &
+Open rights and obligations plus completed state transitions \\
+Graph sample &
+The derived node, edge, context, and source hashes agree &
+Model features and their links to contract and payoff identities \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Long and short positions refer to the same listed contract while occupying
-different places in its lifecycle: the holder owns an exercise decision,
-whereas the writer faces assignment generated outside its policy.  Signed
-quantity can therefore remain an attribute of the position node, with
-exercise authority, assignment exposure, and settlement consequences carried
-by typed relationships that remain visible to validation and simulation.
+\subsection{Expiration-payoff projection}
 
-\subsection{\strategy{Covered calls}}
-
-Coverage arises at the portfolio and account level, where the settlement
-obligation created by a short option can be linked to resources capable of
-satisfying it.  The option retains its ordinary contract definition; the graph
-records the additional relationship to shares, cash, or eligible collateral,
-together with the period during which those resources remain available.  For
-one physically settled equity call with multiplier \(m\), the familiar
-covered-call position is
-\[
-  w_{\mathrm{cc}}=mU-C(K,T),
-  \qquad
-  \Pi_T=mS_T-m(S_T-K)^+=m\min(S_T,K),
-\]
-before entry premium, dividends, financing, and costs.  The long shares remain
-a distinct position and satisfy the call's deliverable if assignment occurs,
-at which point the runtime consumes the assigned option, delivers \(m\)
-shares, and receives \(mK\) cash.  During the life of the trade those shares
-continue to carry downside exposure, dividends, financing, and stock-specific
-events, while the short call exchanges appreciation above the strike for its
-premium and volatility exposure.
-
-\begin{center}
-\begin{tikzpicture}[node distance=8mm and 11mm]
-  \node[voltportfolio] (p) {Portfolio\\\strategy{covered call}};
-  \node[voltleg,above right=of p] (stock) {\(+m\) shares\\underlying \(U\)};
-  \node[voltleg,below right=of p] (call) {\(-1\) call\\\(C(K,T)\)};
-  \node[voltfactor,right=20mm of call,yshift=8mm] (delivery)
-    {Assignment settlement\\deliver \(m\) shares\\receive \(mK\) cash};
-  \draw[voltedge] (p) -- node[above,sloped,font=\scriptsize] {holds} (stock);
-  \draw[voltedge] (p) -- node[below,sloped,font=\scriptsize] {short} (call);
-  \draw[voltedge] (call) -- node[right,font=\scriptsize] {references \(U\)}
-    (stock);
-  \draw[voltedge] (call) -- node[below,sloped,font=\scriptsize]
-    {creates on assignment} (delivery);
-  \draw[voltedge] (stock) -- node[above,sloped,font=\scriptsize]
-    {covers delivery} (delivery);
-\end{tikzpicture}
-\end{center}
-
-Other forms of coverage follow by changing the obligation and the typed
-resource edge.  A cash-secured short put links its possible assignment debit,
-commonly \(mK\), to reserved cash or eligible collateral, after which
-assignment converts the option into shares and a cash posting.  Determining
-whether the relationship remains valid requires the compiler to track the
-coverage ratio, haircut, currency, availability interval, and any competing
-pledge of the same resource.  A delta hedge belongs to a different
-relationship because it reduces economic sensitivity without guaranteeing the
-asset or cash required at settlement.
-
-Cash-settled index options make the distinction concrete.  A short index call
-may owe \(m(I_T-K)^+\) in cash and therefore links to funding capacity or
-collateral; no shares of the index are deliverable.  An ETF, future, or basket
-can offset part of the market exposure, subject to basis and tracking risk, so
-the graph connects it through an \emph{economic-hedge} edge.  Separate edge
-types for covered delivery, funded settlement, collateral eligibility, and
-economic hedging let risk and simulation reason about each relationship on its
-own terms.
-
-\subsection{Multi-leg structures}
-
-\begin{center}
-\small
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.17\linewidth}
-  >{\raggedright\arraybackslash}p{0.31\linewidth}
-  >{\raggedright\arraybackslash}p{0.43\linewidth}@{}}
-\toprule
-Strategy & Graph macro & Trader interpretation \\
-\midrule
-\strategy{Long straddle}
-  & \(+C(K,T)+P(K,T)\)
-  & Long movement around one strike.  Initially long gamma and vega and
-    usually short theta; direction must be managed or intentionally retained. \\
-\strategy{Short straddle}
-  & \(-C(K,T)-P(K,T)\)
-  & Short movement and time value, with large risk outside the body and two
-    independent assignment paths. \\
-\strategy{Long strangle}
-  & \(+P(K_1,T)+C(K_2,T),\ K_1<K_2\)
-  & A wider, usually cheaper long-volatility structure whose movement must
-    first cross one of two strikes. \\
-\strategy{Short strangle}
-  & \(-P(K_1,T)-C(K_2,T),\ K_1<K_2\)
-  & A short-volatility range position with substantial but bounded loss as
-    the underlying approaches zero, uncapped upside risk through the call,
-    and assignment exposure on both legs. \\
-\strategy{Call butterfly}
-  & \(+C(K_1,T)-2C(K_2,T)+C(K_3,T)\)
-  & A bounded, body-centered exposure, usually with
-    \(K_2-K_1=K_3-K_2\). \\
-\strategy{Iron condor}
-  & \(+P(K_1,T)-P(K_2,T)-C(K_3,T)+C(K_4,T)\)
-  & A defined-risk short-range position with ordered strikes
-    \(K_1<K_2<K_3<K_4\). \\
-\strategy{Long call calendar}
-  & \(-C(K,T_N)+C(K,T_F),\ T_N<T_F\)
-  & Short near-dated and long far-dated time value at one strike, creating a
-    term-structure and path-dependent exposure. \\
-\strategy{Long put calendar}
-  & \(-P(K,T_N)+P(K,T_F),\ T_N<T_F\)
-  & The put analogue, with additional practical sensitivity to downside skew,
-    dividends, and early exercise. \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Desk usage of ``long'' and ``short'' can become ambiguous for
-\strategy{calendars} and
-iron structures because the adjective may refer to premium, volatility, the
-body, or the wings.  The graph resolves the convention through signed
-quantities, ordered strikes, expiration order, and cash-flow direction, so the
-expanded structure remains stable when terminology varies.
-
-\subsection{\strategy{Long straddle}}
-
-Consider one long 100-strike call and one long 100-strike put sharing an
-underlying and expiration.  A leg table records the two positions, while the
-graph additionally expresses their common market objects and preserves the
-distinct exercise right attached to each contract.
-
-\begin{center}
-\begin{tikzpicture}[node distance=8mm and 13mm]
-  \node[voltportfolio] (p) {Portfolio\\\strategy{long straddle}};
-  \node[voltleg,above right=of p] (c) {\(+1\) call\\\(K=100\)};
-  \node[voltleg,below right=of p] (put) {\(+1\) put\\\(K=100\)};
-  \node[voltfactor,right=22mm of c] (u) {Underlying\\\(u\)};
-  \node[voltfactor,right=22mm of put] (t) {Expiration\\\(T\)};
-  \draw[voltedge] (p) -- node[above,sloped,font=\scriptsize] {contains} (c);
-  \draw[voltedge] (p) -- node[below,sloped,font=\scriptsize] {contains} (put);
-  \draw[voltedge] (c) -- node[above,font=\scriptsize] {written on} (u);
-  \draw[voltedge] (put) -- (u);
-  \draw[voltedge] (c) -- (t);
-  \draw[voltedge] (put) -- node[below,font=\scriptsize] {expires at} (t);
-\end{tikzpicture}
-\end{center}
-
-Ignoring premium, the expiration payoff is
-\[
-  (S_T-100)^+ + (100-S_T)^+ = |S_T-100|.
-\]
-The compact V-shaped payoff captures the expiration geometry and provides a
-useful canonical projection.  Entry implied volatility and spread, interim
-delta hedges, discrete gamma capture, and American exercise decisions enter
-through the market, policy, and lifecycle portions of the graph, allowing two
-realizations with the same terminal shape to produce different path outcomes.
-
-\subsection{\strategy{Butterfly} and \strategy{iron condor}}
-
-Take a symmetric 90--100--110 \strategy{call butterfly}:
-\[
-  +C(90,T)-2C(100,T)+C(110,T).
-\]
-Ignoring premium, it pays zero at or below 90 and at or above 110, rising
-linearly to 10 at the body strike before falling symmetrically to zero.  Three
-leg nodes describe the structure, while the quantity of \(-2\) at the body
-produces a gross contract count of four.
-
-\begin{center}
-\begin{tikzpicture}[node distance=8mm and 8mm]
-  \node[voltportfolio] (p) {Portfolio\\\strategy{call butterfly}};
-  \node[voltleg,right=of p,yshift=12mm] (l1) {\(+1\) call\\\(K=90\)};
-  \node[voltleg,right=of p] (l2) {\(-2\) calls\\\(K=100\)};
-  \node[voltleg,right=of p,yshift=-12mm] (l3) {\(+1\) call\\\(K=110\)};
-  \node[voltfactor,right=18mm of l2] (u) {Underlying\\\(u\)};
-  \node[voltfactor,right=17mm of u] (t) {Expiration\\\(T\)};
-  \draw[voltedge] (p) -- (l1);
-  \draw[voltedge] (p) -- (l2);
-  \draw[voltedge] (p) -- (l3);
-  \draw[voltedge] (l1) -- (u);
-  \draw[voltedge] (l2) -- (u);
-  \draw[voltedge] (l3) -- (u);
-  \draw[voltedge] (u) -- node[above,font=\scriptsize] {shared expiry} (t);
-\end{tikzpicture}
-\end{center}
-
-Now take a 90--95--105--110 \strategy{iron condor}:
-\[
-  +P(90,T)-P(95,T)-C(105,T)+C(110,T).
-\]
-If its entry credit is \(c\), expiration profit before fees remains \(c\)
-between 95 and 105, declines linearly through either five-point wing, and
-reaches a maximum loss of \(5-c\) beyond the long strikes.  The graph makes the
-two defined-risk verticals visible as parts of one position sharing an account,
-underlying, and expiration:
-
-\begin{center}
-\begin{tikzpicture}[node distance=7mm and 6mm]
-  \node[voltportfolio] (p) {Portfolio\\\strategy{iron condor}};
-  \node[voltleg,right=of p,yshift=18mm] (p90) {\(+P90\)};
-  \node[voltleg,right=of p,yshift=6mm] (p95) {\(-P95\)};
-  \node[voltleg,right=of p,yshift=-6mm] (c105) {\(-C105\)};
-  \node[voltleg,right=of p,yshift=-18mm] (c110) {\(+C110\)};
-  \node[voltfactor,right=19mm of p95,yshift=-6mm] (u) {Underlying\\\(u\)};
-  \node[voltfactor,right=15mm of u] (t) {Expiration\\\(T\)};
-  \draw[voltedge] (p) -- (p90);
-  \draw[voltedge] (p) -- (p95);
-  \draw[voltedge] (p) -- (c105);
-  \draw[voltedge] (p) -- (c110);
-  \draw[voltedge] (p90) -- (u);
-  \draw[voltedge] (p95) -- (u);
-  \draw[voltedge] (c105) -- (u);
-  \draw[voltedge] (c110) -- (u);
-  \draw[voltedge] (u) -- (t);
-\end{tikzpicture}
-\end{center}
-
-Both structures produce bounded expiration payoffs organized around ordered
-strikes, which may place them near one another under a chosen scenario metric.
-Their implementations retain materially different economics: the condor is
-commonly entered for a credit, spans puts and calls, uses four distinct
-contracts, and exposes two short legs to assignment, whereas the
-\strategy{call butterfly} concentrates two short contracts at one strike.  Behavioral
-clustering can use the similarity to allocate search effort, while execution
-and lifecycle identity continue to distinguish the portfolios.
-
-\subsection{\strategy{Calendar}}
-
-A \strategy{long 100 call calendar} is conventionally
-\[
-  -C(100,T_N)+C(100,T_F),\qquad T_N<T_F.
-\]
-At \(T_N\), the near call expires or is assigned while the far call still has
-time value and remains sensitive to spot, volatility, rates, and dividends,
-which makes the state at the first expiration an input to the continuing
-portfolio.  Its economics therefore require a path through at least two
-expirations and cannot be summarized by the same-expiration terminal-payoff
-quotient used for a \strategy{vertical} or \strategy{butterfly}.
-
-\begin{center}
-\begin{tikzpicture}[node distance=9mm and 11mm]
-  \node[voltportfolio] (p) {Portfolio\\\strategy{long call calendar}};
-  \node[voltleg,above right=of p] (nearleg) {\(-1\) call\\\(K=100,T_N\)};
-  \node[voltleg,below right=of p] (farleg) {\(+1\) call\\\(K=100,T_F\)};
-  \node[voltfactor,right=18mm of nearleg] (near) {Near expiry\\\(T_N\)};
-  \node[voltfactor,right=18mm of farleg] (far) {Far expiry\\\(T_F\)};
-  \node[voltfactor,right=16mm of p] (u) {Underlying\\\(u\)};
-  \draw[voltedge] (p) -- (nearleg);
-  \draw[voltedge] (p) -- (farleg);
-  \draw[voltedge] (nearleg) -- (near);
-  \draw[voltedge] (farleg) -- (far);
-  \draw[voltedge] (nearleg) -- (u);
-  \draw[voltedge] (farleg) -- (u);
-\end{tikzpicture}
-\end{center}
-
-In trading terms, the \strategy{calendar} expresses a view on relative time
-value and on
-changes in implied volatility across its two expirations.  A sufficiently
-large move away from the strike can weaken the desired decay relationship,
-while roll, pin, assignment, and term-structure risks determine how the trade
-behaves around the near expiration.  A useful backtest must process that event,
-carry the far leg and any assigned inventory into the next state, and value
-the continuing portfolio under the market information then available.
-
-The examples establish a progression that matters for the remainder of the
-paper.  A \strategy{straddle} shows why shared underlyings and expirations
-belong in the representation; a \strategy{butterfly} and an
-\strategy{iron condor} show how canonical payoff structure can coexist with
-distinct execution and assignment paths; and a \strategy{calendar} shows why a
-portfolio that crosses expirations cannot be reduced to a single terminal
-diagram.  Covered positions add inventory, collateral, and
-settlement resources to the same picture.  The strategy names remain valuable
-because they compress a large amount of desk convention into a phrase, while
-the expanded graphs provide the precision required by a future compiler and a
-learning system.
-
-A trader may therefore enter through a named macro, inspect its resolved
-contracts and obligations, and compare variations generated from the
-underlying grammar.  Search may arrive at the same graph through a sequence of
-primitive actions, or it may discover a valid portfolio for which no standard
-name exists.  In both cases the expanded object carries the economic and
-executable meaning; the familiar vocabulary supplies useful entry points
-without limiting the set of portfolios the system can express.
-
-\part{Language and Runtime}
-
-\begin{SNcolumns}
-
-\section{Portfolio algebra}
-
-\subsection{Portfolio module}
-
-Let \(\mathcal L\) be a finite set of listed contracts available at a decision
-time.  A portfolio is a sparse integer vector
-\[
-  w \in \mathcal P = \Z^{|\mathcal L|}.
-\]
-Component \(w_i\) gives the signed number of contracts in leg \(i\), and
-ordinary addition combines books or applies a trade to an existing position,
-so the unconstrained space forms an abelian group.  Trading rules select a
-state-dependent feasible subset
-\[
-  \mathcal F(x) \subseteq \mathcal P
-\]
-through the account state \(x\), the instrument universe, position limits,
-margin, and available liquidity.  Long-only restrictions, asymmetric margin
-rules, and finite capital can turn this feasible region into a monoid or
-constrained cone even though the ambient position algebra remains a group.
-
-\paragraph{Trader interpretation}
-The notation formalizes the familiar act of building a book by adding and
-subtracting positions: buying contributes \(+1\), selling contributes \(-1\),
-and a closing order offsets some existing quantity.  The free mathematical
-book describes every integer combination that the algebra can express, after
-which \(\mathcal F(x)\) imposes the practical requirements that the contract be
-listed, liquid, permitted, and affordable in the current account.
-
-\subsection{Payoff quotient}
-
-For a fixed underlying and expiration, define the terminal payoff map
-\[
-  \Phi_T : \mathcal P \longrightarrow \mathcal H_T,
-\]
-where \(\mathcal H_T\) is a space of payoff functions of terminal spot.
-Two portfolios are terminal-payoff equivalent if
-\[
-  w_1 \sim_T w_2
-  \quad\Longleftrightarrow\quad
-  \Phi_T(w_1)=\Phi_T(w_2).
-\]
-The distinct payoff search space is the quotient
-\[
-  \mathcal P/\ker(\Phi_T).
-\]
-The quotient removes ordering, duplicated legs, offsetting quantities, and
-other exact terminal-payoff redundancies, thereby giving search a smaller set
-of payoff shapes to explore.  Its scope remains precise:
-American rights, assignment exposure, liquidity, margin, funding, taxes, and
-the path of mark-to-market values live outside this terminal projection and
-can distinguish two portfolios that occupy the same quotient class.
-
-Suppose, for example, that an account buys one call and later sells the
-identical contract.  The open-position vector and terminal payoff both reduce
-to zero, which is the correct canonical representation of the remaining
-holding, while the execution journal retains two fills, their possibly
-different prices, and both sets of fees.  Canonicalization can therefore remove
-redundancy from the object being compared without erasing the evidence needed
-to reconstruct how the account reached it.
-
-\subsection{Canonical hinge form}
-
-For European vanilla options on one underlying and expiration, every static
+For vanilla options on one underlying and expiration, a static European
 portfolio can be written
 \[
   \Pi(S_T)
-  =
-  a+bS_T+\sum_{i=1}^{n}c_i(S_T-K_i)^+,
+  =a+bS_T+\sum_{j=1}^{n}c_j(S_T-K_j)^+,
   \qquad K_1<\cdots<K_n.
 \]
-Here \(a\) is cash, \(b\) is linear underlying exposure, and the \(c_i\) are
-changes in payoff slope at ordered strike knots.
-
-The representation follows from
+Here \(a\) is cash, \(b\) is underlying exposure, and \(c_j\) is the change in
+payoff slope at strike \(K_j\).  The identity
 \[
-  (K-S)^+ = K-S+(S-K)^+.
+  (K-S)^+=K-S+(S-K)^+
 \]
-Thus a put with signed share-equivalent weight \(q\) contributes
+converts puts into the same hinge representation.
+
+Let \(\Phi_T(q)\) denote this expiration-payoff projection.  The relation
 \[
-  \Delta a=qK,\qquad
-  \Delta b=-q,\qquad
-  \Delta c_K=q,
+  q_1\sim_T q_2
+  \quad\Longleftrightarrow\quad
+  \Phi_T(q_1)=\Phi_T(q_2)
 \]
-while a call contributes only \(\Delta c_K=q\).
+groups contract portfolios that share the selected terminal geometry.
+American exercise, assignment, liquidity, funding, transaction costs, and the
+path of option marks can distinguish members of one payoff class.  The
+contract-portfolio hash is therefore retained alongside the payoff hash.
 
-The distributional curvature is
-\[
-  \frac{\mathrm d^2\Pi}{\mathrm dS_T^2}
-  =\sum_i c_i\delta_{K_i}.
-\]
-The ordered strike-weight sequence is therefore a sparse and canonical
-description of terminal convexity.
+\subsection{Execution identity}
 
-\end{SNcolumns}
-
-The named examples from Part I become small coefficient vectors:
-\begin{center}
-\begin{tabular}{@{}p{0.22\linewidth}p{0.16\linewidth}p{0.16\linewidth}p{0.36\linewidth}@{}}
-\toprule
-Same-expiry strategy & Cash \(a\) & Linear \(b\) & Nonzero hinge weights \(c_K\) \\
-\midrule
-Long 100 call & \(0\) & \(0\) & \(c_{100}=1\) \\
-Long 100 put & \(100\) & \(-1\) & \(c_{100}=1\) \\
-\strategy{Long 100 straddle} & \(100\) & \(-1\) & \(c_{100}=2\) \\
-\strategy{90--100--110 call butterfly} & \(0\) & \(0\) &
-  \(c_{90}=1,\ c_{100}=-2,\ c_{110}=1\) \\
-\strategy{90--95--105--110 iron condor} & \(-5\) & \(0\) &
-  \(c_{90}=1,\ c_{95}=-1,\ c_{105}=-1,\ c_{110}=1\) \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The coefficient table shows how canonicalization saves learning and search
-capacity.  Different leg orderings, duplicated entries, and offsetting routes
-collapse to the same \((a,b,\{K:c_K\})\) representation, encoding permutation
-invariance directly instead of asking the learner to infer it repeatedly from
-examples.
-
-\paragraph{Trader interpretation}
-The hinge weights are changes in the slope of the payoff diagram: a positive
-weight bends the line upward at its strike, while a negative weight bends it
-downward.  The \strategy{butterfly}'s \(+1,-2,+1\) sequence produces the
-familiar tent; the \strategy{iron condor}'s \(+1,-1,-1,+1\) sequence produces
-a flat center and bounded
-wings.  These compact coefficient patterns are both mathematically canonical
-and recognizable to a trader.
-
-\subsection{Portfolio and payoff identity}
-
-The implementation keeps:
-\begin{enumerate}[nosep]
-  \item an \emph{economic projection}, such as the canonical terminal payoff;
-  \item an \emph{execution realization}, containing the actual contracts.
-\end{enumerate}
-
-This separation allows search to discover an attractive economic behavior and
-then optimize the contracts and orders used to implement it.  In trader terms,
-the first identity answers ``what exposure do I want?'', while the second asks
-``which realization gives me that exposure on acceptable terms?''  A narrow,
-liquid \strategy{butterfly} and a wider, less liquid structure may sit close together on
-one scenario grid even as their spreads, fill probabilities, assignment paths,
-and margin requirements diverge.  Preserving both identities lets the system
-exploit the similarity and still choose between executable realizations.
-
-\subsection{Transaction costs}
-
-Adding \(a\) and then \(-a\) returns the open-position vector to zero, giving
-the position algebra a symmetry that disappears once the trades are executed.
-If \(\mathcal C_t(a)\) denotes the cash consequence of trading \(a\) at time
-\(t\), a market with spread, fees, or impact generally satisfies
+Position netting and payoff projection operate on the current holding.  The
+execution journal records the route into that holding.  If \(a\) is a trade
+and \(\mathcal C_t(a)\) its cash consequence, then
 \[
   a+(-a)=0
-  \qquad\text{but generally}\qquad
-  \mathcal C_{t_0}(a)+\mathcal C_{t_1}(-a)<0.
 \]
-For an immediate round trip of \(q\) contracts at displayed bid \(b\), ask
-\(a\), multiplier \(m\), and total fees \(f\), the simplest loss is
+in the position algebra, while a round trip across bid \(b_t\) and ask \(a_t\)
+with multiplier \(m\), quantity \(q\), and fees \(f\) produces
 \[
-  -|q|m(a-b)-f.
+  -|q|m(a_t-b_t)-f.
 \]
-The realized cost may be larger once market impact, partial fills, legging
-risk, financing, and hedge turnover are included.
+Execution paths reaching the same portfolio may also differ through partial
+fills, package execution, legging risk, market impact, financing, or hedge
+turnover.  Portfolio comparison can use netted positions without discarding
+that evidence.
 
-Canonicalization must consequently preserve the execution history alongside
-the current holding.  Two routes may reach zero or the same hinge vector while
-producing different cash paths: one might fill a four-leg structure as a
-package, another might leg into it after buying a temporary hedge, and a third
-might exhaust displayed size and move through the book.  Assignment can add
-further stock or cash transactions whose quantities and timing are absent from
-the entry algebra.
+\section{Exercise and lifecycle semantics}
+\label{sec:lifecycle}
 
-Transaction costs thus alter the shape of the search problem rather than
-subtracting a universal constant from every result.  They can reverse
-rankings, break apparent long/short symmetry, make a frequently rebalanced
-hedge inferior to a coarser policy, and place payoff-equivalent realizations in
-different capital or liquidity budgets.  Holdings remain available for exact
-semantic deduplication, while dominance tests and learning labels operate on
-net outcomes produced by an explicit execution model.
+\subsection{Exercise opportunities}
 
-\SNsectionpage
-
-\section{Lifecycle semantics}
-
-\subsection{American exercise}
-
-Let \(\mathcal T_\chi\) be the set of stopping times permitted by an exercise
-opportunity specification \(\chi\).  Ignoring portfolio coupling, a holder's
-value has the form
+Let
 \[
-  V_0 = \sup_{\tau\in\mathcal T_\chi}
-  \E\!\left[D_{0,\tau}h(S_\tau)\right].
+  \mathcal T=\{\tau_0,\tau_1,\ldots,\tau_H\}
 \]
-The familiar styles are restrictions of \(\mathcal T_\chi\):
+be the event or observation grid.  Each option declares an exercise set
+\(\mathcal E_i\):
 \[
 \begin{aligned}
   \text{European:}\quad&
-  \mathcal T_\chi=\{T\},\\
+    \mathcal E_i=\{T_i\},\\
   \text{Bermudan:}\quad&
-  \mathcal T_\chi=\{t_1,\ldots,t_n=T\},\\
+    \mathcal E_i=\{t_1,\ldots,t_n=T_i\},\\
   \text{American:}\quad&
-  \mathcal T_\chi=\{\tau:0\leq\tau\leq T\}.
+    \mathcal E_i=\{\tau_j\in\mathcal T:
+      t_{\mathrm{first},i}\leq\tau_j\leq T_i\}.
 \end{aligned}
 \]
-Numerical simulation realizes the continuous American opportunity set on an
-explicit event or time grid, producing a Bermudan approximation whose spacing,
-calendar, and event alignment become part of the experiment manifest.  This
-choice affects both value and policy because an exercise opportunity omitted
-from the grid cannot be recovered later by the learner.
+European and Bermudan contracts are restrictions of the American opportunity
+representation.  A simulation grid discretizes the American interval; its
+spacing and event alignment are experiment assumptions.
 
-Exercise is represented as a consumable right:
-\begin{lstlisting}[style=volt]
-ExerciseRight {
-    holder,
-    valid_time_predicate,
-    exercise_guard,
-    settlement_consequence,
-    quantity_remaining,
-}
-\end{lstlisting}
+Exercise authority belongs to a long holder while the opportunity is open.
+Assignment is an external event for a short writer.  The action type and
+runtime validation preserve this distinction, preventing a policy from
+treating assignment as a voluntary short-side action.
 
-Authority separates the two sides of the same listed contract.  The long
-holder controls exercise within \(\mathcal T_\chi\), while the short writer
-controls orders to hold, resize, or close and receives assignment as an
-external event generated by another holder or the clearing process.  For a
-short put, that event may consume the option, debit strike cash, and create
-long stock in the account.  Encoding authority in the action type prevents a
-learning agent from being offered ``assign my short put'' as a voluntary
-decision, while guarded state transitions make the stopping-time definition
-operational and keep the resulting cash, assets, and rights explicit.
+\subsection{State transitions}
 
-\subsection{State}
-
-At event \(t\), state is decomposed as
+Runtime state at event time \(t\) is
 \[
-  x_t=(x_t^C,x_t^P,x_t^M,x_t^A,x_t^R),
+  x_t=(x_t^{C},x_t^{P},x_t^{M},x_t^{A},x_t^{R}),
 \]
-where the superscripts denote contract, portfolio, market, account, and
-protocol/rule state.  The initial implementation uses only the components
-required by the reference tests, while preserving this boundary.
-
-\subsection{Transitions}
-
-The primitive operation is
+with contract, portfolio, market, account, and protocol components.  One
+action and one market observation produce
 \[
-\begin{aligned}
-  \phi(x_t,a_t,\omega_{t+1})
-    &\Longrightarrow (x_{t+1},e_{t+1}),\\
-  x_{t+1}
-    &=T(x_t,a_t,\omega_{t+1}),\\
-  e_{t+1}
-    &=F(x_t,a_t,\omega_{t+1}).
-\end{aligned}
+  (x_{t+1},e_{t+1})
+  =F_{\omega}(x_t,a_t,z_{t+1}),
 \]
-An observation \(\omega\) has an effective market time, source/provenance, and
-the values required by the fired rule.  An action \(a\) has an authority:
-holder, counterparty, system, or policy.
+where \(\omega\) identifies the execution and lifecycle rules and
+\(e_{t+1}\) contains typed cash, underlying, and consumed-right emissions.
 
-The transition emits typed economic consequences so later components can
-apply accounting and risk rules to their actual meaning.  The first release
-distinguishes:
-\begin{itemize}[nosep]
-  \item cash postings;
-  \item underlying-asset postings;
-  \item consumed rights.
-\end{itemize}
-Lifecycle changes are represented in the next \texttt{PortfolioState}, not as
-a fourth emission type.
-Later releases must distinguish creation of an obligation, settlement
-instruction, completed transfer, failure, reversal, and correction.
-
-As a concrete example, suppose an account is short one physically settled
-100-strike put with multiplier 100.  A full assignment observation is checked
-against the contract, the event authority, and the remaining position; once
-accepted, the transition consumes the short option and emits \(+100\) shares
-with a \(-\$10{,}000\) cash posting.  Those shares enter the next portfolio
-state and continue to affect risk, margin, financing, and every subsequent
-policy decision after the option has terminated.
-
-\subsection{Physical settlement}
-
-For \(n>0\) long call contracts with multiplier \(m\), physical exercise emits
+For \(n>0\) physically settled long calls with multiplier \(m\), exercise
+emits
 \[
-  \Delta Q_u=nm,\qquad
-  \Delta C=-nmK.
+  \Delta Q_u=nm,\qquad \Delta C=-nmK.
 \]
-For a long put,
+A long put emits
 \[
-  \Delta Q_u=-nm,\qquad
-  \Delta C=nmK.
+  \Delta Q_u=-nm,\qquad \Delta C=nmK.
 \]
-Assignment of a short position emits the opposite postings, whereas cash
-settlement emits signed intrinsic value and leaves the underlying inventory
-unchanged.  In either case the event transforms a portfolio that continues
-beyond the terminating option, potentially with new stock and cash balances
-that later actions must manage.
+Assignment of a short position reverses the postings.  Cash settlement emits
+signed intrinsic value and leaves underlying inventory unchanged.
+
+For example, assignment of one short, physically settled \(100\)-strike put
+with multiplier \(100\) consumes the short option, posts \(100\) shares, and
+debits \(10{,}000\) units of cash.  The next state carries the shares and cash
+into subsequent risk and management decisions.
 
 \subsection{Replay}
 
-Every accepted transition produces a journal entry containing:
-\begin{lstlisting}[style=volt]
-schema_version
-sequence
-prior_state_hash
-next_state_hash
-action
-observation
-typed_emissions
-rule_id
-entry_hash
-\end{lstlisting}
-
-Hashes are version-pinned:
+Each accepted transition records the schema version, sequence, prior and next
+state hashes, action, observation, typed emissions, rule identifier, and
+journal-entry hash.  Content hashes use a versioned namespace and canonical
+serialization:
 \[
   H=\operatorname{SHA256}(
-    \text{schema namespace}\Vert 0\mathrm{x}00
-    \Vert\text{canonical JSON}
-  ).
+    \text{schema namespace}\Vert0\mathrm{x}00
+    \Vert\text{canonical content}).
 \]
-The hash identifies canonical content under a particular schema version, so a
-semantic schema change is expected to produce a new value.  Replay requires
-the stronger and more useful property that the same versioned definitions and
-input journal reproduce the same sequence of states and emissions.
+Replaying the same versioned contract definitions, initial state,
+observations, and actions reproduces the state and emission sequence.
 
-\section{Equivalence}
+\section{Portfolio graph}
+\label{sec:graph}
 
-The system must state which equivalence relation is being used:
-\begin{enumerate}
-  \item \textbf{Definition equivalence}: identical canonical contract IR.
-  \item \textbf{Dynamic path equivalence}: identical state transitions and
-        economic consequences for every admissible input path.
-  \item \textbf{Terminal-payoff equivalence}: identical payoff at a selected
-        horizon.
-  \item \textbf{Model-relative value equivalence}: equal value under a named
-        world model and valuation functional.
-  \item \textbf{Approximate behavioral similarity}: nearby outcome vectors
-        across a specified scenario distribution and metric.
-\end{enumerate}
+\subsection{Implemented graph schema}
 
-Within a supported finite or symbolic fragment, proven instances of the first
-three relations can justify exact deduplication.  Model-relative equality and
-approximate behavioral similarity instead guide clustering, search allocation,
-and implementation choice while preserving each portfolio's semantic
-identity.
-
-\part{Learning and Integration}
-
-\section{System cycle}
-
-The options graph is the exchange boundary between authoritative financial
-processing and statistical estimation.  It exposes portfolio structure to
-models while the runtime remains responsible for what contracts, actions, and
-outcomes mean.  Solid arrows carry versioned inputs and artifacts forward;
-dashed graphite arrows return selected candidates or actions to the runtime
-for new evidence.  The public release implements the typed portfolio, bounded
-grammar, simulation, journal, and graph-sample pieces.  Account constraints,
-complete legal masks, learned components, and the feedback orchestrator in
-this figure remain application or research work.
-
-\begin{center}
-\begin{tikzpicture}[
-  node distance=4.5mm,
-  cyclebox/.style={
-    draw=SNLine,
-    fill=SNPaper,
-    rounded corners=2pt,
-    text width=144mm,
-    minimum height=18mm,
-    align=left,
-    inner xsep=3.2mm,
-    inner ysep=2.3mm,
-    font=\sffamily\fontsize{8}{9.5}\selectfont
-  },
-  cycleprepare/.style={
-    cyclebox,
-    draw=SNMuted,
-    fill=SNInk!4
-  },
-  cycleartifact/.style={
-    cyclebox,
-    draw=SNMuted,
-    fill=SNMist
-  },
-  cyclelearn/.style={
-    draw=SNSignalDark,
-    fill=SNSignal!5,
-    rounded corners=2pt,
-    text width=65mm,
-    minimum height=31mm,
-    align=left,
-    inner xsep=3mm,
-    inner ysep=2.3mm,
-    font=\sffamily\fontsize{8}{9.5}\selectfont
-  },
-  cycleoutput/.style={
-    cyclebox,
-    draw=SNSignalDark,
-    minimum height=25mm
-  },
-  cycleband/.style={
-    draw=SNLine,
-    fill=SNMist,
-    rounded corners=2pt,
-    text width=144mm,
-    align=left,
-    inner xsep=3mm,
-    inner ysep=2mm,
-    font=\sffamily\fontsize{8}{9.5}\selectfont
-  },
-  flow/.style={
-    -{Latex[length=2mm]},
-    draw=SNInk,
-    line width=0.75pt
-  },
-  feedback/.style={
-    -{Latex[length=2mm]},
-    draw=SNSignalDark,
-    dashed,
-    line width=0.75pt
-  },
-  flowlabel/.style={
-    fill=SNPaper,
-    inner sep=1.2pt,
-    font=\sffamily\fontsize{7.5}{8.8}\selectfont,
-    text=SNMuted,
-    align=center
-  }
-]
-  \node[cyclebox] (inputs) {%
-    \textbf{\textcolor{SNSignalDark}{1\quad INPUTS}}\\[1mm]
-    \textbf{Experiment contract:} objective, horizon, policy cadence, budgets,
-    and chronological splits.\quad
-    \textbf{Point-in-time state:} listed contracts, quotes, underlying,
-    events, cash, inventory, and limits.\quad
-    \textbf{Financial models:} exercise, settlement, fills, fees, margin, and
-    scenarios.
-  };
-
-  \node[cycleprepare,below=of inputs] (prepare) {%
-    \textbf{\textcolor{SNSignalDark}{2\quad CONSTRAIN AND REDUCE}}\\[1mm]
-    Resolve the listed universe at the decision time; expand macros and the
-    action grammar; apply type, authority, liquidity, capital, and margin
-    rules; canonicalize and deduplicate; classify payoff, dominance, and
-    behavior.\quad
-    \textbf{Artifact:} feasible actions, legal mask, and a reasoned reduction
-    trace.
-  };
-
-  \node[cycleartifact,below=of prepare] (dataset) {%
-    \textbf{\textcolor{SNSignalDark}{3\quad SIMULATE AND EXPORT}}\\[1mm]
-    Simulate or replay candidates under declared scenarios, policies, and
-    execution models; compile the heterogeneous graph; attach feasible
-    actions, legal masks, and outcome/risk labels; preserve timestamps,
-    authority, hashes, assumptions, and split membership.\quad
-    \textbf{Artifact:} immutable graph samples and evidence.
-  };
-
-  \node[cyclelearn,below left=5mm and 4mm of dataset.south] (gnn) {%
-    \textbf{\textcolor{SNSignalDark}{4A\quad SUPERVISED GNN}}\\[0.7mm]
-    message passing encodes each graph; rank, value, risk, and embedding heads
-    fit quote-backed labels; validation selects the model and the test split
-    remains sealed
-  };
-
-  \node[cyclelearn,below right=5mm and 4mm of dataset.south] (rl) {%
-    \textbf{\textcolor{SNSignalDark}{4B\quad SEQUENTIAL RL}}\\[0.7mm]
-    a masked policy selects an admissible action; the resolver and runtime
-    produce the next state, costs, and reward; parallel trajectories update
-    policy and value heads
-  };
-
-  \node[cycleoutput,below=5mm of $(gnn.south)!0.5!(rl.south)$] (outputs) {%
-    \textbf{\textcolor{SNSignalDark}{5\quad EVALUATE AND EMIT}}\\[1mm]
-    Compare models at equal simulation budgets; test out-of-time ranking,
-    calibration, risk, diversity, and execution sensitivity.\quad
-    \textbf{Decision output:} ranked legal actions or a sequential
-    policy.\quad
-    \textbf{Research output:}
-    model manifest/checkpoint, metrics, predictions, reduction trace, and
-    immutable evidence bundle.
-  };
-
-  \draw[flow] (inputs) -- (prepare);
-  \draw[flow] (prepare) -- (dataset);
-  \draw[flow] (dataset.south) -- ++(0,-2.5mm) -| (gnn.north);
-  \draw[flow] (dataset.south) -- ++(0,-2.5mm) -| (rl.north);
-  \draw[flow] (gnn.south) -- (gnn.south |- outputs.north);
-  \draw[flow] (rl.south) -- (rl.south |- outputs.north);
-
-  \draw[feedback]
-    (rl.east) -- ++(4mm,0) |- (dataset.east);
-  \draw[feedback]
-    (outputs.west) -- ++(-4mm,0) |- (dataset.west);
-
-  \node[cycleband,below=4.5mm of outputs] (parallel) {%
-    \textbf{\textcolor{SNSignalDark}{PARALLEL EXECUTION}}\quad
-    Time slices, underlyings, candidates, scenarios, execution assumptions,
-    graph batches, model seeds, and RL environments can run independently.
-    Events within one lifecycle path remain causally ordered; deterministic
-    sorting, aggregation, journaling, and hashing make the result independent
-    of worker scheduling.
-  };
-\end{tikzpicture}
-\begingroup
-\captionsetup{hypcap=false}
-\captionof{figure}{The proposed Volt preparation, learning, evaluation, and
-feedback cycle.  Solid semantic components exist in the public crate; learned
-ranking, sequential control, and full orchestration are not release claims.}
-\label{fig:learning-cycle}
-\endgroup
-\end{center}
-
-In the implemented structural boundary, the compiler emits a graph \(G_t\),
-an admissible action set \(A_t\), and its legal mask \(M_t\).  Simulation or
-replay may add outcome labels \(y_t\) and an evidence record \(p_t\), producing
+The implemented portfolio graph contains a portfolio node, one underlying
+node, one expiry node, and one node for each nonzero option position:
 \[
-  d_t=(G_t,A_t,M_t,y_t,p_t).
+  V=\{v_{\mathrm{portfolio}},v_{\mathrm{underlying}},
+       v_{\mathrm{expiry}}\}\cup V_{\mathrm{position}}.
 \]
-\texttt{StateActionGraphSample} combines the live portfolio graph, runtime
-context, compiler action slots, rejection reasons, and structural legal mask;
-\texttt{ScenarioSimulator} can produce deterministic outcomes.  Caller-owned
-liquidity, margin, and account-capital policy are not yet combined into that
-record.  The graph schema may evolve with an experiment, but exact contract
-definitions, portfolio state, action authority, and journals remain governed
-by the versioned Volt runtime.
-
-Graph-based ranking and sequential control consume this boundary in different
-ways.  A discovery model scores portfolios or one-step transformations from a
-fixed decision state; a control policy chooses repeatedly as fills, market
-events, exercise, assignment, and settlement alter the state.  Both remain
-clients of the same resolver and simulator.  Companion discovery and control
-papers own their model architectures, training losses, rollout schedules, and
-empirical comparisons.
-
-Historical slices, candidates, scenario paths, model seeds, and independent
-environments could be distributed across workers.  Event order within one
-portfolio path remains causal, after which stable identifiers, deterministic
-sorting, and hashing assemble the partial results.  Parallelism may change
-elapsed time without changing the artifact that the compiler identifies.
-
-\section{Compiler as an efficiency and authority layer}
-
-The compiler is the boundary at which user business logic becomes an
-executable, learnable financial program.  Its job is to construct graphs and
-executable views efficiently while preserving their declared meaning and
-keeping deterministic legality outside the learner.  \COG{} denotes the
-\emph{Contract Object Graph} compiler now implemented for an initial
-options-design language.
-
-A versioned \texttt{volt.cog\_source.v1} document supplies the listed universe,
-candidate grammar, initial positions, guarded and prioritized rules, and an
-optional scenario objective.  Compilation aggregates source-addressed
-diagnostics, normalizes the program, resolves exact contract semantics, and
-emits an immutable \texttt{volt.compiled\_cog.v1} artifact with source, rule,
-and artifact hashes.  At a decision state the artifact emits aligned action
-slots and a hard legal mask.  Static design actions return a canonical
-portfolio; wait and exercise actions pass through the journaled runtime.
-Graph lowerings retain the compiler hashes so training data and learned
-embeddings remain tied to the exact financial program.
-
-This is intentionally an options-design compiler rather than the final
-general language.  Named strategy macros, arbitrary typed state and emission
-expressions, account capital and margin policy, multi-step execution plans,
-and tensor code generation remain extensions.
-
-The principal passes are:
-\begin{enumerate}
-  \item \textbf{parse and diagnose}: validate versioned structured source and
-        report all source-addressed errors;
-  \item \textbf{type-check}: verify contract definitions, bucket references,
-        quantities, and exercise authority;
-  \item \textbf{expand (partly implemented):} lower typed candidate actions
-        into exact listed-contract branches; named strategy macros remain planned;
-  \item \textbf{resolve}: select contracts that were actually listed and
-        observable at the decision time;
-  \item \textbf{constrain}: evaluate guarded portfolio, spot, quantity, and
-        lifecycle conditions and emit a hard legal mask; liquidity, margin,
-        and account-capital policy remain caller-owned;
-  \item \textbf{canonicalize}: merge exact offsets and compute economic
-        projections without discarding execution identity;
-  \item \textbf{lower}: emit canonical portfolios, journaled runtime
-        transitions, portfolio graphs, and state/action graphs;
-  \item \textbf{attach evidence}: retain semantic hashes, source times,
-        assumptions, rejection reasons, and runtime journals.
-\end{enumerate}
-
-\begin{center}
-\begin{tikzpicture}[node distance=7mm and 7mm]
-  \node[voltcompile] (source) {Versioned source\\guarded rules};
-  \node[voltcompile,right=of source] (typed) {Typed \COG\\IR};
-  \node[voltcompile,right=of typed] (canon) {Validated and\\canonical IR};
-  \node[voltcompile,below left=of canon] (cpu) {Event-driven\\CPU runtime};
-  \node[voltcompile,below=of canon] (ml) {Heterogeneous\\ML graph};
-  \node[voltcompile,below right=of canon] (tensor) {Batched tensor\\kernels};
-  \draw[voltedge] (source) -- (typed);
-  \draw[voltedge] (typed) -- (canon);
-  \draw[voltedge] (canon) -- (cpu);
-  \draw[voltedge] (canon) -- (ml);
-  \draw[voltedge] (canon) -- (tensor);
-\end{tikzpicture}
-\end{center}
-
-Code generation is one possible final pass.  The present value of \COG{} is a
-single diagnostic, immutable artifact, legal-action, and graph boundary over
-semantic operations that Volt previously exposed separately.  The
-\texttt{cog} example demonstrates the complete first implementation; the name
-does not imply that the broader general-purpose language is complete.
-
-\subsection{GPU lowerings}
-
-Some workloads later compiler lowerings could produce are naturally parallel:
-\begin{itemize}
-  \item evaluate many portfolios over the same spot/volatility scenario grid;
-  \item price or compute sensitivities for large homogeneous option batches;
-  \item aggregate leg values into portfolios with segmented reductions;
-  \item perform message passing over batches of similarly typed graphs;
-  \item score a large set of already validated candidate actions.
-\end{itemize}
-These can be lowered to structure-of-arrays buffers, sparse adjacency, masks,
-and dense or ragged tensors.  Stable node and edge type identifiers could let
-the compiler batch many small strategy graphs without confusing their
-portfolio boundaries.
-
-Contract validation, corporate actions, early exercise, external assignment,
-corrections, and journal construction have a more irregular, control-heavy
-shape and may remain on the CPU while numerical kernels operate on compiled
-batches.  The eventual boundary should be chosen empirically by measuring
-end-to-end throughput, transfer cost, numerical reproducibility, and
-operational complexity.  Volt's versioned semantic objects make such an
-experiment possible, but no GPU lowering is implemented in the current public
-repository.
-
-\section{Candidate reduction}
-
-The action grammar presents the agent with semantic coordinates that remain
-stable as listed series appear and expire:
+Each position has three typed directed edges:
 \[
-  a =
-  (\text{operator},\text{right},\text{tenor bucket},
-   \text{moneyness/delta bucket},\Delta q).
+\begin{aligned}
+  v_i&\xrightarrow{\mathrm{position\ in}}v_{\mathrm{portfolio}},\\
+  v_i&\xrightarrow{\mathrm{written\ on}}v_{\mathrm{underlying}},\\
+  v_i&\xrightarrow{\mathrm{expires\ at}}v_{\mathrm{expiry}}.
+\end{aligned}
 \]
-A point-in-time resolver converts that request into a contract present in the
-listed universe supplied by the caller.  Volt validates the clock, reference
-spot, and externally supplied delta coordinates; it does not certify the
-caller's data completeness or account eligibility.  This separation keeps
-transient symbol selection in a deterministic semantic pass while allowing a
-policy to reason in coordinates such as tenor, moneyness, right, and quantity.
 
-The public crate implements the first four layers below; the remaining layers
-belong to callers or future compiler work:
-\begin{enumerate}
-  \item typed grammar and authority rules;
-  \item point-in-time instrument availability;
-  \item exact branch resolution in stable contract order;
-  \item exact canonicalization;
-  \item \emph{external:} liquidity, capital, margin, and account constraints;
-  \item \emph{external:} dominance, clustering, and learned ranking.
-\end{enumerate}
+The position node carries contract identifier, option right, settlement,
+exercise style, strike, mark, signed quantity, multiplier, first exercise
+time, and exercise-opportunity count.  The underlying node carries spot and
+currency; the expiry node carries expiry and time to expiry.  Marks are graph
+context; contract terms retain fixed legal and economic definitions.
 
-The implemented operators are \texttt{AddLeg}, \texttt{RemoveLeg},
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=18mm and 19mm,
+    every node/.style={font=\small,align=center},
+    context/.style={draw,rounded corners,minimum width=25mm,minimum height=9mm},
+    position/.style={draw,rounded corners,minimum width=39mm,minimum height=13mm},
+    relation/.style={-{Latex[length=2mm]},semithick}
+  ]
+    \node[context] (underlying)
+      {underlying\\spot \(100\)};
+    \node[context,right=of underlying] (portfolio)
+      {portfolio\\\(q=(+1,-1)\)};
+    \node[context,right=of portfolio] (expiry)
+      {expiry\\30 days};
+    \node[position,below=of portfolio] (position)
+      {option position \(i\)\\contract, strike, \(q_i\), mark};
+
+    \draw[relation] (position) -- (underlying);
+    \draw[relation] (position) -- (portfolio);
+    \draw[relation] (position) -- (expiry);
+  \end{tikzpicture}
+  \caption{Each nonzero leg creates one option-position node connected to its
+  portfolio, underlying, and expiry through the typed relations defined
+  above.  The two-position example instantiates the node for the long \(90\)
+  call and the short \(110\) call.  Contract quantities determine the
+  candidate; spot and marks belong to the decision state.}
+  \label{fig:portfolio-graph}
+\end{figure}
+
+Figure~\ref{fig:portfolio-graph} contains one candidate--state pair.  Changing
+a contract or quantity produces another candidate.  Changing spot, marks, or
+valuation time produces another state.  Reordering the position nodes
+preserves the graph and portfolio identity.
+
+\subsection{Graph identity and targets}
+
+\texttt{PortfolioGraphSample} stores the graph schema version, a feature
+sample identifier, the contract-portfolio hash, the expiration-payoff hash,
+nodes, edges, and an optional target.  The target is excluded from feature
+identity, allowing an evaluator correction to update a label without changing
+the candidate--state identifier.
+
+Targets may contain path-aggregated P\&L, drawdown, costs, exercise effects,
+or other declared outcomes.  The scenario evaluator produces those values;
+the graph transports the structural inputs and provenance to a set model,
+graph neural network, optimizer, or analysis tool.
+
+The current graph schema covers one underlying and one common expiry per
+sample.  Multi-expiry, multi-underlying, account, risk-factor, and event nodes
+belong to a subsequent schema.  Their contribution is measured against an
+order-invariant set model through portfolio prediction and ranking
+\cite{deepsets,relational}.
+
+\section{Compiler and candidate actions}
+\label{sec:compiler}
+
+The \COG{} compiler converts versioned structured source into an immutable
+financial program:
+\[
+  \text{source}
+  \longrightarrow
+  \text{validated contracts and rules}
+  \longrightarrow
+  \text{compiled artifact}.
+\]
+Source contains the listed universe, initial positions, candidate grammar,
+typed guards, priorities, and an optional scenario objective.  Compilation
+validates the schema and contracts, collects source-addressed diagnostics,
+normalizes rules, resolves semantic contract coordinates, and records source
+and artifact hashes.
+
+At a decision state, the compiled artifact evaluates its guards and emits
+stable candidate-action slots with rejection reasons and an aligned legal
+mask.  Implemented actions are \texttt{AddLeg}, \texttt{RemoveLeg},
 \texttt{ResizeLeg}, \texttt{Wait}, and holder-authorized
-\texttt{Exercise}.  Close, roll, hedge, move-strike, move-expiration, and
-multi-leg macros are not current grammar variants.  In trader terms, a caller
-can request ``add one put in this tenor and moneyness bucket''; Volt returns
-every matching exact contract branch, and caller policy decides which
-branches remain feasible.
+\texttt{Exercise}.  A semantic addition can use option right, tenor, and
+moneyness or supplied delta coordinates; the point-in-time resolver returns
+matching listed contracts in stable order.
 
-\subsection{Public synthetic trace}
+The state/action graph combines:
+\[
+  (\text{portfolio graph},\text{runtime context},
+    \text{action nodes},\text{action edges},\text{legal mask}).
+\]
+Action edges identify the current portfolio, a targeted live position, or the
+underlying used by a proposed addition.  A learned policy scores these action
+nodes after deterministic contract and lifecycle legality have been applied.
+The application composes liquidity, capital, margin, and broker constraints
+with the compiler mask.
 
-The checked-in \texttt{zap} example makes two semantic reductions concrete
-without relying on private market data:
+Multi-leg strategy macros, close and roll plans, account policy, and tensor
+lowering remain development work.  Direct portfolio discovery can proceed
+with generated signed contract quantities before those conveniences are
+available.
+
+\section{Scenario evaluation and evidence}
+\label{sec:evaluation}
+
+One scenario path supplies timestamped underlying observations, option marks
+or quotes, and external events.  \texttt{ScenarioSimulator} opens the
+portfolio, applies the declared fill and cost rules, advances lifecycle
+actions through the runtime, and records pathwise and terminal P\&L with leg
+attribution.
+
+Two implemented fill conventions establish an explicit execution boundary.
+\texttt{DeclaredMark} uses the supplied mark as a synthetic fill.
+\texttt{CrossAtTouch} buys at the ask and sells at the bid, and requires the
+corresponding quote side.  Historical or generated research must additionally
+declare the mark source, missing-data rule, assignment model, management
+policy, and option-valuation method used between observations.
+
+For path cohort \(\Xi_t=\{\xi_1,\ldots,\xi_M\}\), the evaluator produces
+\[
+  y_t(q)
+  =A\left(
+    \{R(q,\xi_m;c_t,\nu,\mu,\alpha,\omega)\}_{m=1}^{M}
+  \right).
+\]
+Here \(\nu\) is the mark or valuation rule, \(\mu\) the management and exercise
+rule, \(\alpha\) the assignment rule, \(\omega\) the execution and settlement
+rules, and \(A\) the outcome aggregation.  These versioned inputs give the
+graph target its financial interpretation.
+
+Decision-time features use observations available at \(t\).  Future
+observations on \(\Xi_t\) create outcomes.  Dataset records therefore retain
+event time, as-of time, source revision, visible contract universe, quote
+rule, exercise and assignment assumptions, and split membership.
+
+\section{Implemented boundary}
+\label{sec:implementation}
+
 \begin{center}
-\begin{tabular}{@{}lrrr@{}}
+\begin{tabular}{@{}P{0.27\linewidth}P{0.62\linewidth}@{}}
 \toprule
-Experiment & Raw realizations & Exact portfolios & Payoff classes \\
+Component & Current public implementation \\
 \midrule
-Two ordered actions & 144 & 73 & 73 \\
-Six quantities in \([-2,2]\) & 15,625 & 15,625 & 13,321 \\
+Contracts &
+\texttt{OptionContract}, European/Bermudan/American exercise schedules,
+cash or physical settlement, and \texttt{Position} \\
+Market evidence &
+Versioned source manifests, historical or generated observation provenance,
+ordered option observations, and declared proxy or top-of-book authority \\
+Portfolio identities &
+\texttt{CanonicalPortfolio}, netted quantities, semantic hashes, and
+\texttt{TerminalPayoffProjection} \\
+Lifecycle &
+\texttt{CogRuntime}, immutable \texttt{PortfolioState}, exercise,
+assignment, expiry, cash and underlying emissions, and journals \\
+Scenarios &
+\texttt{ScenarioSimulator}, declared-mark and touch fills, fees, pathwise
+P\&L, terminal P\&L, leg attribution, and result hashes \\
+Candidates and compiler &
+\texttt{CandidateGrammar}, \texttt{CogCompiler}, guarded rules, compiled
+artifacts, action sets, rejection reasons, and legal masks \\
+Graph views &
+\texttt{PortfolioGraphSample}, \texttt{CompiledPortfolioGraphSample}, and
+\texttt{StateActionGraphSample}; \texttt{graph\_export} converts declared
+marked contracts and quantity vectors into canonical graph samples \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Exact canonicalization removes 49.31\% of the ordered action
-representations.  In the bounded quantity experiment, terminal projection
-merges 14.75\% of exact portfolios into an existing payoff class.  Those
-classes are projections, not claims of dynamic American-option equivalence.
-The companion \texttt{graph} example enumerates all \(3^6=729\) portfolios
-for quantities in \(\{-1,0,1\}\) and emits deterministic JSON Lines graph
-fixtures.  These are functional synthetic results, not performance or
-investment evidence.
+The repository also contains deterministic \texttt{cog}, \texttt{graph},
+\texttt{zap}, and \texttt{risk} examples.  They exercise compilation,
+candidate enumeration, graph export, portfolio reduction, and an educational
+risk display using synthetic data.  A research driver uses the public graph
+exporter with generated American CRR marks, fixed exercise and assignment
+policies, constrained portfolio enumeration, path-labelled targets, and a
+Deep Sets baseline.  Its market adapters and experiment records remain
+outside the public financial-semantics crate.
 
-\subsection{Runnable risk monitor}
+Executable historical quote adapters, account and margin policy,
+fixed-horizon hedge management, the relation-aware GNN comparison, strategy
+macros, and GPU lowering remain integration work.
 
-The checked-in \texttt{risk} example constructs a cash-settled European
-\strategy{iron condor} as four exact \texttt{OptionContract} values, passes
-their signed positions through \texttt{CanonicalPortfolio}, and derives the
-terminal hinge projection.  It then advances a correlated spot and
-mean-reverting log-volatility path.  An example-local Black--Scholes adapter
-produces educational marks and Greeks; it is not part of Volt's price
-authority.
+\section{Validation}
 
-The top-like display reports leg marks and P\&L, portfolio delta, gamma, vega,
-and theta, expiration P\&L across spot shocks, and a spot--volatility scenario
-grid.  The separation is visible in the running program: Volt owns contract
-identity, canonicalization, and terminal payoff, while the example owns its
-synthetic market path and teaching pricer.
+Semantic tests compare direct portfolio payoff with the hinge projection,
+check that position order leaves portfolio and graph identities unchanged,
+and replay lifecycle journals from versioned inputs.  Compiler tests check
+diagnostic collection, rule priority, stable branch order, aligned action
+masks, and state binding.
 
-\SNsectionpage
+The first learning study adds three empirical checks.  First, every target is
+recomputed by the financial evaluator from its recorded assumptions.  Second,
+chronological splits keep label-horizon observations out of model inputs.
+Third, graph models receive the same contracts, market context, targets, and
+optimization budget as the Deep Sets baseline.  Edge and relation ablations
+then measure the contribution of graph structure.
 
-\section{Simulation}
-
-\subsection{Managed paths}
-
-A terminal payoff chart shows the contract cash flow at a selected expiration
-and terminal spot.  A trader's
-backtest asks more:
-\begin{enumerate}
-  \item At what executable prices could the legs have been opened?
-  \item How were options still open marked as spot, time, and volatility moved?
-  \item Did the account hedge, take profit, stop out, close, roll, exercise, or
-        receive assignment?
-  \item Which cash, stock, fees, financing, and margin consequences followed?
-  \item What information was actually available at every decision?
-\end{enumerate}
-
-A \strategy{iron condor} held to expiration, the same structure closed after
-earning half its original credit, and the same initial position rolled when a
-short strike is breached represent three policies over one contract
-realization.  They share the entry evidence and initial graph, then diverge
-through their actions, transaction costs, lifecycle events, and continuing
-positions; a backtest must preserve that common origin while producing
-distinct transition paths.
-
-The public \texttt{ScenarioSimulator} makes execution assumptions explicit.
-\texttt{DeclaredMark} uses the declared mark as a synthetic or proxy fill;
-\texttt{CrossAtTouch} buys at the ask and sells at the bid and fails closed
-when the required side is absent.  The included tests establish deterministic
-accounting and sensitivity to missing quote evidence.  They do not include a
-historical ranking study or support an economic-performance claim.
-
-\subsection{Information boundary}
-
-Every decision is evaluated under an explicit filtration.  At observation
-time \(t\), the feature builder may use only values published and available by
-that time, and each dataset row records the timing and version information
-needed to enforce that rule:
-\begin{itemize}[nosep]
-  \item event time and ingestion/as-of time;
-  \item source and revision identifier;
-  \item instrument universe visible at the decision time;
-  \item quote/fill convention;
-  \item exercise and assignment convention;
-  \item corporate-action and dividend version.
-\end{itemize}
-
-\subsection{Execution}
-
-The simulator carries theoretical valuation and executable cash consequences
-as separate fields, enabling diagnostic comparisons without allowing a mark
-to become an implicit fill.  Its minimum execution contract covers bid--ask
-treatment, fees, multiplier, physical or cash settlement, American exercise,
-short-assignment scenarios, and corporate actions; margin, borrow, market
-impact, and probabilistic fills enter as independently versioned models whose
-effects can be isolated.
-
-For a quoted market, three useful but distinct calculations are:
-\begin{description}[style=nextline]
-  \item[Proxy mark]
-    A convenient research valuation that may come from an aggregate close or
-    model, used for comparison and diagnostics without an execution claim.
-  \item[Quote midpoint]
-    A contemporaneous reference between bid and ask that measures location
-    within the quoted market while carrying no promise of a fill.
-  \item[Cross at touch]
-    Buy at the observed ask and sell at the observed bid, bounded by displayed
-    size and the rest of the fill model.  This convention charges the displayed
-    spread and provides a conservative oracle relative to midpoint; observed
-    executions require separate fill evidence.
-\end{description}
-
-\subsection{Outcomes}
-
-The learning target is a vector that preserves both reward and the risks or
-resources through which it was obtained:
-\[
-\begin{aligned}
-  y = (&\text{net P\&L},\text{drawdown},\text{CVaR},\text{turnover},\\
-       &\text{capital use},\text{exercise loss},\text{scenario vector}).
-\end{aligned}
-\]
-Search objectives are declared separately and may reduce this vector to a
-scalar utility or retain several dimensions in a Pareto comparison.  Because
-the outcome schema sits downstream of the contract IR, researchers can change
-the objective without changing the financial semantics of the candidate.
-
-\SNsectionpage
-
-\section{Evidence and limits}
-
-\subsection{Explanation}
-
-The journal establishes which definitions, guards, transitions, rewrites, and
-emissions produced a state.  Financial attribution then reconciles P\&L and
-risk to legs, scenarios, actions, and costs.  When a learned score enters the
-decision, its diagnostics---feature and relation sensitivity, ablations, and
-rank stability---remain attached as a separate record describing the model's
-behavior.  The simulator journal continues to own the accounting explanation.
-
-These evidence objects may be rendered as prose, tables, or interactive
-views.  Every quantitative statement retains a link to its source object, so
-the presentation can change without blurring the difference between a model
-explanation and a financial reconciliation.
-
-\subsection{Limits}
-
-Canonicalization removes duplicated representations while preserving the
-economic dimensions introduced by multi-asset path dependence, stochastic
-volatility, transaction costs, assignment behavior, and portfolio margin.
-Those features create real state and prevent a finite canonicalizer from
-offering general program equivalence or a universally minimal Markov
-representation.  Each verification claim therefore names the symbolic or
-finite fragment in which it holds and carries its assumptions into the
-evidence record.
-
-The grammar, dataset, scenario model, and objective also bound what discovery
-can find.  A learned search procedure is particularly effective at locating
-regularities in its evaluation environment, including accidental leakage,
-optimistic fill assumptions, and simulator defects, so novel output must face
-adversarial scenarios, explicit costs, capacity analysis, and out-of-time
-evaluation before its apparent utility is interpreted economically.
-
-\subsection{Implementation}
-
-\begin{description}[style=nextline]
-  \item[Public package]
-    The Cargo package is \texttt{volt-options}; consumers import the Rust
-    library as \texttt{volt}.
-  \item[Contracts and identities]
-    \texttt{OptionContract}, \texttt{Position},
-    \texttt{CanonicalPortfolio}, and
-    \texttt{TerminalPayoffProjection} implement exact and projected
-    identities with versioned semantic hashes.
-  \item[Runtime and scenarios]
-    \texttt{VoltRuntime} is the public alias for the deterministic lifecycle
-    runtime.  \texttt{ScenarioSimulator} records fill and cost models,
-    journals, pathwise P\&L, leg attribution, and result hashes.
-  \item[Search and graph views]
-    \texttt{CandidateGrammar} compiles a bounded action vocabulary;
-    \texttt{PortfolioGraphSample} exports portfolio, underlying, expiry, and
-    option-position nodes with exact and payoff hashes.  The \texttt{zap} and
-    \texttt{graph} examples provide reproducible synthetic fixtures, while
-    \texttt{risk} provides a live educational strategy monitor.
-  \item[Outside this repository]
-    Brokerage connectivity, live vendor adapters, account and margin policy,
-    strategy macros, the \COG{} compiler, tensor or GPU lowerings, training
-    loops, learned checkpoints, and trading authority are not part of the
-    public release.
-\end{description}
-
-\SNsectionpage
+These tests separate three sources of failure: financial semantics, dataset
+construction, and statistical estimation.  A model result can be traced to
+the candidate--state graph, the exact contract portfolio, the path cohort,
+and the runtime evidence that produced its outcome.
 
 \section{Conclusion}
 
-Volt makes the options graph the common object shared by deterministic
-financial processing and statistical systems:
-\[
-\boxed{
-  \begin{gathered}
-    \text{typed contracts and portfolio state}
-    \longrightarrow
-    \text{options graph}\\
-    \longrightarrow
-    \text{learning, search, and optimization}
-    \longrightarrow
-    \text{evaluated actions and runtime evidence}
-  \end{gathered}
-}
-\]
-Typed semantics remove invalid states and duplicated constructions before
-expensive evaluation.  Simulation supplies outcomes under declared market and
-execution assumptions, after which a discovery or control system may allocate
-its evaluation budget without acquiring authority over contract meaning.
-Provenance on definitions, observations, transitions, and labels keeps the
-result replayable as models and search methods change.  The implemented
-\COG{} compiler expands structured strategy rules and lowers validated
-programs to runtime and graph targets; concise named macros and tensor targets
-remain extensions.  The compiler is the authority boundary, while the graph
-is the representation through which learning and optimization consume that
-meaning.
+\VOLT{} gives option portfolio graphs a financial source of truth.  Listed
+contracts and signed quantities define the portfolio; exercise schedules and
+runtime transitions define its continuing state; fills and journals define
+its execution history; payoff and graph objects are derived views with
+versioned links to those definitions.
 
-For a trader, the machinery should resolve into a coherent workflow: state a
-view, inspect the contracts and obligations through which it will be expressed,
-compare feasible alternatives, simulate an explicit management policy, and
-trace the resulting P\&L and risk back to market evidence.  The machine sees
-the same strategy as typed, canonical, graph-shaped, batchable data available
-to several optimization backends.  \VOLT{} provides the shared language between
-those perspectives, allowing a discovered structure to move from search to
-simulation and explanation without being reinterpreted at every boundary.
+The implemented graph is deliberately small: portfolio, underlying, expiry,
+and option-position nodes with typed edges.  The \COG{} compiler adds
+point-in-time action nodes and deterministic legal masks.  Path evaluation
+supplies supervised outcomes.  This boundary supports the direct portfolio
+search developed in the discovery paper and the state/action interface used
+by sequential control.
 
-\begin{thebibliography}{12}
+\begin{thebibliography}{9}
 
 \bibitem{arnold1995}
 B. R. T. Arnold, A. van Deursen, and M. Res,
@@ -1578,14 +561,18 @@ FINOS,
 \emph{Common Domain Model: Event Model},
 \url{https://cdm.finos.org/docs/event-model/}.
 
-\bibitem{lexifi}
-LexiFi,
-\emph{LexiFi's Contract Description Language},
-\url{https://www.lexifi.com/blog/structured-thoughts/contract-description-language/}.
+\bibitem{deepsets}
+M. Zaheer, S. Kottur, S. Ravanbakhsh, B. Póczos, R. Salakhutdinov, and
+A. Smola,
+\emph{Deep Sets},
+Advances in Neural Information Processing Systems, 2017,
+\url{https://arxiv.org/abs/1703.06114}.
 
-\bibitem{occ}
-The Options Clearing Corporation,
-\emph{Characteristics and Risks of Standardized Options}, June 2024.
+\bibitem{relational}
+P. W. Battaglia et al.,
+\emph{Relational Inductive Biases, Deep Learning, and Graph Networks},
+2018,
+\url{https://arxiv.org/abs/1806.01261}.
 
 \end{thebibliography}
 

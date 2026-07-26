@@ -51,6 +51,7 @@ cargo run --example risk_server
 cargo run --example zap
 cargo run --example cog -- --output /tmp/volt-cog.json
 cargo run --example graph -- --output /tmp/volt-graphs.jsonl
+cargo run --bin graph_export -- --input request.json --output graphs.json
 ```
 
 `risk` is the compact, `top`-like terminal monitor. `risk_server` serves the
@@ -69,6 +70,10 @@ business logic into an immutable artifact, produces a point-in-time legal
 action mask and state/action graph, and journals a runtime transition. `graph`
 emits deterministic JSON Lines fixtures built from synthetic marks and scenario
 weights.
+
+`graph_export` is the data-independent bridge used by research applications.
+It validates declared contracts and marks, canonicalizes each quantity vector,
+and returns portfolio hashes, terminal-payoff hashes, and graph samples.
 
 An optional reference training harness consumes the exact graph export and
 learns a relation-aware portfolio embedding:

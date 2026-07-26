@@ -1,411 +1,756 @@
-\documentclass{strategynet-report}
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathpazo}
+\usepackage[scaled]{helvet}
+\usepackage{microtype}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{pgfplots}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\pgfplotsset{compat=1.18}
 
 \hypersetup{
-  pdftitle={Volt: Strategy Search},
-  pdfauthor={research@strategynet.ai}
+  pdftitle={Volt: Searching the Option Strategy Space},
+  pdfauthor={research@strategynet.ai},
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!60!black
 }
 
-\lstdefinestyle{volt}{
-  style=sncode
-}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlist{nosep}
 
 \newcommand{\VOLT}{\textsf{Volt}}
-\newcommand{\COG}{\texttt{cog}}
-\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
 
-\tikzset{
-  discoverybox/.style={
-    draw=SNLine,
-    fill=SNPaper,
-    rounded corners=2pt,
-    text width=26mm,
-    minimum height=18mm,
-    align=center,
-    inner sep=2.5mm,
-    font=\sffamily\fontsize{8}{9.5}\selectfont
-  },
-  discoverylearn/.style={
-    discoverybox,
-    draw=SNSignalDark,
-    fill=SNSignal!6
-  },
-  discoveryflow/.style={
-    -{Latex[length=2mm]},
-    draw=SNInk,
-    line width=0.75pt
-  },
-  discoveryfeedback/.style={
-    -{Latex[length=2mm]},
-    draw=SNSignalDark,
-    dashed,
-    line width=0.75pt
-  }
-}
-
-\title{\VOLT{}: Strategy Search}
-\SNSubtitle{Finding useful portfolios without evaluating every candidate}
-\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
-\SNDocumentType{Research architecture}
-\SNVersion{Version 0.2}
-\SNDate{July 2026}
-\SNStatus{Open-source working paper}
-\SNShortTitle{Volt: Strategy Search}
+\title{\VOLT{}: Searching the Option Strategy Space}
+\author{research@strategynet.ai}
+\date{July 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-An option chain can produce more valid portfolios than a researcher can price,
-simulate, and review.  Many candidates are duplicates or slight variations;
-others look attractive only because their features used stale information or
-their labels ignored executable prices.  Exhaustive evaluation wastes a
-limited research budget, while an unconstrained ranker can learn the wrong
-lesson very efficiently.
-
-This paper describes a search process that spends evaluation effort on
-distinct, legal, point-in-time candidates.  Each candidate becomes a
-versioned \VOLT{} graph linked to its exact portfolio identity, bounded
-actions, and deterministic simulation evidence.  The proposed statistical
-layer learns over those graphs and adds dataset construction, candidate
-scoring, active acquisition, baseline comparisons, quote-backed labels, and
-chronological evaluation.  The public repository ships synthetic fixtures
-and semantic reduction results; it does not ship a trained ranker or make an
-alpha claim.  The initial \COG{} compiler, compiler-bound graph dataset, and
-structural legal mask are implemented; account-aware margin and capital policy
-remain integration work.
+An option chain supports many more portfolios than the named templates usually used to search it.  Direct construction from listed contracts makes that wider space available, but realistic evaluation is costly: each American-option portfolio may require pathwise marks, fills, transaction costs, exercise, assignment, and settlement.  \VOLT{} evaluates a sample of feasible portfolios on historical or generated paths and uses the outcomes to train an order-invariant surrogate over signed contract positions.  The surrogate ranks the unevaluated pool, allowing more of the contract-level search space to be considered for a given evaluation cost.  Deep Sets supplies the first model.  A relation-aware graph network tests whether explicit position, underlying, expiry, and account relations add value; a QUBO formulation is tested for batch selection.  This paper specifies the financial assumptions, mathematical formulation, and empirical criterion: recovery of high-ranked portfolios against the cost of full path evaluation.
 \end{abstract}
 
-\SNtableofcontents
+\section{Introduction}
 
-\part{Research Design}
+A common way to make option-strategy search tractable is to begin with a
+template: choose a vertical, straddle, butterfly, calendar, or another familiar
+shape, then search over its strikes, expiries, and quantities.  This approach
+reduces the number of portfolios under consideration, but the reduction occurs
+before their behavior is evaluated.  The number of legs, option rights, and
+sign pattern have already been chosen by the template.
 
-\section{Discovery task}
+The alternative considered here starts with the listed contracts themselves.
+A candidate portfolio assigns a signed quantity to each eligible contract,
+subject to limits on exposure, liquidity, capital, and leg count.  Conventional
+strategy names can be applied afterward for interpretation.  They play no role
+in candidate generation, so the search includes structures outside a
+predefined catalogue.
 
-At a decision time \(t\), the research system receives a market and account
-state together with the contracts that were listed and observable at that
-time.  The implemented \texttt{CandidateGrammar} resolves typed actions
-against the caller-supplied listed universe and enforces structural and
-exercise-authority rules.  Caller policy must still apply liquidity, capital,
-margin, and account constraints.  The implemented \COG{} compiler coordinates
-the structural decisions and their diagnostics; the discovery model should see
-candidates only after every deterministic decision has been recorded.
+The resulting search space grows quickly.  With \(d\) eligible contracts and
+quantities from a finite set \(\mathcal Q\), the unfiltered space contains
+\(|\mathcal Q|^d\) quantity vectors.  Most applications cannot evaluate every
+vector across every relevant market path.  Evaluation is especially costly for
+American options because portfolio behavior depends on the path of option
+values and on decisions or events that occur before expiry.  A terminal payoff
+diagram supplies the expiration geometry; path evaluation supplies the
+pre-expiry behavior.
 
-The initial task is bounded.  Given an admissible set
-\(A_t\), estimate the outcome and risk of each candidate and rank the set under
-a declared objective.  A candidate may be a complete portfolio constructed
-from an empty account or a one-step transformation of existing inventory.
-Either formulation yields an ordinary supervised sample once the simulator or
-historical replay has supplied the outcome.  Exhaustive evaluation remains
-possible on small universes, which gives the experiment a known oracle and
-makes search efficiency measurable.
+Payoff diagrams remain a useful first description of the economic position
+and are standard in options reference material \cite{occquickguide}.
+Figure~\ref{fig:call-spread-payoff} shows how two contract positions combine.
+The portfolio can be recognized as a bull call spread after it has been
+constructed; candidate generation uses the two signed positions.
 
-This separation keeps the research question precise.  Contract validity,
-exercise authority, and settlement remain Volt runtime concerns; account
-admissibility remains an application concern.  The model is
-judged on how effectively it orders legal alternatives, how much expensive
-evaluation it saves, and whether its ranking remains useful after spreads,
-fees, and out-of-time market changes.
+\begin{figure}[tbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.82\linewidth,
+      height=6.2cm,
+      domain=70:130,
+      xmin=70,
+      xmax=130,
+      ymin=-19,
+      ymax=30,
+      samples=181,
+      axis lines=left,
+      xlabel={Underlying price at expiry, \(S_T\)},
+      ylabel={P\&L per share},
+      tick align=outside,
+      legend style={
+        at={(0.02,0.98)},
+        anchor=north west,
+        draw=none,
+        fill=white,
+        font=\small
+      }
+    ]
+      \addplot[gray, thin, forget plot] coordinates {(70,0) (130,0)};
+      \addplot[gray, densely dotted, forget plot]
+        coordinates {(90,-19) (90,30)};
+      \addplot[gray, densely dotted, forget plot]
+        coordinates {(110,-19) (110,30)};
 
-\section{Artifact contract}
+      \addplot[blue!70!black, thick]
+        {max(x-90,0)-12};
+      \addlegendentry{Long \(90\) call}
 
-The proposed research interface exposes a sample
+      \addplot[orange!85!black, thick, dashed]
+        {2.5-max(x-110,0)};
+      \addlegendentry{Short \(110\) call}
+
+      \addplot[black, very thick]
+        {max(x-90,0)-max(x-110,0)-9.5};
+      \addlegendentry{Combined portfolio}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Expiry profit and loss for one long \(90\) call and one short
+  \(110\) call, using illustrative entry prices of \(12\) and \(2.50\)
+  before fees.  The
+  combined position has a net debit of \(9.50\), a break-even price of
+  \(99.50\), a maximum loss of \(9.50\), and a maximum profit of \(10.50\)
+  per share.  The pathwise evaluator additionally requires pre-expiry marks,
+  exercise, assignment, fills, and management actions.}
+  \label{fig:call-spread-payoff}
+\end{figure}
+
+The practical objective is to recover high-utility portfolios without applying
+the full evaluator to the entire combinatorial set.  A small evaluated sample
+is used to fit a surrogate; the surrogate ranks the remaining pool; an
+acquisition rule selects another batch for the financial evaluator; and the
+process repeats.  Success is measured against exhaustive evaluation on small
+problems and by held-out performance on later decision dates.
+
+This paper develops that problem in three stages.  Section~\ref{sec:trading}
+describes the trading and derivatives assumptions.  Sections~\ref{sec:math}
+and~\ref{sec:model} give the mathematical formulation and the first learning
+model.  Sections~\ref{sec:acquisition} and~\ref{sec:experiment} define
+candidate acquisition and the empirical comparison.  The initial study
+searches entry portfolios under a fixed management rule.  Sequential
+management is discussed separately in Section~\ref{sec:control}.
+
+\section{Trading and derivatives setting}
+\label{sec:trading}
+
+\subsection{Portfolio construction and strategy management}
+
+An entry portfolio specifies the contracts and signed quantities held at the
+decision time.  A management rule specifies later decisions such as closing,
+resizing, rolling, exercising, or waiting.  Assignment and other external
+events can change the position independently of the holder's choices.
+
+The first experiment searches entry portfolios while holding the management
+rule and external-event model fixed.  This isolates the portfolio-construction
+question: given the same information, paths, execution assumptions, and
+management rule, which initial combinations warrant further evaluation?
+Changing the management rule defines another experiment.
+
+\subsection{A concrete decision state}
+
+Suppose the point-in-time chain shows spot \(S_t=100\), a \(90\) call marked at
+\(12\), and a \(110\) call marked at \(2.50\), with both calls expiring in
+30 days.  Spot and marks are market observations.  The listed strikes,
+exercise terms, expiry, and contract multiplier are contract data.  The
+portfolio decision is the signed quantity on each contract: \(+1\) for the
+\(90\) call and \(-1\) for the \(110\) call in
+Figure~\ref{fig:call-spread-payoff}.
+
+The marks would ordinarily come from a timestamped option chain under a
+declared quote rule, such as mid, executable bid or ask, or a fitted surface.
+Synthetic examples set these values directly.  The same applies to spot,
+interest rates, dividends, and the initial volatility state.
+
+Changing a strike, expiry, option right, or quantity produces another
+candidate portfolio.  Both leg orders map to the same candidate.  A new date
+or a new set of contemporaneous marks produces another decision state.  In the
+graph comparison, one model input represents a candidate--state pair, so the
+same contract quantities observed on two dates give two examples with
+different market features.
+
+Candidate portfolios are generated by software from the eligible chain and
+the declared quantity, leg-count, liquidity, exposure, and capital limits.
+Manual entry remains useful for fixtures such as
+Figure~\ref{fig:call-spread-payoff}.
+
+\subsection{Where market paths come from}
+
+The evaluator accepts three kinds of path evidence:
+
+\begin{itemize}
+  \item historical paths assembled from point-in-time underlying and option
+        observations;
+  \item generated paths sampled from a stated stochastic or stress model; and
+  \item forecast-conditioned paths produced by a model fitted before the
+        decision time.
+\end{itemize}
+
+Historical replay measures behavior on recorded observations.  Generated
+paths measure behavior under the specified distribution or stress
+construction.  Forecast-conditioned paths measure behavior under a forecast
+that was available when the portfolio was chosen.
+
+A path of spot, volatility, rates, and dividends still requires option
+valuation at each observation.  Historical studies may use recorded option
+quotes.  Generated studies require a pricing method that maps the factor state
+and contract terms to an option mark and, when execution is modelled, bid and
+ask prices.  The pricing method, quote-selection rule, and missing-data policy
+are part of the experiment.
+
+\subsection{Early exercise and assignment}
+
+Let
 \[
-  d_t=(G_t,A_t,M_t,y_t,p_t),
+  \mathcal T=\{\tau_0,\tau_1,\ldots,\tau_H\},
+  \qquad \tau_0<\tau_1<\cdots<\tau_H,
 \]
-where \(G_t\) is the compiled graph, \(A_t\) contains feasible candidates,
-\(M_t\) is the legal mask, \(y_t\) carries outcome and risk labels, and \(p_t\)
-records provenance.  Every element is versioned.  The model may replace its
-graph schema, normalizers, features, and objective without changing the
-authoritative portfolio or the events that produced its label.  The current
-\texttt{PortfolioGraphSample} implements \(G_t\), exact and payoff hashes,
-and an optional compact target.  Volt does not yet serialize the complete
-five-part sample as one artifact.
-
-\begin{center}
-\begin{tabularx}{\textwidth}{@{}p{0.13\textwidth}X X@{}}
-\toprule
-Field & Financial content & Experimental use \\
-\midrule
-\(G_t\) & portfolio, exact option positions, underlying, expiry, and typed relations &
-model input and attribution anchor \\
-\(A_t\) & resolved candidate portfolios or transformations &
-objects to score under one acquisition budget \\
-\(M_t\) & authority, lifecycle, liquidity, and resource decisions &
-exclusion before ranking or normalization \\
-\(y_t\) & P\&L, drawdown, tail risk, turnover, costs, and scenario outcomes &
-regression, ranking, calibration, or Pareto targets \\
-\(p_t\) & timestamps, sources, hashes, assumptions, and split membership &
-replay, leakage checks, and result identity \\
-\bottomrule
-\end{tabularx}
-\end{center}
-
-The experiment manifest fixes the observation clock, prediction horizon,
-eligible grammar, execution models, scenario distribution, random seeds,
-objective, acquisition budget, and chronological split before fitting begins.
-Normalizers and learned categorical vocabularies use training data alone.
-Validation data select configurations; the test split remains sealed until
-the configuration and simulator budget have been frozen.
-
-\section{Candidate pool}
-
-The public fixtures use six synthetic same-expiry contracts.  In compiled
-mode, the \texttt{graph} example constructs and compiles one versioned source
-program for each quantity vector in \(\{-1,0,1\}\), producing all
-\(3^6=729\) compiler-bound graph samples.  Each sample carries source and
-artifact hashes, a deterministic identifier, an exact portfolio hash, an
-optional terminal-payoff hash, typed nodes and edges, and a synthetic target.
-
-The \texttt{zap} example supplies two semantic controls.  Two ordered actions
-produce 144 raw sequences but 73 exact portfolios.  Independently, quantities
-in \(\{-2,-1,0,1,2\}\) across six contracts produce 15,625 exact portfolios
-and 13,321 terminal-payoff classes.  These fixtures test identity,
-canonicalization, and export plumbing; they contain no historical market
-cohort, trained model, liquidity filter, or economic claim.
-
-As the universe expands, exhaustive labels become too costly.  Candidate
-generation and evaluation must then be treated as separate budgets.  The
-\COG{} compiler or caller application may enumerate or sample a large valid
-pool cheaply, while the acquisition policy chooses the smaller subset that
-receives scenario simulation or historical replay.
-
-\part{Models}
-
-\section{Graph view}
-
-\subsection{Schema}
-
-The implemented graph is derived from a \texttt{CanonicalPortfolio} plus a
-validated \texttt{GraphContext}.  Its node types are \texttt{Portfolio},
-\texttt{Underlying}, \texttt{Expiry}, and \texttt{OptionPosition}; its edge
-types are \texttt{PositionIn}, \texttt{WrittenOn}, and \texttt{ExpiresAt}.
-Every sample carries both exact-portfolio and terminal-payoff hashes.
-
-Position features include contract identity, right, settlement, exercise
-style, strike, declared mark, signed quantity, multiplier, first exercise
-time, and discrete opportunity count.  Context supplies one underlying,
-currency, valuation time, common expiry, reference spot, and a mark for every
-contract.  Account nodes, Greeks, spread, liquidity, lifecycle state, market
-events, and multi-expiry graphs are not part of schema version
-\texttt{volt.portfolio\_graph.v1}.
-
-The current view accommodates variable leg counts while remaining insensitive
-to canonical input order.  Future experiments may derive richer graph schemas
-without rewriting contract semantics, but each schema requires its own
-version and controls.  A set encoder and conventional engineered features
-remain essential comparisons \cite{relational}.
-
-\subsection{Encoding}
-
-Type-specific input transforms map nodes into a common latent dimension.
-Relation-specific message passing produces contextual node states, and a
-permutation-invariant readout gives a portfolio representation \(h_t\).
-Candidate \(a\) receives its own representation \(e(a)\), either from a
-separately compiled graph or from the proposed graph edit.  One useful score
-is
+be the observation grid.  Every option has an exercise-opportunity set
+\(\mathcal E\subseteq\mathcal T\).  European exercise is the singleton
+\(\mathcal E=\{T\}\).  Bermudan exercise uses a finite declared subset.
+American exercise uses every grid point between the first exercise time and
+expiry:
 \[
-  Q_\theta(G_t,a)
-    = f_\theta\!\left(h_t,e(a),h_t\odot e(a)\right).
+  \mathcal E
+  =\{\tau_j\in\mathcal T:t_{\mathrm{first}}\leq\tau_j\leq T\}.
 \]
-Companion heads may estimate an outcome distribution, named risk measures,
-and a behavioral embedding.  The legal mask is applied before ranking or
-probability normalization, so an invalid action cannot acquire probability
-through a numerical accident.
 
-\section{Training objective}
+European and Bermudan exercise are restricted cases of the same
+exercise-opportunity representation.  The value and realized outcome of an
+American option depend on the observation grid and the holder's exercise rule.
+The treatment of a short position also requires an assignment rule or a
+supplied assignment schedule.  The experiment therefore records:
 
-No single scalar captures every use of an option portfolio.  A research
-dataset may therefore derive a vector
+\begin{itemize}
+  \item the observation grid;
+  \item the holder's exercise rule;
+  \item the short-assignment model;
+  \item the option-valuation method;
+  \item the fill and transaction-cost rules; and
+  \item settlement and liquidation conventions.
+\end{itemize}
+
+Least-squares Monte Carlo is one established approach to estimating
+continuation values for American options \cite{longstaffschwartz}.  It is one
+optional valuation component of the search method.
+
+\section{Mathematical formulation}
+\label{sec:math}
+
+\subsection{Contracts and portfolios}
+
+At decision time \(t\), let
+\[
+  \mathcal U_t=\{o_1,\ldots,o_d\}
+\]
+be the eligible listed contracts.  Contract \(o_i\) contains its identifier,
+underlying, currency, option right, strike, multiplier, exercise set, expiry,
+and settlement rule.
+
+A portfolio is a quantity vector
+\[
+  q=(q_1,\ldots,q_d)\in\mathcal Q^d,\qquad \mathcal Q\subset\Z,
+\]
+where \(q_i>0\) is long, \(q_i<0\) is short, and \(q_i=0\) omits the contract.
+Portfolio constraints define the candidate set
+\[
+  \mathcal C_t
+  =\{q\in\mathcal Q^d:g_j(q,c_t)\leq0,\ j=1,\ldots,J\},
+\]
+where \(c_t\) is the information available at the decision time.  The
+constraints may include gross quantity, leg count, liquidity, capital, margin,
+and exposure bounds.
+
+The vector \(q\) contains no construction order.  A sequence of trades is
+converted to \(q\) by summing quantities for each contract.  Reordering the
+same trades leaves \(q\) unchanged.  Any portfolio model used here must
+therefore be invariant to the order in which its nonzero positions are
+serialized.
+
+\subsection{Paths and portfolio outcomes}
+
+One path is
+\[
+  \xi_m=(z_{m,0},z_{m,1},\ldots,z_{m,H}),
+\]
+where \(z_{m,j}\) contains the market observation, contract prices, and
+external events at time \(\tau_j\).  Let \(\nu\) denote the option-valuation or
+quote-selection rule, \(\mu\) the management and exercise rule, \(\alpha\) the
+assignment rule, and \(\omega\) the fill, cost, accounting, and settlement
+rules.
+
+The financial evaluator returns
+\[
+  R(q,\xi_m;c_t,\nu,\mu,\alpha,\omega)\in\R^p.
+\]
+The result contains leg-level records and portfolio aggregates.  Components
+may include net P\&L, pathwise equity, drawdown, turnover, transaction costs,
+cash, delivered underlying, exercise effects, assignment effects, and terminal
+inventory.
+
+For a cohort of \(M\) paths,
+\[
+  \Xi_t=\{\xi_1,\ldots,\xi_M\},
+\]
+an aggregation rule \(A\) creates the model target
+\[
+  y_t(q)
+  =A\left(
+    \{R(q,\xi_m;c_t,\nu,\mu,\alpha,\omega)\}_{m=1}^{M}
+  \right)\in\R^r.
+\]
+The target can retain several outcome and risk measures.  A stated utility
+function \(U(y_t(q))\) supplies a ranking when the experiment requires one
+ordering.
+
+Model inputs contain \(q\), \(c_t\), and forecast artifacts available at time
+\(t\).  Future observations in \(\Xi_t\) are used to compute outcomes.
+Training, validation, and test periods follow the decision clock, with a purge
+interval where label horizons overlap.
+
+\subsection{Budgeted search}
+
+Evaluating every candidate on every path costs approximately
+\[
+  |\mathcal C_t|\,M\,C_R,
+\]
+where \(C_R\) is the average cost of evaluating one candidate on one path.
+Let \(B\) be the number of candidates that can receive full path evaluation,
+with \(B<|\mathcal C_t|\).  The search procedure chooses an evaluated subset
+\(\mathcal L_t\subset\mathcal C_t\), \(|\mathcal L_t|\leq B\), and returns the
+best evaluated candidate according to \(U\).
+
+On a small candidate pool, exhaustive evaluation identifies
+\[
+  q_t^\star=\operatorname*{arg\,max}_{q\in\mathcal C_t}U(y_t(q)).
+\]
+This gives a reference for simple regret,
+\[
+  U(y_t(q_t^\star))
+  -\max_{q\in\mathcal L_t}U(y_t(q)),
+\]
+and for recovery of the top \(k\) candidates.  These quantities make the cost
+and benefit of learned acquisition observable.
+
+\section{Permutation-invariant portfolio models}
+\label{sec:model}
+
+\subsection{Deep Sets baseline}
+
+For each nonzero position, construct a feature vector
+\[
+  x_i=x(o_i,q_i,c_t).
+\]
+Features can include option right, signed quantity, strike relative to spot,
+time to exercise boundaries and expiry, multiplier, settlement, mark,
+bid--ask spread, implied-volatility coordinates, and liquidity measures.
+
+The first nonlinear model is
 \[
 \begin{aligned}
-  y=(&\text{net P\&L},\text{drawdown},\text{CVaR},\text{turnover},\\
-     &\text{capital use},\text{exercise loss},\text{scenario vector}),
+  h_i &= \phi_\theta(x_i,c_t),\\
+  h(q,c_t) &= \sum_{i:q_i\neq0}h_i,\\
+  \widehat y_t(q) &= \rho_\theta(h(q,c_t),c_t).
 \end{aligned}
 \]
-from \texttt{SimulationResult} and additional named risk models.  The current
-result directly records fills, journals, pathwise and terminal P\&L, leg
-attribution, final state, and reproducibility hashes; it does not calculate
-drawdown, CVaR, or capital use automatically.  The manifest states how the
-experiment derives and uses any added targets.  A fitting loss may
-combine outcome regression, pairwise or listwise ranking, distribution
-calibration, and auxiliary risk targets:
+The shared leg map \(\phi_\theta\) and the sum make the output invariant to
+position order.  The signed quantity remains part of each position feature,
+and the sum can retain information about gross scale and number of positions.
+
+Zaheer et al.\ characterize permutation-invariant set functions under their
+stated domain conditions and motivate this form \cite{deepsets}.  The
+application here follows from the financial definition of a portfolio as a
+quantity assignment without a leg ordering.
+
+The model predicts the outcome vector \(y_t(q)\).  Training may combine
+component-wise regression with a pairwise ranking loss among candidates from
+the same decision state.  Calibration of the outcome components and quality of
+the induced ranking are reported separately.
+
+\subsection{Graph comparison}
+
+For a candidate \(q\) at decision state \(c_t\), the proposed graph is
 \[
-  \mathcal L
-    =\lambda_v\mathcal L_{\mathrm{value}}
-    +\lambda_r\mathcal L_{\mathrm{rank}}
-    +\lambda_c\mathcal L_{\mathrm{calibration}}
-    +\lambda_a\mathcal L_{\mathrm{aux}}.
+  G(q,c_t)=(V,E),\qquad
+  V=V_{\mathrm{pos}}\cup V_{\mathrm{underlying}}
+    \cup V_{\mathrm{expiry}}\cup\{v_{\mathrm{account}}\}.
 \]
-Coefficients, target transforms, and any scalar utility belong to the
-experiment record.  Changing them creates a new study while leaving candidate
-identity and financial labels intact.
+Each nonzero quantity creates one position node with feature vector \(x_i\).
+Typed edges connect that position to its underlying, expiry, and account.
+Optional position-to-position edges record declared relations such as common
+expiry, common strike, or ordered strikes within one option right.  Market
+features belong to the underlying and expiry nodes; capital and inventory
+features belong to the account node.
 
-\section{Baselines}
+Relation-specific message passing updates the node representations, followed
+by an order-invariant readout over the position nodes and a prediction head for
+\(\widehat y_t(q)\).  Graph construction is deterministic for a given
+candidate--state pair.  Serializing its position nodes in another order gives
+the same financial input.  A change to a contract quantity changes the
+candidate; a change to the contemporaneous market data changes the state.
 
-Graph models must justify their additional machinery against simpler
-alternatives.  Every comparison includes deterministic trading heuristics,
-linear or tree models on engineered features, a permutation-invariant set
-encoder, and random or unguided acquisition.  All models receive identical
-point-in-time information, candidate pools, labels, and evaluation budgets.
-Wall-clock measurements accompany simulator-call counts because a model that
-saves evaluations but consumes much more compute may still be unattractive.
+This graph adds relational structure to the input.  Path generation and option
+valuation remain responsibilities of the financial evaluator, which produces
+the training outcomes in both the Deep Sets and graph experiments.  The graph
+model becomes useful if the typed relations improve prediction or candidate
+ranking beyond the set model \cite{relational}.
 
-Deep Sets provides the closest structural control: it handles variable-sized,
-order-invariant collections without relation-specific message passing
-\cite{deepsets}.  GraphGym-style sweeps can standardize optimization and
-architecture comparisons \cite{graphgym}; PyTorch Geometric supplies the
-implementation substrate \cite{pyg}.  The Volt manifest continues to own
-financial objectives, data splits, and evidence identities.
+The graph comparison uses the same position and market information, target,
+time split, parameter budget, and optimization budget as the Deep Sets model.
+The parameter-matched nonlinear set model controls for model capacity.
+Edge-removal and relation-label ablations then test whether the graph
+relations account for any observed difference.
 
-\section{Acquisition loop}
+\section{Selecting candidates for evaluation}
+\label{sec:acquisition}
 
-\begin{center}
-\begin{tikzpicture}[node distance=4mm]
-  \node[discoverybox] (data) {\textbf{Volt samples}\\graphs, masks, labels,
-    evidence};
-  \node[discoverylearn,right=of data] (fit) {\textbf{Fit}\\value, rank, risk,
-    embedding};
-  \node[discoverybox,right=of fit] (rank) {\textbf{Rank pool}\\score legal,
-    unlabeled candidates};
-  \node[discoverylearn,right=of rank] (acquire) {\textbf{Acquire}\\top,
-    uncertain, and random};
-  \node[discoverybox,right=of acquire] (simulate) {\textbf{Evaluate}\\simulate,
-    validate, append};
-  \draw[discoveryflow] (data) -- (fit);
-  \draw[discoveryflow] (fit) -- (rank);
-  \draw[discoveryflow] (rank) -- (acquire);
-  \draw[discoveryflow] (acquire) -- (simulate);
-  \draw[discoveryfeedback] (simulate.south) -- ++(0,-5mm) -|
-    (data.south);
-\end{tikzpicture}
-\begingroup
-\captionsetup{hypcap=false}
-\captionof{figure}{Supervised discovery under a fixed acquisition budget.
-The feedback path carries immutable simulator evidence into a new dataset
-version; it never alters an existing label.}
-\label{fig:acquisition-loop}
-\endgroup
-\end{center}
-\par\medskip
+After an initial evaluated sample, the model predicts outcomes for the
+remaining pool.  An acquisition score can combine predicted utility,
+uncertainty, coverage of sparsely sampled regions, and path-evaluation cost.
+The simplest rules select candidates at random, by predicted utility, by
+uncertainty, or by a greedy utility--diversity score.  These establish the
+baseline for a batch optimizer.
 
-An initial labeled cohort fits the value and ranking heads.  The model then
-scores an unlabeled pool, after which the acquisition rule selects candidates
-for expensive evaluation.  High predicted utility alone is insufficient:
-early errors can concentrate the dataset around an accidental pattern.  The
-batch therefore combines promising candidates with uncertainty or diversity
-coverage and a compulsory random allocation.
+\subsection{QUBO batch selection}
 
-Each acquisition records the candidate universe, model checkpoint, score,
-selection reason, and probability where available.  Once evaluated, the new
-evidence is appended under a new dataset manifest and the model is retrained.
-Learning curves plot result quality against both simulator calls and elapsed
-compute.  The experiment stops at its preregistered budget rather than when a
-visually attractive backtest appears.
+Suppose the frontier contains \(n\) candidates.  Let \(b_i\in\{0,1\}\) indicate
+selection of candidate \(i\), let \(a_i\) be its acquisition value, and let
+\(s_{ij}\geq0\) measure similarity between candidates \(i\) and \(j\).  For an
+equal-cost batch of size \(k\), consider
+\[
+  \min_{b\in\{0,1\}^n}
+  -\sum_i a_i b_i
+  +\gamma\sum_{i<j}s_{ij}b_ib_j
+  +\rho\left(\sum_i b_i-k\right)^2.
+\]
+The linear term favors candidates with high acquisition value.  The quadratic
+term discourages a batch concentrated in one region of the portfolio space.
+The final term encodes the batch size.
 
-\part{Evaluation}
+QUBO is a binary optimization formulation with classical and
+quantum-inspired solution methods \cite{qubo}.  Its role here is candidate
+allocation.  The financial evaluator supplies outcomes and the constraint
+system supplies admissibility.  The empirical comparison charges matrix
+construction and solver time to the acquisition method and includes exhaustive
+solutions on small frontiers, classical heuristics, greedy diversity, and
+random selection.
 
-\section{Quote-backed labels}
+\subsection{Learning loop}
 
-Marks and fills remain separate.  \texttt{ScenarioOptionPrice} records a
-declared mark and optional bid and ask.  \texttt{DeclaredMark} uses the mark as
-a synthetic or proxy fill; \texttt{CrossAtTouch} buys at the ask and sells at
-the bid, failing closed when the required side is absent.  Neither convention
-establishes that an order executed.
+For each decision state, the search proceeds as follows:
 
-The public repository does not ship historical quote-backed rankings.  A
-future ranking experiment should compare declared marks, quote midpoints, and
-executable-side conventions, record displayed-size and fill limitations, and
-report sensitivity to the spread rather than importing unpublished
-correlations into this paper.
+\begin{enumerate}
+  \item generate and constrain the candidate pool;
+  \item evaluate an initial sample over the path cohort;
+  \item fit the portfolio model;
+  \item score the remaining candidates;
+  \item select another batch using one acquisition rule;
+  \item evaluate the selected batch and update the training data; and
+  \item stop at the declared evaluation or wall-clock budget.
+\end{enumerate}
 
-\section{Splits and metrics}
+Every round records the candidate pool, evaluated subset, model checkpoint,
+scores, selection rule, path cohort, financial assumptions, and results.
 
-No train/validation/test market cohort is included in Volt.  A future study
-must use chronological splits and, where repeated issuers are present, an
-issuer-aware split so company behavior cannot cross freely between training
-and evaluation.
+\section{Empirical design}
+\label{sec:experiment}
 
-Primary measurements include:
-\begin{itemize}[nosep]
-  \item precision and normalized discounted cumulative gain at \(k\);
-  \item recovery of exhaustive-search top-decile candidates;
-  \item rank correlation and top-\(k\) overlap across execution assumptions;
-  \item distribution calibration and tail-risk error;
-  \item diversity and canonical uniqueness of acquired candidates;
-  \item out-of-time utility after declared costs;
-  \item simulator calls and elapsed compute required to reach a target score.
-\end{itemize}
-Invalid-action rate should remain zero after masking.  Volt now validates the
-alignment and integrity of the compiler's structural mask; a production study
-must compose it with caller-owned liquidity, margin, and account policy.
+\subsection{Initial study}
 
-\section{Research sequence}
+The initial study uses listed American-style options on one underlying.  The
+candidate generator selects contracts and quantities directly, subject to
+declared bounds on moneyness or delta, expiry, quantity, spread, volume, open
+interest, and leg count.  Analysis may add strategy labels after generation.
 
-\subsection{Canonical search}
+The study fixes one entry time and management rule for every candidate at a
+decision date.  The exercise rule, assignment process, observation grid,
+valuation method, and transaction-cost model are shared across candidates.
+Historical and generated path cohorts are analysed separately because they
+support different interpretations.
 
-The bounded enumeration supplies ground truth for raw constructions, exact
-portfolios, payoff classes, dominance, and clustering.  It supports direct
-measurement of reduction ratios and lets the ranker be compared with
-exhaustive search before acquisition becomes necessary.
+A small universe is evaluated exhaustively.  It provides the target ranking
+and shows where portfolio symmetry and offsetting positions reduce duplicate
+constructions.  Later experiments expand the number of contracts, legs, paths,
+and decision dates one dimension at a time.
 
-\subsection{Event portfolios}
+\subsection{Comparisons}
 
-An earnings study expands the cohort to liquid U.S. names observed immediately
-before scheduled releases.  Delta buckets and expirations remain narrow enough
-to preserve an inspectable universe.  Post-event labels use executable quote
-conventions, and time and issuer splits limit memorization.
+Prediction models include linear and tree models over portfolio aggregates,
+the Deep Sets model, and a parameter-matched graph model.  Acquisition methods
+include random sampling, stratified sampling, predicted utility, uncertainty,
+greedy diversity, and QUBO.  Every method receives the same candidate pool,
+initial evaluated sample, path cohort, and compute accounting.
 
-\subsection{Volatility dynamics}
+Primary measurements are top-\(k\) recovery, simple regret, rank correlation,
+outcome calibration, path-evaluator calls, total paths evaluated, and elapsed
+time.  Secondary measurements include coverage across exercise and assignment
+states, diversity of the evaluated portfolios, transaction-cost sensitivity,
+and stability under alternative exercise and assignment rules.
 
-Further studies separate fixed-contract changes from relative-coordinate
-changes in strike and maturity.  Term structure, forward variance, skew carry,
-and spot--volatility correlation are estimated by regime and observation
-horizon.  Their features must be constructed entirely from information
-available at the ranking clock.
+\subsection{Time and reproducibility}
 
-\subsection{Conformance}
+Decision dates are divided chronologically into training, validation, and test
+periods.  Overlapping outcome horizons are assigned to one split or separated
+by a purge interval.  Feature scaling and model selection use the training and
+validation periods.  The final configuration is applied once to the test
+period.
 
-The current Rust tests verify exact canonicalization, terminal hinge payoff,
-exercise and assignment consequences, deterministic replay, quote authority,
-scenario fills, graph export, and candidate branching.  Future macro support
-for \emph{verticals}, \emph{straddles}, \emph{strangles},
-\emph{butterflies}, \emph{iron condors}, and \emph{calendars}
-will require independent expansion and ordering fixtures.  Such controls
-distinguish a model failure from a financial representation error.
+Each result records the listed universe, decision timestamp, candidate
+constraints, path source, pricing and quote rules, exercise and assignment
+rules, execution assumptions, target definition, model version, random seeds,
+and selection history.  Altering any of these inputs creates another experiment
+record while the portfolio quantity vector remains available for comparison.
 
-\section{Evidence and limits}
+\section{Pilot integration results}
+\label{sec:pilot}
 
-Every prediction links to the graph and checkpoint that produced it.  Graph
-attributions and feature ablations describe the model; leg and scenario
-attribution reconcile the financial outcome; the Volt journal establishes the
-contracts, observations, and transitions.  Keeping those records separate
-prevents a persuasive model explanation from substituting for accounting
-evidence.
+The pilot tests the complete identity--evaluation--learning path on one fixed
+seed.  It uses twelve American contracts, unit quantities, at most three legs,
+and a bound excluding portfolios whose expiration loss diverges as spot rises.
+Software generates 1,335 canonical portfolios.  Each quantity vector passes
+through the \VOLT{} contract validator, portfolio canonicalizer, payoff
+projection, and graph exporter.  The research tensor joins implied volatility
+and liquidity fields to the resulting \VOLT{} portfolio hash.
 
-The grammar, market cohort, simulation model, and objective place hard limits
-on discovery.  A learner may exploit an optimistic fill convention, a data
-revision, a simulator defect, or a narrow market regime as readily as it
-exploits a durable relationship.  Candidates selected for further study
-therefore face adversarial scenarios, alternative costs, capacity analysis,
-and untouched time periods before their apparent utility receives an economic
-interpretation.
+The generated decision state has spot \(100\), 30 calendar days to expiry, a
+22-point grid, and 512 GBM paths.  A CRR lattice supplies American marks and
+holder exercise decisions; the same decisions generate short assignment.
+The target contains mean P\&L, lower-tail mean, P\&L standard deviation, and
+profit probability.  Utility is mean P\&L plus one quarter of the lower-tail
+mean.  The model sees 20\% of the exhaustive labels initially and acquires
+another 10\%, using 205,312 candidate--path evaluations instead of 683,520.
 
-The current synthetic fixtures verify infrastructure only.  Their objective
-and scenario weights are declared synthetic inputs, and their
-cross-at-touch behavior is a modeled fill rule.  The next useful research
-result is an out-of-time acquisition curve on a public, point-in-time cohort,
-compared with the full baseline suite at equal evaluation budgets.
+On the remaining candidates, Deep Sets attains Spearman rank correlation
+\(0.972\), recovers all of the exhaustive top 20 after acquisition, and finds
+the exhaustive optimum.  Ridge regression on summed leg features attains
+\(0.386\) rank correlation and recovers 18 of the top 20.  The selected
+generated portfolio is long one \(105\) call and long one \(110\) call.  It has
+no exact match in the deliberately small reference catalogue used by the
+explanation layer.  That observation identifies a candidate for further
+comparison; it supplies no novelty or robustness result.
+
+The first market-data check uses the SPY chain at the 14 July 2026 close and
+options expiring 24 July.  Daily option closes are proxy marks.  Six calls and
+six puts nearest spot pass the declared volume, transaction-count, intrinsic
+value, and American implied-volatility filters.  A 512-path cohort uses the
+eight validated daily observation times and the median selected-contract
+implied volatility.  The 22 July equity partition is absent and is recorded in
+the manifest rather than imputed.
+
+Deep Sets reaches rank correlation \(0.996\), full top-20 recovery, and zero
+simple regret under the generated cohort.  The corresponding ridge values are
+\(0.189\), four of 20, and \(0.0447\) per share.  The selected position is
+short one \(750\) call and long one \(753\) call, an ordinary bear call spread
+identified after generation.  SPY closes at \(738.93\) on expiry; under the
+proxy-mark, funding, exercise, assignment, and cost rules, the position earns
+\(1.989\) per share.  Across all candidates, cohort utility and this one
+realized-path P\&L have rank correlation \(0.801\).  This run checks the
+pipeline; return estimation requires executable quotes and multiple decision
+dates.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.78\linewidth,
+      height=5.8cm,
+      domain=742:760,
+      xmin=742,
+      xmax=760,
+      ymin=-1.5,
+      ymax=2.5,
+      samples=181,
+      axis lines=left,
+      xlabel={SPY price at expiry, \(S_T\)},
+      ylabel={P\&L per share},
+      tick align=outside
+    ]
+      \addplot[gray, thin] coordinates {(742,0) (760,0)};
+      \addplot[black, very thick]
+        {2-max(x-750,0)+max(x-753,0)};
+      \addplot[gray, densely dotted]
+        coordinates {(750,-1.5) (750,2.5)};
+      \addplot[gray, densely dotted]
+        coordinates {(753,-1.5) (753,2.5)};
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Expiration P\&L for the SPY pilot selection: short one \(750\)
+  call and long one \(753\) call for a \(2.00\) proxy credit, before financing
+  and transaction costs.  The maximum profit is \(2.00\), the maximum loss is
+  \(1.00\), and the break-even spot is \(752\).}
+  \label{fig:spy-pilot-payoff}
+\end{figure}
+
+Three energy continuation checks use USO, XLE, and XOM chains over the same
+14--24 July interval with lower declared liquidity thresholds.  The selected
+positions are respectively a \(119/121\) bull call spread, a \(56/57\) bull
+call spread, and a \(141/142\) bull put spread.  All three are conventional
+verticals despite catalogue-free generation.  They earn positive P\&L on the
+single observed path, while the cross-candidate rank correlations between
+generated-cohort utility and realized P\&L are \(-0.530\), \(-0.635\), and
+\(-0.623\).  The surrogate accurately learns the supplied cohort labels; these
+negative realized correlations direct the next work toward path calibration
+and multiple decision dates.
+
+Two earlier decision cohorts are registered for that multi-date test.  The
+tariff cohort fixes information at the 1 April 2025 close and observes the
+2--9 April response window described in the corresponding market study
+\cite{tariffevent}.  The initial US--Iran cohort fixes information at the
+27 February 2026 close and begins its response window on 2 March
+\cite{iranevent}.  These dates define the information sets and evaluation
+windows; causal attribution requires a separate design.  The tariff archive
+currently lacks the completion certificates required for a primary result.
+The Iran option aggregates are recoverable from source files, but their
+derived partitions still require reconciliation.
+
+\begin{table}[H]
+\centering
+\caption{Fixed-seed pilot ranking diagnostics.  Surrogate correlations compare
+predicted and exhaustive generated-cohort utility on candidates outside the
+initial evaluated set.  Realized correlation compares exhaustive cohort
+utility with P\&L on one later observed path.}
+\label{tab:pilot-ranking}
+\begin{tabular}{lrrrc}
+\toprule
+Cohort & Deep Sets \(\rho\) & Ridge \(\rho\) & Top-20 recall & Realized \(\rho\) \\
+\midrule
+Generated & 0.972 & 0.386 & 1.00 & --- \\
+SPY       & 0.996 & 0.189 & 1.00 &  0.801 \\
+USO       & 0.996 & 0.221 & 1.00 & -0.530 \\
+XLE       & 0.968 & 0.231 & 1.00 & -0.635 \\
+XOM       & 0.967 & 0.277 & 1.00 & -0.623 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Validated NYMEX session data supplies contemporaneous CL, RB, and BZ evidence
+for the July energy checks.  This evidence is constant across candidates in
+one decision state, so it is recorded for explanation and future multi-date
+conditioning rather than credited with the within-state ranking.  The
+available research inventory contains outright futures and no identified
+options-on-futures series.  Futures options would require contract,
+exercise, delivery, margin, and settlement semantics beyond the current
+equity-option pilot.
+
+Every selected portfolio produces a versioned evidence packet containing its
+exact positions, mark authority, payoff geometry, entry Greeks, path
+statistics, leg attribution, exercise and assignment counts, and limited
+catalogue comparison.  Human-facing text is rendered from those computed
+fields.  An LLM explanation is required to bind every numerical claim to the
+packet and to reserve claims about execution, causal event attribution,
+robustness, and innovation for the corresponding evidence.
+
+\section{Current implementation}
+\label{sec:implementation}
+
+\VOLT{} currently supplies the financial identity and accounting components
+needed by this formulation.  Contracts carry European, Bermudan, or American
+exercise schedules.  Position netting converts repeated positions into a
+single quantity per contract.  The runtime handles close, exercise,
+assignment, expiry, cash, delivered underlying, and journaled state changes.
+The market-data layer gives historical and generated option observations a
+shared versioned interface with declared price authority.  Scenario paths
+retain ordered points, source identity, and reproducibility seeds.
+The scenario evaluator consumes supplied option marks or quotes and reports
+fills, costs, pathwise P\&L, terminal P\&L, and leg attribution.  Candidate
+actions resolve strike, moneyness, delta, and expiry buckets to listed
+contracts.
+
+The supervised graph example evaluates a bounded terminal-payoff fixture.  A
+general graph-export command now accepts declared marked contracts and
+quantity vectors, then returns \VOLT{} portfolio hashes and graph samples.  The
+pilot research driver adds a generated cohort builder, CRR American marks,
+fixed exercise and assignment policies, constrained candidate enumeration,
+path-target aggregation, Deep Sets and ridge baselines, one batch-acquisition
+step, market-data adapters, and evidence packets.
+
+The next integration work is:
+
+\begin{enumerate}
+  \item reconcile and certify the older event archives, then add several
+        chronologically separated decision dates;
+  \item add fixed-horizon closing and scheduled or banded delta hedging for
+        gamma attribution;
+  \item replace close proxies with executable quote rules where quote coverage
+        permits;
+  \item run iterative random, uncertainty, utility, and diversity acquisition
+        baselines;
+  \item compare a parameter-matched relation-aware graph model with Deep Sets;
+        and
+  \item test QUBO batch selection after the classical acquisition baselines.
+\end{enumerate}
+
+\section{Extension to sequential control}
+\label{sec:control}
+
+Static discovery chooses an entry portfolio under a fixed management rule.
+Sequential control chooses actions as market observations, fills, exercise,
+assignment, and inventory change the state.  Its data consist of
+state--action--reward trajectories.
+
+The \VOLT{} state/action graph and legal-action mask provide part of that
+environment boundary.  A reinforcement-learning study additionally requires a
+reward definition, transition scheduler, trajectory store, policy and value
+models, and out-of-time policy evaluation.  The set or graph encoder developed
+for static portfolios may initialize the policy representation, while control
+performance determines the value of that transfer.
+
+QUBO has a separate possible role in control: allocating a limited rollout or
+replay budget among frontier states.  That experiment follows the static
+candidate-allocation comparison and uses its own baselines.
+
+\section{Discussion}
+
+The candidate pool sets the discovery domain.  The path cohort, valuation
+method, management rule, and outcome measure set the preference represented by
+the labels.  Reported results are conditional on these choices.
+
+American options make this dependence visible.  Early exercise changes the
+cash and inventory path; short assignment can create states the holder did not
+choose; coarse observation grids change the opportunities available to the
+management rule.  Reported results therefore require sensitivity to the
+exercise policy, assignment process, grid, quotes, and execution costs.
+
+The empirical test compares the portfolios found by a learned invariant model
+with those found by simple search rules at the same evaluation budget.  Graph
+and QUBO components are measured by incremental improvement over their
+set-model and acquisition baselines.
 
 \section{Conclusion}
 
-Volt supplies a stable financial search space; the discovery system learns how
-to traverse it economically.  This study keeps the decision static so
-candidate identity, labels, rankings, and acquisition cost can be audited
-against exhaustive ground truth.  Once that loop is reliable, the same graph
-encoder may support sequential control, but trajectory generation, delayed
-reward, and rollout allocation belong to a different experimental problem.
+Searching directly over listed option contracts expands the candidate set
+beyond predefined strategy templates and makes full path evaluation expensive.
+\VOLT{} frames the resulting task as budgeted portfolio search.  A financial
+evaluator supplies leg and portfolio outcomes under explicit American-option
+assumptions; a permutation-invariant model approximates those outcomes; and an
+acquisition rule decides which candidates receive the next evaluations.
+
+The first experiment compares Deep Sets with conventional portfolio models and
+measures ranking quality per evaluator call.  Graph structure and QUBO batch
+selection enter as controlled extensions.  Sequential management remains a
+subsequent state-and-action problem.
 
 \begin{thebibliography}{9}
+
+\bibitem{occquickguide}
+Options Industry Council,
+\emph{Options Strategies Quick Guide},
+\url{https://www.theocc.com/getcontentasset/f34f8a0d-806f-4f1a-adf7-d49d8d94b16e/dfc3d011-8f63-43f6-9ed8-4b444333a1d0/option-strategies-quick-guide.pdf}.
 
 \bibitem{deepsets}
 M. Zaheer, S. Kottur, S. Ravanbakhsh, B. Póczos, R. Salakhutdinov, and
@@ -414,23 +759,35 @@ A. Smola,
 Advances in Neural Information Processing Systems, 2017,
 \url{https://arxiv.org/abs/1703.06114}.
 
+\bibitem{longstaffschwartz}
+F. A. Longstaff and E. S. Schwartz,
+\emph{Valuing American Options by Simulation: A Simple Least-Squares
+Approach},
+The Review of Financial Studies, 14(1), pp.~113--147, 2001,
+\url{https://doi.org/10.1093/rfs/14.1.113}.
+
 \bibitem{relational}
-P. Battaglia et al.,
+P. W. Battaglia et al.,
 \emph{Relational Inductive Biases, Deep Learning, and Graph Networks},
 2018,
 \url{https://arxiv.org/abs/1806.01261}.
 
-\bibitem{pyg}
-M. Fey and J. E. Lenssen,
-\emph{Fast Graph Representation Learning with PyTorch Geometric},
-ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019,
-\url{https://arxiv.org/abs/1903.02428}.
+\bibitem{qubo}
+G. Kochenberger, J.-K. Hao, F. Glover, M. Lewis, Z. Lü, H. Wang, and Y. Wang,
+\emph{The Unconstrained Binary Quadratic Programming Problem: A Survey},
+Journal of Combinatorial Optimization, 28, pp.~58--81, 2014,
+\url{https://doi.org/10.1007/s10878-014-9734-0}.
 
-\bibitem{graphgym}
-J. You, R. Ying, and J. Leskovec,
-\emph{Design Space for Graph Neural Networks},
-Advances in Neural Information Processing Systems, 2020,
-\url{https://arxiv.org/abs/2011.08843}.
+\bibitem{tariffevent}
+StrategyNet,
+\emph{Liberation Day Tariffs: Market Response to Announcement and Court
+Ruling},
+\url{https://strategynet.ai/insights/liberation-day-tariffs-factor-evolution}.
+
+\bibitem{iranevent}
+StrategyNet,
+\emph{US--Iran Conflict: Factor Evolution},
+\url{https://strategynet.ai/insights/us-iran-conflict-factor-evolution-2026}.
 
 \end{thebibliography}
 
