@@ -1,6 +1,6 @@
 # Reproducible Results
 
-These are functional results for Volt 0.1.0, recorded on 24 July 2026. They
+These are functional results for Volt 0.1.4, recorded on 27 July 2026. They
 demonstrate deterministic behavior on synthetic fixtures; they are not
 investment performance or a benchmark claim.
 
@@ -15,11 +15,12 @@ Result:
 
 | Suite | Tests | Result |
 | --- | ---: | --- |
-| candidate grammar | 4 | passed |
+| compiler and candidate grammar | 12 | passed |
 | contract, canonical, market, runtime, and graph logic | 13 | passed |
 | scenario simulation | 3 | passed |
-| `risk` teaching pricer and payoff projection | 2 | passed |
-| **Total** | **22** | **passed** |
+| graph and scenario command adapters | 3 | passed |
+| teaching-pricer example checks | 6 | passed |
+| **Total** | **37** | **passed** |
 
 The tests cover, among other things, order-independent canonicalization,
 terminal-payoff agreement, exercise and assignment authority, deterministic

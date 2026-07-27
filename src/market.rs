@@ -401,6 +401,8 @@ pub enum MarkBasis {
     LastTrade,
     /// Arithmetic midpoint of usable bid and ask.
     QuoteMidpoint,
+    /// Model value generated under explicitly recorded scenario assumptions.
+    GeneratedModel,
 }
 
 /// Proxy price paired with the evidence basis that produced it.

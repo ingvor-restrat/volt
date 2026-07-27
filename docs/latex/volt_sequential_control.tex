@@ -42,7 +42,7 @@
 \maketitle
 
 \begin{abstract}
-An entry portfolio fixes the initial option contracts and quantities; management determines the later closes, hedges, rolls, and exercises.  Market moves, fills, assignment, expiration, and settlement also change the position and its available actions.  \VOLT{} formulates management as sequential control over a versioned state/action graph.  The compiler resolves semantic actions to listed contracts and supplies a structural legal mask.  The runtime applies fills and lifecycle rules, updates cash and inventory, and journals each transition.  A policy scores the remaining actions while a declared reward maps P\&L, costs, drawdown, capital use, and constraint events to the training objective.  This paper defines the control state, transition and reward contracts, the reinforcement-learning loop, chronological evaluation, and fixed-budget comparisons with rule-based management.  QUBO enters as a later experiment for allocating rollout or replay batches; contract legality and portfolio accounting remain runtime responsibilities.  The current repository supplies the deterministic compiler, graph, scenario, and runtime layers.  Environment orchestration, trajectories, rewards, baseline policies, and training form the next implementation stage.
+An entry portfolio fixes the initial option contracts and quantities; management determines the later closes, hedges, rolls, and exercises.  Market moves, fills, assignment, expiration, and settlement also change the position and its available actions.  \VOLT{} formulates management as sequential control over a versioned state/action graph.  The compiler resolves semantic actions to listed contracts and supplies a structural legal mask.  The runtime applies fills and lifecycle rules, updates cash and inventory, and journals each transition.  A policy scores the remaining actions while a declared reward maps P\&L, costs, drawdown, capital use, and constraint events to the training objective.  This paper defines the control state, transition and reward contracts, the reinforcement-learning loop, chronological evaluation, and fixed-budget comparisons with rule-based management.  QUBO enters as a later experiment for allocating rollout or replay batches; contract legality and portfolio accounting remain runtime responsibilities.  The implementation includes a multi-expiry state/action graph, account-refined masks, a generated one-step comparison of set and graph action scorers, and a repeated hold/close experiment with \VOLT{}-reconciled trajectories.  Sequential learning proceeds through entry selection, hold/close, hedge/resize, roll/replace, and full-control stages.
 \end{abstract}
 
 \section{Introduction}
@@ -88,11 +88,13 @@ state.  The ordered set \(A_t\) contains resolved candidate actions.
 identifies the compiled program, runtime state, market observations, and
 assumptions used to construct the input.
 
-The current \texttt{StateActionGraphSample} supplies the portfolio graph,
-runtime cash and inventory context, candidate-action nodes, typed
-action-to-state edges, rejection reasons, and the compiler mask.  The
-application adds account capital, margin, liquidity, position limits, and
-broker eligibility before policy normalization.
+The implemented \texttt{RuntimeStateActionGraphSample} supplies all distinct
+expiries, option lifecycle state, cash and delivered-underlying nodes,
+candidate-action nodes, typed action-to-state edges, rejection reasons, and
+the compiler mask.  A declared research account adds limits for live
+positions, gross option quantity, minimum cash, underlying inventory, and
+option costs.  Broker margin, liquidity, and eligibility can refine that mask
+before policy normalization.
 
 \subsection{Transition}
 
@@ -202,6 +204,56 @@ The bootstrap state retains every open option, right, cash balance, and
 underlying position.  Truncating an update therefore changes credit
 assignment while leaving the economic episode intact.
 
+\subsection{Declared hold/close objectives}
+\label{sec:declared-objectives}
+
+Training, checkpoint selection, and a performance claim use related but
+different quantities.  For the generated hold/close stage, the learning
+return is the undiscounted sum
+\[
+  G_i(\pi)=\sum_t R_{i,t}, \qquad \gamma=1.
+\]
+It contains the policy-dependent marked-equity changes after the first
+decision and the closing cost.  Entry-to-first-decision P\&L and the opening
+cost are already realized at the first state.  They do not change the optimal
+continuation action, but they are included in validation and test P\&L.
+
+Let \(P_i(\pi)\) be terminal net P\&L on validation episode \(i\), including
+opening and closing costs, and let \(D_i(\pi)\) be maximum mark-to-market
+drawdown.  For \(n\) validation episodes, set \(k=\lceil0.10n\rceil\) and
+define the signed lower-tail mean
+\[
+  T_{0.10}(\pi)
+  =\frac{1}{k}\sum_{j=1}^{k}P_{(j)}(\pi),
+\]
+where \(P_{(1)}\leq\cdots\leq P_{(n)}\).  The checkpoint score declared before
+the next run is
+\[
+  S_{\mathrm{val}}(\pi)
+  =\overline P(\pi)
+   +0.25\,T_{0.10}(\pi)
+   -0.10\,\overline D(\pi).
+  \tag{1}
+\]
+The lower-tail statistic is signed, so a negative tail reduces the score.
+All three terms are measured in dollars per one-contract episode.  The
+0.25 coefficient retains the lower-tail convention used by the preceding
+static discovery experiment; the 0.10 coefficient adds a smaller penalty for
+the path taken to the terminal result.  No coefficient grid is fit to the
+validation or test cohort.  The
+candidate set contains the one-shot initialization and the actor--critic
+checkpoints evaluated every five epochs.  Test observations do not select a
+checkpoint, coefficient, epoch, encoder, or random seed.
+
+The selected policy is compared with close-first and hold-to-horizon rules on
+the untouched test episodes.  A control-performance claim requires a positive
+lower endpoint of a paired 95\% interval for the difference in (1) from the
+strongest declared non-clairvoyant rule.  Episode resampling is paired across
+policies and recomputes the tail statistic inside each sample.  Empirical
+studies replace independent-episode resampling with blocks defined before the
+test by decision date and overlapping outcome horizon.  Failure of this gate
+is reported as such; mean P\&L alone does not establish the claim.
+
 \section{Policy and learning loop}
 \label{sec:policy}
 
@@ -221,15 +273,75 @@ Masked action probabilities are
 \]
 A value head estimates expected discounted return or a return distribution.
 
-The initial neural baseline uses the invariant encoder developed for static
-portfolio discovery, followed by a parameter-matched graph encoder.  Transfer
-from supervised portfolio ranking is evaluated against training the control
-encoder from its initialization.
+Offline portfolio training supplies parameter-matched Deep Sets and typed
+graph encoders.  Deep Sets is the default control encoder because it is
+smaller and materially faster in the present benchmark.  A configuration
+switch selects the graph encoder under the same state, action, mask, policy
+head, value head, reward, and evaluation protocol.  Each matching supervised
+checkpoint can initialize its encoder; transfer is compared with control
+training from an independent initialization.
 
-Proximal Policy Optimization with generalized advantage estimation supplies a
-standard actor--critic baseline \cite{gae,ppo}.  The environment is also
-tested with tabular or tree-based control on small state spaces, allowing
-transition and reward errors to be found without a neural policy.
+\subsection{Deep Sets and the typed graph encoder}
+\label{sec:set-versus-graph}
+
+Both encoders receive the same typed nodes, action slots, and legal mask.
+They differ in the information used to combine those nodes.  The runtime
+Deep Sets encoder applies one shared map independently,
+\[
+  z_v=\phi_\theta(x_v),
+  \qquad
+  h_t=\frac{1}{|V_t^{\mathrm{state}}|}
+      \sum_{v\in V_t^{\mathrm{state}}}z_v,
+\]
+and gathers \(z_a\) for each action node.  Reordering the serialized nodes
+does not change the state summary.  The static portfolio model in the
+discovery paper uses the canonical sum form; the runtime policy uses a masked
+mean because graph size also varies with the compiler action set.  Node type,
+contract, account, and market attributes must therefore carry the information
+needed by the shared map \cite{deepsets}.
+
+The typed graph encoder first projects every node and then performs
+relation-specific message passing.  In schematic form,
+\[
+  m_v^{(\ell)}
+  =\sum_{(u,v,r)\in E_t}
+    W_r^{(\ell)}h_u^{(\ell)},\qquad
+  h_v^{(\ell+1)}
+  =F_\ell\!\left(h_v^{(\ell)},m_v^{(\ell)}\right).
+\]
+An option position can consequently receive different information from its
+underlying, expiry, portfolio, and account neighbours; an action
+representation can depend on the particular position to which it applies.
+The final state representation joins the updated portfolio node, account
+node, and a pooled state summary \cite{relational}.
+
+Deep Sets is not a graph neural network in the usual architectural sense
+because it does not consume \(E_t\) or relation types.  It can be described as
+aggregation through a virtual global node, but that interpretation does not
+give it local or relation-specific message passing.  Conversely, both models
+are permutation invariant at readout, and both can score a variable number of
+legal actions.  The compiler constrains the contract and action universe and
+the runtime mask removes illegal actions before either model is trained; this
+is separate from the encoder choice.
+
+The present hold/close state has one live option and two meaningful actions.
+Most relations are recoverable from node attributes, so typed message passing
+adds computation without adding much identifiable signal.  Multi-expiry
+portfolios, stock and cash inventory, position-specific rolls, assignment
+consequences, and account constraints create neighbourhoods that the set
+model must infer from pooled attributes.  Those stages provide the relevant
+test of the graph inductive bias.  Until a paired held-out comparison improves
+the declared control objective, Deep Sets remains the default and the graph
+encoder remains an ablation.
+
+Jormungandr's C51 core accepts a point-in-time legal mask for action selection
+and for the next-state bootstrap.  Its complete service path still exposes a
+fixed action vocabulary and does not yet carry masks through experience
+records.  Proximal Policy Optimization with generalized advantage estimation
+supplies the later actor--critic comparison once its rollout lifecycle is
+connected end to end \cite{gae,ppo}.  Tabular and tree-based control on small
+state spaces exposes transition and reward errors before either neural policy
+is interpreted.
 
 \subsection{Training loop}
 
@@ -388,29 +500,203 @@ exercise schedules, portfolio netting, semantic hashes, immutable runtime
 state, exercise and assignment transitions, cash and underlying emissions,
 versioned historical or generated market observations, ordered scenario
 paths, scenario fills and costs, pathwise P\&L, compiler action sets, graph
-samples, and structural legal masks.
+samples, and structural legal masks.  The runtime graph represents multiple
+expiries, completed option lifecycles, cash, delivered underlying, account
+limits, exact action nodes, and the composed point-in-time legal mask.
 
 A static research driver now supplies generated cohorts, American CRR marks,
 fixed exercise and assignment decisions, invariant portfolio tensors, and
-evidence packets.  Sequential control additionally requires:
+evidence packets.  Its fixed-horizon layer compares unhedged, scheduled
+delta-hedged, and delta-band policies with reconciled P\&L attribution,
+turnover, costs, drawdown, and exercise events.  These rules establish the
+first management baselines.  Deep Sets and a parameter-matched typed graph
+network consume the same runtime samples.  A configurable policy model maps
+either encoder to aligned masked policy logits, per-action values, and a
+state value.  The selected supervised representation initializes the matching
+encoder.  A repeated hold/close experiment now supplies the first temporal
+policy and value updates.  A batch scenario interface sends its held-out
+action schedules back through the \VOLT{} simulator and runtime journal.
+
+\subsection{Generated runtime-graph benchmark}
+
+The first richer-state experiment is a supervised action-ranking check rather
+than a policy-return experiment.  Each of three seeds generates 120 states
+from twelve American contracts: calls and puts at three strikes and two
+expiries.  A state contains live and completed option lifecycles, cash,
+underlying inventory, account limits, and approximately 68 compiler action
+slots, of which 13.5 are legal on average.  Every legal action uses 48 common
+price paths.  American exercise is checked after seven days and at expiry; a
+short position is assigned when the paired holder decision exercises.
+
+The target is the action's path utility minus the mean utility of the other
+legal actions in that state.  Training, validation, and test splits occur by
+state.  Table~\ref{tab:runtime-action-models} reports the mean and population
+standard deviation across seeds.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Parameters & Rank \(\rho\) & Best action & Regret (\$) & States/s \\
+\midrule
+Deep Sets
+  & 3,977 & \(0.433\pm0.180\) & \(0.403\pm0.071\)
+  & \(103.68\pm42.73\) & 50,223 \\
+Typed graph
+  & 5,391 & \(0.450\pm0.048\) & \(0.403\pm0.104\)
+  & \(101.30\pm24.92\) & 7,085 \\
+\bottomrule
+\end{tabular}
+\caption{Held-out within-state action ranking and single-thread CPU
+inference.  Best action is the fraction of test states in which the predicted
+choice attains the evaluated maximum, including ties between economically
+equivalent slots.  Regret is evaluated utility lost by the predicted choice.}
+\label{tab:runtime-action-models}
+\end{table}
+
+The graph model has a small average advantage in full-ranking correlation and
+regret; both models recover a maximal action in the same fraction of test
+states.  Seed dispersion is larger than the mean quality differences.  Deep
+Sets has 7.1 times the state throughput.  The comparison therefore supplies
+no general performance claim for the GNN.
+
+With the Rust binary already compiled, JSON serialization, process startup,
+action compilation, account masking, and graph construction together process
+53.4 states per second.  Tensor encoding processes 3,267 states per second,
+and the path evaluator processes 8,724 path--action evaluations per second.
+Deep Sets and the typed graph score approximately 658,868 and 92,724 legal
+actions per second.  Their mean training times are 1.07 and 6.98 seconds.
+Measurements use one PyTorch CPU thread on the recorded Linux host and exclude
+Rust compilation.
+
+\subsection{Generated hold/close control}
+
+The first temporal experiment is an optimal-stopping problem.  Each of 180
+generated episodes opens one long American call or put on day zero.  The
+policy may hold or close on days 5, 10, 15, 20, 25, and 30; every position is
+closed before its day-35 expiry.  The restricted action set excludes voluntary
+exercise and contains no short position subject to assignment.  These are
+stage-specific controls, not changes to the American contract definition.
+
+Latent physical drift and volatility generate the underlying path.  The
+policy observes the point-in-time graph, trailing return, and realized
+volatility, but not the latent labels.  American lattice values supply
+generated proxy marks.  Episode assignment occurs before graph construction,
+with 117 training, 27 validation, and 36 test paths.  One-shot training uses
+realized full-path action targets; 80 actor--critic epochs then use ordered
+graph-reference trajectories and generalized-advantage targets.  Every test
+schedule is rerun by the \VOLT{} scenario simulator.  Its opening and closing
+fills, journal, and terminal P\&L must reconcile with the learner reward
+records.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{lrrrrrr}
+\toprule
+Policy & Mean P\&L & Median & ES 10\% & Drawdown & Close day & Score \\
+\midrule
+Deep Sets, selected & \(-10.80\) & \(-6.88\) & \(-332.21\) & \(71.22\) & \(5.14\) & \(-100.98\) \\
+Deep Sets, final RL & \(134.32\) & \(34.86\) & \(-504.42\) & \(236.17\) & \(19.31\) & \(-15.40\) \\
+Deep Sets, one-shot & \(149.62\) & \(8.19\) & \(-508.03\) & \(230.59\) & \(17.50\) & \(-0.44\) \\
+Typed graph, selected & \(-12.29\) & \(-6.88\) & \(-332.21\) & \(71.22\) & \(5.00\) & \(-102.46\) \\
+Typed graph, final RL & \(112.28\) & \(-8.89\) & \(-569.71\) & \(292.90\) & \(26.39\) & \(-59.43\) \\
+Close on day 5 & \(-12.29\) & \(-6.88\) & \(-332.21\) & \(71.22\) & \(5.00\) & \(-102.46\) \\
+Hold to day 30 & \(109.67\) & \(-11.24\) & \(-589.37\) & \(309.05\) & \(30.00\) & \(-68.58\) \\
+Clairvoyant bound & \(335.17\) & \(191.40\) & \(-147.57\) & \(117.45\) & \(17.64\) & \(286.54\) \\
+\bottomrule
+\end{tabular}
+\caption{Single development-seed generated results in dollars.  ES 10\% is
+the mean of the worst ten percent of terminal outcomes; Score is (1).
+The seed was observed before (1) was fixed and supplies no prospective
+performance test.  The clairvoyant row uses the complete future path and is
+not an admissible trading policy.}
+\label{tab:hold-close-control}
+\end{table}
+
+The development seed originally selected checkpoints by validation mean
+P\&L.  After (1) was fixed, the same seed still selected an almost immediate
+close; two other development seeds changed checkpoint.  Those reruns verify
+that the declared score controls the implementation.  They cannot test the
+score because their outcomes contributed to its design.
+
+Three new Deep Sets seeds use the same 117/27/36 split sizes and update
+budget.  Neither their validation paths nor their 108 pooled test paths were
+inspected when (1) was fixed.  Table~\ref{tab:hold-close-pooled} reports this
+prospective generated cohort.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{lrrrrrr}
+\toprule
+Policy & Mean P\&L & Median & ES 10\% & Drawdown & Close day & Score \\
+\midrule
+Validation-selected & \(-0.21\) & \(-4.19\) & \(-596.29\) & \(157.60\) & \(10.97\) & \(-165.05\) \\
+Final RL iterate & \(10.81\) & \(-2.87\) & \(-587.71\) & \(162.24\) & \(12.87\) & \(-152.34\) \\
+One-shot & \(62.62\) & \(-20.24\) & \(-626.20\) & \(245.67\) & \(17.36\) & \(-118.49\) \\
+Close on day 5 & \(27.68\) & \(0.62\) & \(-302.23\) & \(54.04\) & \(5.00\) & \(-53.28\) \\
+Hold to day 30 & \(15.83\) & \(-53.42\) & \(-780.56\) & \(352.61\) & \(30.00\) & \(-214.57\) \\
+Clairvoyant bound & \(264.49\) & \(71.96\) & \(-223.87\) & \(112.56\) & \(14.77\) & \(197.26\) \\
+\bottomrule
+\end{tabular}
+\caption{Prospective three-seed Deep Sets results over 108 held-out generated
+episodes.  Final RL and one-shot rows are diagnostics; neither was selected
+by the locked validation rule.}
+\label{tab:hold-close-pooled}
+\end{table}
+
+The selected policy's score is \(111.76\) dollars below close-first.  A paired
+10,000-sample episode bootstrap gives a 95\% interval of
+\([-199.19,-24.79]\) dollars for its improvement over the stronger rule.
+The claim gate fails, and all three per-seed gates also fail.  The experiment
+therefore establishes a working temporal learner and an adverse generated
+control result, not a trading advantage.
+
+The Deep Sets policy has 8,123 parameters, trains in 8.49 seconds, and scores
+292,789 states per second on the recorded single-thread CPU run.  The typed
+graph has 13,443 parameters, trains in 18.62 seconds, and scores 52,359 states
+per second.  Deep Sets is 5.6 times faster at inference and remains the
+default.
+
+\subsection{Staged learner integration}
+
+Offline supervised training precedes sequential learning.  Historical states
+and generated paths produce candidate-level outcomes; the compiler supplies
+the legal portfolio universe; and the selected encoder checkpoint initializes
+the control representation.  Deep Sets is selected unless an experiment
+explicitly requests another encoder.  The incremental stages are:
 
 \begin{enumerate}
-  \item an environment adapter that combines those cohort and mark components
-        with compiled actions and the
-        scenario and lifecycle runtimes;
-  \item named account constraints, hedge actions, reward components,
-        termination rules, and
-        transition evidence;
-  \item a versioned trajectory store and deterministic replay command;
-  \item rule-based policies and exhaustive small-tree evaluation;
-  \item PPO with generalized advantage estimation and the invariant portfolio
-        encoder;
-  \item the relation-aware graph comparison; and
-  \item rollout baselines followed by the QUBO allocator.
+  \item \emph{Entry selection.}  One decision chooses among a small compiled
+        entry set.  This contextual-bandit check verifies checkpoint transfer
+        and masking without temporal credit assignment.
+  \item \emph{Hold or close.}  A fixed action vocabulary adds repeated
+        decisions, transaction costs, early termination, and marked-equity
+        rewards.  This stage is now implemented for generated long American
+        positions, with Volt-reconciled test trajectories and rule policies.
+  \item \emph{Hedge and resize.}  Fixed delta buckets and unit quantity changes
+        add inventory, financing, turnover, and drawdown to the state and
+        reward.  The existing C51 service can represent these bounded actions.
+  \item \emph{Roll and replace.}  The compiler emits state-dependent contract
+        actions, and the runtime graph supplies aligned descriptors and masks.
+        The Jormungandr service and replay contracts must transport them.
+  \item \emph{Full portfolio control.}  Multi-expiry positions, exercise,
+        assignment, delivered underlying, account constraints, and dynamic
+        actions now enter one state/action graph.  The remaining experiment
+        adds repeated transitions and compares C51, PPO, transfer, and
+        rule-based policies under chronological path splits.
 \end{enumerate}
 
-The planned learner and replay adapter uses Jormungandr's external-actor
-boundary, split-aware experience records, and replay services.  \VOLT{} retains
+Every stage fixes its action grammar, reward components, termination rule,
+path split, and accounting checks before adding the next source of
+complexity.  QUBO follows the conventional rollout and replay baselines at
+the final two stages.
+
+The learner adapter uses Jormungandr's masked actor--critic objective and
+graph-reference trajectory records.  Durable graph replay and the public
+service schema remain future work.  \VOLT{} retains
 the financial transition and legal-action authority; Jormungandr receives
 versioned observations, masks, actions, rewards, and next states after the
 environment passes deterministic replay and rule-policy checks.
@@ -423,13 +709,32 @@ and runtime supply contract and lifecycle authority; the policy chooses among
 the actions that remain; the trajectory connects each choice to its fills,
 cash, inventory, and outcome.
 
-The first development target is a bounded replayable environment with
-rule-based and exhaustive controls.  PPO and graph encoders follow on the same
-environment contract.  QUBO is reserved for a fixed-budget allocation
-comparison after conventional rollout and replay methods have established the
-baseline.
+The bounded hold/close environment now provides the first replayable temporal
+test with rule controls and a one-shot initialization.  Its single-seed result
+motivated a precommitted downside-aware checkpoint score.  A prospective
+three-seed generated test then rejected the learned policy under that score.
+A separate three-date static event study also recovers no final-date optimum,
+and direct enumeration remains faster after shared option-leg work is
+compiled.  Empirical control therefore requires more chronological dates and
+actions whose future costs cannot be reduced to the common leg basis.
+Dynamic action scoring and PPO follow that gate.  QUBO is reserved for a
+fixed-budget allocation comparison after conventional rollout and replay
+methods have established the baseline.
 
 \begin{thebibliography}{7}
+
+\bibitem{deepsets}
+M. Zaheer, S. Kottur, S. Ravanbakhsh, B. Póczos, R. Salakhutdinov, and
+A. Smola,
+\emph{Deep Sets},
+Advances in Neural Information Processing Systems, 2017,
+\url{https://arxiv.org/abs/1703.06114}.
+
+\bibitem{relational}
+P. W. Battaglia et al.,
+\emph{Relational Inductive Biases, Deep Learning, and Graph Networks},
+2018,
+\url{https://arxiv.org/abs/1806.01261}.
 
 \bibitem{gae}
 J. Schulman, P. Moritz, S. Levine, M. Jordan, and P. Abbeel,

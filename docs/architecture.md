@@ -48,7 +48,7 @@ to share a payoff at one spot.
 ## Exact canonicalization
 
 `CanonicalPortfolio::from_positions` aggregates repeated occurrences of the
-same exact contract, rejects conflicting definitions for one identifier,
+same contract, rejects conflicting definitions for one identifier,
 removes zero net positions, and sorts the result. Its semantic hash is
 therefore independent of input ordering.
 
@@ -93,6 +93,9 @@ and expiry actions against a versioned path. Fill semantics are explicit:
 
 Transaction costs are separate from fills. Results reconcile cash, underlying
 holdings, option marks, realized actions, and leg attribution.
+`scenario_batch` applies this same simulator to an ordered collection of
+requests and returns complete result and journal records; it is an adapter,
+not a second transition implementation.
 
 ## Search grammar
 
@@ -122,6 +125,14 @@ without confusing them.
 
 Learning systems may score or propose portfolios. They do not redefine
 contract, payoff, lifecycle, or execution semantics.
+
+A Deep Sets learner transforms each typed node independently and pools the
+results without reading graph edges. A typed graph neural network starts from
+the same nodes but updates them through relation-specific edges before
+readout. Both are invariant to serialization order; only the graph model can
+represent an explicit distinction between, for example, “position belongs to
+expiry” and “action applies to position.” The compiler and legal mask constrain
+both models identically.
 
 The optional [supervised graph-learning experiment](supervised-gnn.md) runs
 this boundary end to end: structured COG compilation, candidate-action

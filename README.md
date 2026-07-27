@@ -52,6 +52,7 @@ cargo run --example zap
 cargo run --example cog -- --output /tmp/volt-cog.json
 cargo run --example graph -- --output /tmp/volt-graphs.jsonl
 cargo run --bin graph_export -- --input request.json --output graphs.json
+cargo run --bin scenario_batch -- --input scenarios.json --output results.json
 ```
 
 `risk` is the compact, `top`-like terminal monitor. `risk_server` serves the
@@ -74,6 +75,9 @@ weights.
 `graph_export` is the data-independent bridge used by research applications.
 It validates declared contracts and marks, canonicalizes each quantity vector,
 and returns portfolio hashes, terminal-payoff hashes, and graph samples.
+`scenario_batch` evaluates complete paths and scheduled actions through the
+scenario simulator, returning fills, pathwise P&L, runtime journals, final
+states, and result hashes.
 
 An optional reference training harness consumes the exact graph export and
 learns a relation-aware portfolio embedding:

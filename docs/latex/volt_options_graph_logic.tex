@@ -343,6 +343,29 @@ a contract or quantity produces another candidate.  Changing spot, marks, or
 valuation time produces another state.  Reordering the position nodes
 preserves the graph and portfolio identity.
 
+\subsection{Runtime state/action graph}
+
+The additive \texttt{RuntimeStateActionGraphSample} represents continuing
+control states.  It creates one expiry node for each distinct contract expiry
+and retains live, exercised, assigned, expired, and closed position nodes.
+Cash ledgers, delivered-underlying inventory, and an account node carry the
+balances and limits seen by the policy.  Compiler action slots enter as nodes
+with their exact contract, quantity, mark, expiry, source rule, and rejection
+reason.
+
+The runtime graph adds portfolio-to-account, cash-to-account,
+inventory-to-account, action-to-portfolio, action-to-position, and
+action-to-account relations.  Position and action nodes connect to their
+corresponding underlying and expiry nodes.  One graph can therefore contain
+several expiries while preserving exact contract identity.
+
+The exported legal mask first applies compiler guards and contract rules, then
+checks declared account limits for live position count, gross option
+quantity, minimum cash, absolute underlying inventory, and deterministic
+option costs.  These limits provide a reproducible research account model.
+Broker portfolio margin, locate rules, and market liquidity remain separate
+authorities.
+
 \subsection{Graph identity and targets}
 
 \texttt{PortfolioGraphSample} stores the graph schema version, a feature
@@ -356,10 +379,11 @@ or other declared outcomes.  The scenario evaluator produces those values;
 the graph transports the structural inputs and provenance to a set model,
 graph neural network, optimizer, or analysis tool.
 
-The current graph schema covers one underlying and one common expiry per
-sample.  Multi-expiry, multi-underlying, account, risk-factor, and event nodes
-belong to a subsequent schema.  Their contribution is measured against an
-order-invariant set model through portfolio prediction and ranking
+The static graph retains one underlying and one common expiry for
+candidate-ranking compatibility.  The runtime graph supplies multi-expiry,
+account, inventory, and action nodes.  Multi-underlying, risk-factor, and
+event nodes remain extensions.  Each additional relation is measured against
+an order-invariant set model through prediction and ranking
 \cite{deepsets,relational}.
 
 \section{Compiler and candidate actions}
@@ -477,12 +501,14 @@ candidate enumeration, graph export, portfolio reduction, and an educational
 risk display using synthetic data.  A research driver uses the public graph
 exporter with generated American CRR marks, fixed exercise and assignment
 policies, constrained portfolio enumeration, path-labelled targets, and a
-Deep Sets baseline.  Its market adapters and experiment records remain
-outside the public financial-semantics crate.
+Deep Sets baseline.  A parameter-matched typed graph network consumes the
+exported nodes and position-to-portfolio, position-to-underlying, and
+position-to-expiry relations.  Its market adapters, trained weights, and
+experiment records remain outside the public financial-semantics crate.
 
-Executable historical quote adapters, account and margin policy,
-fixed-horizon hedge management, the relation-aware GNN comparison, strategy
-macros, and GPU lowering remain integration work.
+Executable historical quote adapters, account and margin policy, promotion of
+the research hedge-policy interface, richer account and action relations,
+strategy macros, and GPU lowering remain integration work.
 
 \section{Validation}
 
@@ -495,9 +521,10 @@ masks, and state binding.
 The first learning study adds three empirical checks.  First, every target is
 recomputed by the financial evaluator from its recorded assumptions.  Second,
 chronological splits keep label-horizon observations out of model inputs.
-Third, graph models receive the same contracts, market context, targets, and
-optimization budget as the Deep Sets baseline.  Edge and relation ablations
-then measure the contribution of graph structure.
+Third, the typed graph network receives the same contracts, market context,
+targets, candidate split, and optimization budget as the Deep Sets baseline.
+The current fixed-expiry topology establishes the executable comparison;
+edge and relation ablations measure richer graph structure next.
 
 These tests separate three sources of failure: financial semantics, dataset
 construction, and statistical estimation.  A model result can be traced to
@@ -506,16 +533,17 @@ and the runtime evidence that produced its outcome.
 
 \section{Conclusion}
 
-\VOLT{} gives option portfolio graphs a financial source of truth.  Listed
-contracts and signed quantities define the portfolio; exercise schedules and
-runtime transitions define its continuing state; fills and journals define
-its execution history; payoff and graph objects are derived views with
-versioned links to those definitions.
+Listed contracts and signed quantities determine the portfolio exported to a
+learning system.  Exercise schedules and runtime transitions determine its
+continuing state, while fills and journals record changes in cash, option
+rights, and underlying inventory.  The payoff projection and graph are
+derived records linked by versioned identifiers to those inputs and
+transitions.
 
-The implemented graph is deliberately small: portfolio, underlying, expiry,
-and option-position nodes with typed edges.  The \COG{} compiler adds
+The implemented graph contains portfolio, underlying, expiry, and
+option-position nodes with typed edges.  The \COG{} compiler adds
 point-in-time action nodes and deterministic legal masks.  Path evaluation
-supplies supervised outcomes.  This boundary supports the direct portfolio
+supplies supervised outcomes.  These records support the direct portfolio
 search developed in the discovery paper and the state/action interface used
 by sequential control.
 

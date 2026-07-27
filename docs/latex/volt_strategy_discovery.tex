@@ -13,6 +13,7 @@
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{float}
+\usepackage{graphicx}
 \usepackage{pgfplots}
 \usepackage{xurl}
 \usepackage{hyperref}
@@ -44,7 +45,7 @@
 \maketitle
 
 \begin{abstract}
-An option chain supports many more portfolios than the named templates usually used to search it.  Direct construction from listed contracts makes that wider space available, but realistic evaluation is costly: each American-option portfolio may require pathwise marks, fills, transaction costs, exercise, assignment, and settlement.  \VOLT{} evaluates a sample of feasible portfolios on historical or generated paths and uses the outcomes to train an order-invariant surrogate over signed contract positions.  The surrogate ranks the unevaluated pool, allowing more of the contract-level search space to be considered for a given evaluation cost.  Deep Sets supplies the first model.  A relation-aware graph network tests whether explicit position, underlying, expiry, and account relations add value; a QUBO formulation is tested for batch selection.  This paper specifies the financial assumptions, mathematical formulation, and empirical criterion: recovery of high-ranked portfolios against the cost of full path evaluation.
+An option chain supports many more portfolios than the named templates usually used to search it.  Direct construction from listed contracts makes that wider space available.  American marks, exercise, assignment, and pathwise Greeks are costly, but portfolios sharing the same contracts can reuse those leg calculations; direct enumeration is then a strong baseline.  \VOLT{} trains order-invariant surrogates only where the remaining candidate or sequential evaluation cost may justify them.  Deep Sets supplies the set baseline; a parameter-matched typed graph network consumes the exported portfolio, position, underlying, and expiry relations.  This paper specifies the financial assumptions, mathematical formulation, and empirical criterion: recovery of high-ranked portfolios after all shared computation is separated from portfolio-specific work.  QUBO batch selection and sequential policy learning follow as separate experiments.
 \end{abstract}
 
 \section{Introduction}
@@ -363,7 +364,7 @@ bid--ask spread, implied-volatility coordinates, and liquidity measures.
 The first nonlinear model is
 \[
 \begin{aligned}
-  h_i &= \phi_\theta(x_i,c_t),\\
+  h_i &= \phi_\theta(x_i),\\
   h(q,c_t) &= \sum_{i:q_i\neq0}h_i,\\
   \widehat y_t(q) &= \rho_\theta(h(q,c_t),c_t).
 \end{aligned}
@@ -382,39 +383,37 @@ component-wise regression with a pairwise ranking loss among candidates from
 the same decision state.  Calibration of the outcome components and quality of
 the induced ranking are reported separately.
 
-\subsection{Graph comparison}
+\subsection{Typed graph comparison}
 
-For a candidate \(q\) at decision state \(c_t\), the proposed graph is
+For a candidate \(q\) at decision state \(c_t\), the implemented graph is
 \[
   G(q,c_t)=(V,E),\qquad
   V=V_{\mathrm{pos}}\cup V_{\mathrm{underlying}}
-    \cup V_{\mathrm{expiry}}\cup\{v_{\mathrm{account}}\}.
+    \cup V_{\mathrm{expiry}}\cup\{v_{\mathrm{portfolio}}\}.
 \]
 Each nonzero quantity creates one position node with feature vector \(x_i\).
-Typed edges connect that position to its underlying, expiry, and account.
-Optional position-to-position edges record declared relations such as common
-expiry, common strike, or ordered strikes within one option right.  Market
-features belong to the underlying and expiry nodes; capital and inventory
-features belong to the account node.
+Typed edges connect that position to its portfolio, underlying, and expiry.
+The learning adapter adds the three reverse directions so messages travel
+both ways.  Implied volatility and liquidity fields are joined to position
+nodes by Volt contract identity.
 
-Relation-specific message passing updates the node representations, followed
-by an order-invariant readout over the position nodes and a prediction head for
-\(\widehat y_t(q)\).  Graph construction is deterministic for a given
+Two relation-specific message-passing layers update the node representations.
+The portfolio node supplies an order-invariant readout and a prediction head
+for \(\widehat y_t(q)\).  Graph construction is deterministic for a given
 candidate--state pair.  Serializing its position nodes in another order gives
 the same financial input.  A change to a contract quantity changes the
 candidate; a change to the contemporaneous market data changes the state.
 
-This graph adds relational structure to the input.  Path generation and option
-valuation remain responsibilities of the financial evaluator, which produces
-the training outcomes in both the Deep Sets and graph experiments.  The graph
-model becomes useful if the typed relations improve prediction or candidate
-ranking beyond the set model \cite{relational}.
+The fixed comparison uses 8,020 trainable parameters for Deep Sets and 7,404
+for the graph network.  Path generation and option valuation remain
+responsibilities of the financial evaluator, which produces the same training
+outcomes for both models.  Their common candidate split, evaluation budget,
+optimizer budget, and targets isolate the contribution of typed adjacency
+\cite{relational}.
 
-The graph comparison uses the same position and market information, target,
-time split, parameter budget, and optimization budget as the Deep Sets model.
-The parameter-matched nonlinear set model controls for model capacity.
-Edge-removal and relation-label ablations then test whether the graph
-relations account for any observed difference.
+The current topology has one underlying and one expiry, so every candidate is
+a small star graph.  Position-to-position, account, inventory, and action
+relations enter later ablations and the sequential state/action graph.
 
 \section{Selecting candidates for evaluation}
 \label{sec:acquisition}
@@ -490,11 +489,12 @@ and decision dates one dimension at a time.
 
 \subsection{Comparisons}
 
-Prediction models include linear and tree models over portfolio aggregates,
-the Deep Sets model, and a parameter-matched graph model.  Acquisition methods
-include random sampling, stratified sampling, predicted utility, uncertainty,
-greedy diversity, and QUBO.  Every method receives the same candidate pool,
-initial evaluated sample, path cohort, and compute accounting.
+Implemented prediction models are ridge regression over summed leg features,
+Deep Sets, and a parameter-matched typed graph network.  The implemented
+one-batch acquisition ranks predicted utility and compares with repeated
+random batches.  Stratified, uncertainty, greedy-diversity, and QUBO
+acquisition remain comparisons on the same candidate pool, initial evaluated
+sample, path cohort, and compute accounting.
 
 Primary measurements are top-\(k\) recovery, simple regret, rank correlation,
 outcome calibration, path-evaluator calls, total paths evaluated, and elapsed
@@ -537,12 +537,20 @@ another 10\%, using 205,312 candidate--path evaluations instead of 683,520.
 
 On the remaining candidates, Deep Sets attains Spearman rank correlation
 \(0.972\), recovers all of the exhaustive top 20 after acquisition, and finds
-the exhaustive optimum.  Ridge regression on summed leg features attains
-\(0.386\) rank correlation and recovers 18 of the top 20.  The selected
-generated portfolio is long one \(105\) call and long one \(110\) call.  It has
+the exhaustive optimum.  The typed graph network attains \(0.953\), recovers
+18 of the top 20, and also finds the optimum.  Ridge regression on summed leg
+features attains \(0.386\) rank correlation and recovers 18 of the top 20.
+The selected generated portfolio is long one \(105\) call and long one
+\(110\) call.  It has
 no exact match in the deliberately small reference catalogue used by the
 explanation layer.  That observation identifies a candidate for further
 comparison; it supplies no novelty or robustness result.
+
+Across three candidate-split and initialization seeds on the same generated
+path cohort, mean rank correlation is \(0.968\) for Deep Sets and \(0.951\)
+for the graph network.  Mean top-20 recall is \(1.00\) and \(0.933\);
+the exhaustive optimum is recovered in three and two runs, respectively.
+Deep Sets is stronger under the current fixed-expiry star relations.
 
 The first market-data check uses the SPY chain at the 14 July 2026 close and
 options expiring 24 July.  Daily option closes are proxy marks.  Six calls and
@@ -553,15 +561,16 @@ implied volatility.  The 22 July equity partition is absent and is recorded in
 the manifest rather than imputed.
 
 Deep Sets reaches rank correlation \(0.996\), full top-20 recovery, and zero
-simple regret under the generated cohort.  The corresponding ridge values are
-\(0.189\), four of 20, and \(0.0447\) per share.  The selected position is
-short one \(750\) call and long one \(753\) call, an ordinary bear call spread
-identified after generation.  SPY closes at \(738.93\) on expiry; under the
-proxy-mark, funding, exercise, assignment, and cost rules, the position earns
-\(1.989\) per share.  Across all candidates, cohort utility and this one
-realized-path P\&L have rank correlation \(0.801\).  This run checks the
-pipeline; return estimation requires executable quotes and multiple decision
-dates.
+simple regret under the generated cohort.  The typed graph network reaches
+\(0.994\), full recovery, and zero regret.  The corresponding ridge values
+are \(0.189\), four of 20, and \(0.0447\) per share.  Both nonlinear models
+select short one \(750\) call and long one \(753\) call, an ordinary bear call
+spread identified after generation.  SPY closes at \(738.93\) on expiry;
+under the proxy-mark, funding, exercise, assignment, and cost rules, the
+position earns \(1.989\) per share.  Across all candidates, cohort utility
+and this one realized-path P\&L have rank correlation \(0.801\).  This run
+checks the pipeline; return estimation requires executable quotes and
+multiple decision dates.
 
 \begin{figure}[H]
   \centering
@@ -603,7 +612,9 @@ call spread, and a \(141/142\) bull put spread.  All three are conventional
 verticals despite catalogue-free generation.  They earn positive P\&L on the
 single observed path, while the cross-candidate rank correlations between
 generated-cohort utility and realized P\&L are \(-0.530\), \(-0.635\), and
-\(-0.623\).  The surrogate accurately learns the supplied cohort labels; these
+\(-0.623\).  Deep Sets rank correlations against the generated labels are
+\(0.996\), \(0.968\), and \(0.967\); graph-network correlations are \(0.983\),
+\(0.938\), and \(0.899\).  The models learn the supplied cohort labels; the
 negative realized correlations direct the next work toward path calibration
 and multiple decision dates.
 
@@ -625,18 +636,188 @@ predicted and exhaustive generated-cohort utility on candidates outside the
 initial evaluated set.  Realized correlation compares exhaustive cohort
 utility with P\&L on one later observed path.}
 \label{tab:pilot-ranking}
-\begin{tabular}{lrrrc}
+\small
+\begin{tabular}{lrrrrc}
 \toprule
-Cohort & Deep Sets \(\rho\) & Ridge \(\rho\) & Top-20 recall & Realized \(\rho\) \\
+Cohort & Set \(\rho\) & Graph \(\rho\) & Ridge \(\rho\) &
+Top-20 set/graph & Realized \(\rho\) \\
 \midrule
-Generated & 0.972 & 0.386 & 1.00 & --- \\
-SPY       & 0.996 & 0.189 & 1.00 &  0.801 \\
-USO       & 0.996 & 0.221 & 1.00 & -0.530 \\
-XLE       & 0.968 & 0.231 & 1.00 & -0.635 \\
-XOM       & 0.967 & 0.277 & 1.00 & -0.623 \\
+Generated & 0.972 & 0.953 & 0.386 & 20/18 & --- \\
+SPY       & 0.996 & 0.994 & 0.189 & 20/20 &  0.801 \\
+USO       & 0.996 & 0.983 & 0.221 & 20/20 & -0.530 \\
+XLE       & 0.968 & 0.938 & 0.231 & 20/20 & -0.635 \\
+XOM       & 0.967 & 0.899 & 0.277 & 20/17 & -0.623 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+The fixed-horizon management check separates evaluation from expiration.
+It enters SPY options on 14 July, closes live positions on 24 July, and uses
+contracts expiring 31 July.  Seven dates have a common stock close, all
+selected option closes, and valid American implied-volatility inversions.
+The 22 July stock partition is absent; the 23 July option cross-section fails
+an intrinsic-value check.  Both dates are excluded with recorded reasons.
+
+An entry-only gamma screen selects short one \(751\) put and long one \(752\)
+put for a \(0.51\) proxy debit.  The rule maximizes entry gamma relative to
+absolute daily theta and bounded loss, subject to positive gamma, negative
+theta, absolute delta below \(0.35\), a debit entry, and maximum expiration
+loss below \(15\) per share.  The selection depends only on entry data.  On
+the observed path, unhedged P\&L is \(0.6734\) per share.  Daily delta hedging produces
+\(0.4660\); the \(0.10\) delta band makes no hedge trades because net delta
+remains inside the band.
+
+For every path and policy, the accounting identity is
+\[
+\begin{split}
+\Pi={}&\Pi_{\Delta}+\Pi_{\Gamma}+\Pi_{\Theta}+\Pi_{\mathrm{vega}}
+       +\Pi_{\mathrm{residual}}+\Pi_{\mathrm{financing}}\\
+     &+\Pi_{\mathrm{hedge}}-C_{\mathrm{option}}-C_{\mathrm{hedge}} .
+\end{split}
+\]
+The residual contains discrete moves, lattice approximation, mark/model basis,
+and higher-order effects.  The analytics record expiration geometry; delta,
+gamma, theta, vega, rho, vanna, volga,
+charm, and speed; distributional and tail measures; drawdown and recovery;
+exercise, assignment, closes, turnover, liquidity; and a common
+spot--volatility--time stress surface.
+
+\begin{table}[H]
+\centering
+\caption{Management results for the selected \(751/752\) bear put spread on a
+separate 128-path, fixed-seed model cohort.  Values are per share.  Expected
+shortfall is reported as a positive loss.}
+\label{tab:management-policy}
+\begin{tabular}{lrrrrr}
+\toprule
+Policy & Mean P\&L & P\&L sd & ES \(95\%\) & Mean drawdown & Cost \\
+\midrule
+Unhedged       & -0.0798 & 0.5873 & 1.7088 & 0.3358 & 0.0260 \\
+Daily delta    & -0.0554 & 0.1377 & 0.4461 & 0.1101 & 0.0347 \\
+Delta band 0.1 & -0.0042 & 0.3244 & 0.5214 & 0.2746 & 0.0309 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The generated cohort uses fixed contract implied volatilities and legwise CRR
+exercise decisions.  Tail loss can exceed the spread's expiration maximum
+loss when legs settle at different dates under that policy.  The observed
+mark-to-market drawdown also exceeds the expiration bound, exposing the
+effect of non-synchronous close proxies.  These diagnostics motivate
+portfolio-level exercise sensitivity and executable quote paths before the
+management labels are used for strategy claims.
+
+\subsection{Generated volatility search}
+\label{sec:generated-volatility}
+
+A volatility forecast changes the search target.  Directional terminal P\&L
+alone cannot distinguish a view that realized volatility will exceed implied
+volatility from a view on the terminal price.  The generated volatility study
+therefore evaluates every candidate under scheduled aggregate-delta hedging.
+Its entry exposure vector is
+\[
+  g(q)=\sum_i q_i
+  \left(\Delta_i,\Gamma_i,\Theta_i,\mathcal V_i\right),
+\]
+where theta is measured per calendar day and vega per volatility point.
+These signed leg exposures are supplied to both invariant models.  The graph
+also stores their sums on the portfolio node.
+
+The decision state has spot \(100\), flat \(20\%\) entry implied volatility,
+ten American options at strikes \(90,95,100,105,110\), 45 days to expiry, and
+a 21-day evaluation horizon.  Canonical enumeration produces 2,890
+one- through four-leg portfolios with quantities in \(\{-1,+1\}\).
+The compiler retains 283 with finite expiration loss no greater than \(5\)
+per share, absolute entry delta no greater than \(0.20\), and nonzero gamma
+and vega.  Contract ordering cannot create a second candidate.
+
+Two equal 48-path cohorts have zero median terminal return and annualized
+realized volatilities of \(10\%\) and \(35\%\).  Implied volatility remains
+at \(20\%\), isolating realized volatility from a separate vega forecast.
+The observation grid has 22 points.  A 40-step CRR lattice supplies aligned
+American marks and Greeks; scheduled hedging resets aggregate delta at every
+observation.  Net P\&L includes option and hedge costs.  Conditional utility
+is mean net P\&L plus one quarter of the lower-decile mean.
+
+Under the low-realized-volatility cohort, the exhaustive optimum is short the
+\(100\) call and put, with a long \(90\) put and \(110\) call.  Its entry
+delta, gamma, daily theta, and one-point vega are \(-0.0338\), \(-0.4762\),
+\(0.0396\), and \(-0.1757\).  Mean P\&L is \(0.7234\) per share and the
+lower-decile mean is \(0.4336\).  The same portfolio has mean P\&L
+\(-1.1435\) in the high-realized-volatility cohort.  Its low-volatility
+attribution includes \(1.0307\) of theta P\&L, \(-0.2907\) of gamma P\&L,
+and \(0.0639\) of transaction costs.
+
+Under the high-realized-volatility cohort, the exhaustive optimum is long the
+calls and puts at both \(95\) and \(105\).  Its entry delta, gamma, daily
+theta, and one-point vega are \(0.0987\), \(0.0498\), \(-0.0928\), and
+\(0.4078\).  Mean P\&L is \(3.4094\) and the lower-decile mean is \(0.9750\).
+The same portfolio has mean P\&L \(-1.8156\) in the low-volatility cohort.
+Its high-volatility attribution includes \(5.2579\) of gamma P\&L,
+\(-1.8950\) of theta P\&L, and \(0.1103\) of transaction costs.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[
+    width=\linewidth
+  ]{assets/volt-volatility-candidate-space.png}
+  \caption{The 283 compiled portfolio graphs under the two conditional
+  objectives.  The upper panels place each candidate by entry gamma and daily
+  theta; marker area increases with absolute vega and colour records
+  conditional utility.  The lower panels compare maximum expiration loss with
+  utility and colour points by entry vega.  A star marks the exhaustive
+  conditional optimum.}
+  \label{fig:volatility-candidate-space}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Generated volatility ranking and compute results.  Correlations and
+top-20 recall use candidates outside the initial evaluated set.  Every model
+recovers the exhaustive optimum after acquisition.}
+\label{tab:volatility-ranking}
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Realized vol. & Model & Spearman \(\rho\) & Top-20 recall &
+Simple regret & Train/search s \\
+\midrule
+\(10\%\) & Deep Sets & 0.966 & 0.95 & 0 & 0.521 \\
+          & Typed graph & 0.976 & 0.95 & 0 & 0.536 \\
+          & Ridge & 0.914 & 0.90 & 0 & 0.003 \\
+\(35\%\) & Deep Sets & 0.986 & 1.00 & 0 & 0.165 \\
+          & Typed graph & 0.985 & 1.00 & 0 & 0.782 \\
+          & Ridge & 0.955 & 1.00 & 0 & 0.002 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Candidate compilation takes \(0.242\) seconds, graph export \(0.137\),
+scenario construction \(6.230\), pathwise labels \(72.647\), and model
+encoding \(0.052\); the full run takes \(81.809\) seconds.  American
+path valuation and Greek attribution account for most compute.  The learned
+models consume less than one second per regime at this scale.  The 48 paths
+per regime and accelerated lattice make this a generated mechanism check.
+More paths, lattice-resolution sensitivity, volatility-surface dynamics, and
+empirical quote paths precede a trading-performance claim.
+
+A later compiler-aware benchmark separates the common calculation from
+portfolio aggregation.  Fourteen American contracts, \(64\) paths, and nine
+observations require \(33.317\) seconds for chain construction, scenario
+marks, and contract-leg compilation.  Aggregating \(4{,}000\) daily-hedged
+portfolios then takes \(0.152\) seconds.  A Deep Sets search with a \(30\%\)
+label budget takes \(1.145\) seconds after the common work; the relation GNN
+takes \(13.763\) seconds.  Their rank correlations are \(0.9945\) and
+\(0.9920\), but neither is faster than direct enumeration.  The optimum is
+already in the initial evaluated sample, so zero regret is not credited to
+acquisition.
+
+The first three-date event transfer is also a development result.  The GNN
+has mean final-date rank correlations \(0.7486\) for the tariff state and
+\(0.5476\) for the conflict state, but no model recovers an optimum.  The
+first execution exposed a constant-column scaling defect on the final date;
+the corrected preprocessing is now locked and requires a new date for a
+prospective test.
 
 Validated NYMEX session data supplies contemporaneous CL, RB, and BZ evidence
 for the July energy checks.  This evidence is constant across candidates in
@@ -676,22 +857,34 @@ general graph-export command now accepts declared marked contracts and
 quantity vectors, then returns \VOLT{} portfolio hashes and graph samples.  The
 pilot research driver adds a generated cohort builder, CRR American marks,
 fixed exercise and assignment policies, constrained candidate enumeration,
-path-target aggregation, Deep Sets and ridge baselines, one batch-acquisition
-step, market-data adapters, and evidence packets.
+reusable contract-leg compilation, path-target aggregation, Deep Sets, typed graph, and ridge models, one
+batch-acquisition step, market-data adapters, and evidence packets.  The graph
+model consumes Volt nodes and typed edges and saves a transferable
+portfolio--state embedding.  The management layer adds
+fixed-horizon option closes, unhedged and delta-hedged policies, self-financing
+hedge accounting, full P\&L attribution, path and distribution risk measures,
+higher-order entry Greeks, and stress surfaces.
+
+The runtime research driver extends this boundary to multiple expiries, cash,
+delivered underlying, completed option lifecycles, account limits, compiler
+action nodes, and a composed legal mask.  It trains state-relative action
+scorers and records graph construction, path evaluation, training, and
+inference time.  Section~\ref{sec:control} and the sequential-control paper
+report that experiment separately from static candidate search.
 
 The next integration work is:
 
 \begin{enumerate}
-  \item reconcile and certify the older event archives, then add several
-        chronologically separated decision dates;
-  \item add fixed-horizon closing and scheduled or banded delta hedging for
-        gamma attribution;
+  \item add enough chronologically separated decision dates to test the
+        locked preprocessing beyond the three-date development cohorts;
   \item replace close proxies with executable quote rules where quote coverage
         permits;
+  \item compare legwise exercise, portfolio exercise, and stochastic
+        assignment policies;
   \item run iterative random, uncertainty, utility, and diversity acquisition
         baselines;
-  \item compare a parameter-matched relation-aware graph model with Deep Sets;
-        and
+  \item run edge, relation, account-limit, and action-feature ablations on the
+        implemented runtime graph; and
   \item test QUBO batch selection after the classical acquisition baselines.
 \end{enumerate}
 
@@ -734,16 +927,17 @@ set-model and acquisition baselines.
 \section{Conclusion}
 
 Searching directly over listed option contracts expands the candidate set
-beyond predefined strategy templates and makes full path evaluation expensive.
-\VOLT{} frames the resulting task as budgeted portfolio search.  A financial
-evaluator supplies leg and portfolio outcomes under explicit American-option
-assumptions; a permutation-invariant model approximates those outcomes; and an
-acquisition rule decides which candidates receive the next evaluations.
+beyond predefined strategy templates.  \VOLT{} compiles common American-option
+leg paths before evaluating portfolios.  A learned surrogate enters only when
+portfolio-specific or sequential work remains costly after that reuse.  An
+acquisition rule then decides which candidates receive the next evaluations.
 
-The first experiment compares Deep Sets with conventional portfolio models and
-measures ranking quality per evaluator call.  Graph structure and QUBO batch
-selection enter as controlled extensions.  Sequential management remains a
-subsequent state-and-action problem.
+The current experiments compare Deep Sets with conventional portfolio models,
+measure ranking quality, and charge shared and candidate-specific computation
+separately.  Direct enumeration wins the present compute comparison, and the
+chronological development cohort recovers no exact optimum.  Graph structure,
+sequential management, and QUBO allocation therefore remain controlled
+extensions rather than established performance improvements.
 
 \begin{thebibliography}{9}
 

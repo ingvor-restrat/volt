@@ -11,8 +11,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use volt::{
-    CanonicalPortfolio, ContractId, Currency, GraphContext, OptionContract,
-    PortfolioGraphSample, Position, PriceMicros, TimestampNs, UnderlyingId,
+    CanonicalPortfolio, ContractId, Currency, GraphContext, OptionContract, PortfolioGraphSample,
+    Position, PriceMicros, TimestampNs, UnderlyingId,
 };
 
 const REQUEST_SCHEMA_VERSION: &str = "volt.graph_export_request.v1";
@@ -145,7 +145,9 @@ fn options() -> Result<Options, Box<dyn std::error::Error>> {
         if flag == "--input" {
             input = Some(PathBuf::from(args.next().ok_or("--input requires a path")?));
         } else if flag == "--output" {
-            output = Some(PathBuf::from(args.next().ok_or("--output requires a path")?));
+            output = Some(PathBuf::from(
+                args.next().ok_or("--output requires a path")?,
+            ));
         } else {
             return Err("usage: graph_export --input REQUEST.json --output RESULT.json".into());
         }

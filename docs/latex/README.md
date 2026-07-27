@@ -9,11 +9,19 @@ and API boundary:
 - [Volt: Searching the Option Strategy Space](volt_strategy_discovery.pdf)
   ([source](volt_strategy_discovery.tex)) — a formal protocol for
   direct search over listed option positions, with pathwise evaluation,
-  Deep Sets as the first invariant model, and GNN/QUBO extensions; and
+  fixed-horizon hedge-policy analytics, parameter-matched Deep Sets and typed
+  graph models, and a QUBO extension; and
 - [Volt: Sequential Control of Option Portfolios](volt_sequential_control.pdf)
   ([source](volt_sequential_control.tex)) — state, actions, rewards, the
-  reinforcement-learning loop, and rollout allocation over the deterministic
-  runtime.
+  reinforcement-learning loop, the distinction between set aggregation and
+  typed message passing, a precommitted downside-aware checkpoint objective,
+  multi-expiry runtime graph, generated control and compute benchmarks, and
+  rollout allocation over the deterministic runtime; and
+- [Option Portfolio Selection Around Two Event Shocks](volt_empirical_event_studies.pdf)
+  ([source](volt_empirical_event_studies.tex)) — SPY tariff and USO conflict
+  studies with dated market/option/strategy rollouts, directional probability
+  menus, direction-neutral target-volatility scans, American lifecycle
+  valuation, supervised model tests, and compiler-aware timing.
 
 The corresponding PDFs are rebuilt from these plain LaTeX article sources.
 
@@ -26,6 +34,8 @@ latexmk -pdf -interaction=nonstopmode -halt-on-error \
   volt_strategy_discovery.tex
 latexmk -pdf -interaction=nonstopmode -halt-on-error \
   volt_sequential_control.tex
+latexmk -pdf -interaction=nonstopmode -halt-on-error \
+  volt_empirical_event_studies.tex
 ```
 
 `latexmk -c` removes intermediate files without deleting the PDFs or sources.

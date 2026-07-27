@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use volt::{
     CandidateAction, CandidateGrammar, CandidateMarketContext, CogCompiler, CogError,
     CogPositionSource, CogRuleSource, CogSource, CompiledCandidateAction, CompiledStepResult,
-    ContractId, Currency, DiagnosticSeverity, ExerciseSchedule, ExpiryBucket, GraphContext,
-    GuardExpr, MarketObservation, OptionContract, OptionRight, PositionSide, PriceMicros,
+    ContractId, Currency, DiagnosticSeverity, ExerciseSchedule, ExpiryBucket, GraphAccountLimits,
+    GraphContext, GuardExpr, MarketObservation, OptionContract, OptionRight, PositionSide,
+    PriceMicros, RuntimeGraphContext, RuntimeGraphNodePayload, RuntimeStateActionGraphSample,
     ScenarioObjectiveSource, Settlement, StateActionGraphSample, StrikeOrDeltaBucket, TimestampNs,
     UnderlyingId, COG_SOURCE_SCHEMA_VERSION,
 };
@@ -219,6 +220,90 @@ fn state_action_graph_retains_rejected_slots_and_exact_hashes() {
     assert_eq!(first.action_nodes[1].rule_id, "add-upside-call");
     assert!(first.action_edges.len() >= first.action_nodes.len());
     assert_eq!(first.sample_id.len(), 64);
+}
+
+#[test]
+fn runtime_graph_represents_multiple_expiries_ledgers_and_account_legality() {
+    let mut source = source();
+    let back_contract = OptionContract::new(
+        "SPY-P-100-BACK",
+        "SPY",
+        "USD",
+        OptionRight::Put,
+        PriceMicros(100_000_000),
+        100,
+        ExerciseSchedule::American {
+            first_exercise: TimestampNs(0),
+            expiry: TimestampNs(150),
+        },
+        Settlement::Physical,
+    )
+    .unwrap();
+    source.listed_universe.push(back_contract);
+    source.initial_positions.push(CogPositionSource {
+        contract_id: ContractId("SPY-P-100-BACK".to_owned()),
+        quantity: -1,
+    });
+    let artifact = CogCompiler.compile(&source).into_result().unwrap();
+    let mut state = artifact.initial_state().unwrap();
+    state
+        .cash_micros
+        .insert(Currency("USD".to_owned()), 5_000_000);
+    state
+        .underlying_units
+        .insert(UnderlyingId("SPY".to_owned()), 25);
+    state.check_invariants().unwrap();
+    let action_set = artifact.action_set(&state, &candidate_context(95)).unwrap();
+    let context = RuntimeGraphContext {
+        valuation_time: VALUATION,
+        reference_spots: BTreeMap::from([(
+            UnderlyingId("SPY".to_owned()),
+            PriceMicros(95_000_000),
+        )]),
+        marks: artifact
+            .listed_universe
+            .iter()
+            .map(|contract| (contract.contract_id.clone(), PriceMicros(4_000_000)))
+            .collect(),
+        account_limits: GraphAccountLimits {
+            maximum_live_positions: 2,
+            maximum_gross_option_quantity: 2,
+            maximum_absolute_underlying_units: 50,
+            minimum_cash_micros: BTreeMap::from([(Currency("USD".to_owned()), -20_000_000_000)]),
+            transaction_cost_per_contract_micros: 650_000,
+        },
+    };
+
+    let graph =
+        RuntimeStateActionGraphSample::from_state_and_actions(&state, &context, &action_set)
+            .unwrap();
+
+    assert_eq!(
+        graph
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.payload, RuntimeGraphNodePayload::Expiry { .. }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        graph
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.payload, RuntimeGraphNodePayload::Cash { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        graph
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.payload, RuntimeGraphNodePayload::Underlying { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(graph.legal_action_mask, [false, false, false, true]);
+    assert_eq!(graph.sample_id.len(), 64);
 }
 
 #[test]
