@@ -1,41 +1,18 @@
-\documentclass[8pt]{article}
+\documentclass{strategynet-journal}
 
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
-\usepackage{mathpazo}
-\usepackage[scaled]{helvet}
-\usepackage{microtype}
-\usepackage[letterpaper,margin=1in]{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{enumitem}
-\usepackage{float}
-\usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
-\usepackage{xurl}
-\usepackage{hyperref}
 
 \hypersetup{
   pdftitle={Volt: Sequential Control of Option Portfolios},
-  pdfauthor={research@strategynet.ai},
-  colorlinks=true,
-  linkcolor=blue!50!black,
-  citecolor=blue!50!black,
-  urlcolor=blue!60!black
+  pdfauthor={research@strategynet.ai}
 }
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0.55em}
-\setlist{nosep}
 
 \newcommand{\VOLT}{\textsf{Volt}}
 \newcommand{\E}{\mathbb{E}}
 
+\SNHeader{strategynet.ai:Volt}
 \title{\VOLT{}: Sequential Control of Option Portfolios}
-\author{research@strategynet.ai}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
 \date{July 2026}
 
 \begin{document}
@@ -45,7 +22,11 @@
 An entry portfolio fixes the initial option contracts and quantities; management determines the later closes, hedges, rolls, and exercises.  Market moves, fills, assignment, expiration, and settlement also change the position and its available actions.  \VOLT{} formulates management as sequential control over a versioned state/action graph.  The compiler resolves semantic actions to listed contracts and supplies a structural legal mask.  The runtime applies fills and lifecycle rules, updates cash and inventory, and journals each transition.  A policy scores the remaining actions while a declared reward maps P\&L, costs, drawdown, capital use, and constraint events to the training objective.  This paper defines the control state, transition and reward contracts, the reinforcement-learning loop, chronological evaluation, and fixed-budget comparisons with rule-based management.  QUBO enters as a later experiment for allocating rollout or replay batches; contract legality and portfolio accounting remain runtime responsibilities.  The implementation includes a multi-expiry state/action graph, account-refined masks, a generated one-step comparison of set and graph action scorers, and a repeated hold/close experiment with \VOLT{}-reconciled trajectories.  Sequential learning proceeds through entry selection, hold/close, hedge/resize, roll/replace, and full-control stages.
 \end{abstract}
 
+\SNtwocolumntableofcontents
+
 \section{Introduction}
+
+\begin{SNcolumns}
 
 Portfolio discovery chooses contracts and signed quantities at a decision
 time.  Portfolio control manages the resulting state as option marks,
@@ -72,6 +53,9 @@ tree search, and a standard actor--critic algorithm establish the baseline.
 Rollout allocation and QUBO follow after state transitions, rewards, and
 accounting agree on those bounded environments.
 
+\end{SNcolumns}
+
+\begin{SNcolumns}
 \section{Control state and transition}
 \label{sec:state}
 
@@ -168,9 +152,14 @@ legality remains reproducible when the model or training algorithm changes.
 
 One transition can produce the financial vector
 \[
-  r_t=(\Delta\mathrm{equity}_t,\mathrm{cost}_t,
-       \Delta\mathrm{drawdown}_t,\mathrm{capital}_t,
-       \mathrm{turnover}_t,\mathrm{constraint}_t).
+  r_t=\left(
+  \begin{gathered}
+    \Delta\mathrm{equity}_t,\ \mathrm{cost}_t,
+      \ \Delta\mathrm{drawdown}_t,\\
+    \mathrm{capital}_t,\ \mathrm{turnover}_t,
+      \ \mathrm{constraint}_t
+  \end{gathered}
+  \right).
 \]
 The current scenario layer supplies fills, costs, journals, marked pathwise
 P\&L, leg attribution, and terminal P\&L.  Drawdown, capital, turnover, and
@@ -178,12 +167,15 @@ constraint-event measures require named account and risk components.
 
 A scalar training reward may be
 \[
+\begin{aligned}
   R_t
-  =\Delta\mathrm{equity}_t
+  &=\Delta\mathrm{equity}_t
    -\lambda_c\mathrm{cost}_t
-   -\lambda_d\Delta\mathrm{drawdown}_t
+   -\lambda_d\Delta\mathrm{drawdown}_t\\
+  &\quad
    -\lambda_k\mathrm{capital}_t
    -\lambda_v\mathrm{violation}_t,
+\end{aligned}
 \]
 with coefficients fixed before test evaluation.  The vector record remains
 available for economic reporting even when the learner uses a scalar.
@@ -253,6 +245,8 @@ policies and recomputes the tail statistic inside each sample.  Empirical
 studies replace independent-episode resampling with blocks defined before the
 test by decision date and overlapping outcome horizon.  Failure of this gate
 is reported as such; mean P\&L alone does not establish the claim.
+
+\end{SNcolumns}
 
 \section{Policy and learning loop}
 \label{sec:policy}
@@ -393,6 +387,8 @@ termination status, path identifier, runtime journal, and policy version.
 These fields support replay, off-policy diagnostics, and reproduction of a
 reported update.
 
+\begin{SNcolumns}
+
 \section{Rollout and replay allocation}
 \label{sec:allocation}
 
@@ -491,6 +487,8 @@ The test report retains gross and net results, path-level outcomes, policy and
 environment seeds, failures, legal-mask violations, exercise and assignment
 counts, and comparisons with the rule-based policies.  A path cohort gives
 results under its recorded historical observations or generated model.
+
+\end{SNcolumns}
 
 \section{Current implementation and development order}
 \label{sec:implementation}

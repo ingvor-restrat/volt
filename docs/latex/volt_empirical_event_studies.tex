@@ -1,39 +1,16 @@
-\documentclass[8pt]{article}
-
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
-\usepackage{mathpazo}
-\usepackage[scaled]{helvet}
-\usepackage{microtype}
-\usepackage[letterpaper,margin=0.88in]{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{xcolor}
-\usepackage{graphicx}
-\usepackage{float}
-\usepackage{xurl}
-\usepackage{hyperref}
+\documentclass{strategynet-journal}
 
 \hypersetup{
   pdftitle={Option Portfolio Selection Around Two Event Shocks},
-  pdfauthor={research@strategynet.ai},
-  colorlinks=true,
-  linkcolor=blue!50!black,
-  citecolor=blue!50!black,
-  urlcolor=blue!60!black
+  pdfauthor={research@strategynet.ai}
 }
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0.52em}
 \newcommand{\VOLT}{\textsf{Volt}}
 \newcommand{\ES}{\operatorname{ES}}
 
+\SNHeader{strategynet.ai:Volt}
 \title{Option Portfolio Selection Around Two Event Shocks\\
 \large SPY Tariffs, USO Conflict Risk, and Volatility Forecasts}
-\author{research@strategynet.ai}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
 \date{July 2026}
 
 \begin{document}
@@ -43,7 +20,11 @@
 This paper studies option portfolios entered before two event shocks: the April 2025 tariff escalation in SPY and the February--March 2026 US--Iran conflict in USO.  It asks two trading questions.  Given probabilities for an event and an opposing outcome, which bounded option portfolio offers the preferred directional exposure?  Given no directional view but a forecast of realized volatility, which daily delta-hedged gamma position is preferred, and are the entry options rich or cheap relative to that forecast?  Each study begins with ten liquid listed American options.  A portfolio compiler enumerates one-to-four-leg positions, applies account limits, and sends the retained candidates through pathwise American valuation, exercise, assignment, settlement, hedging, financing, and transaction costs.  Historical prices are used for the entry state and one subsequent replay; candidate selection uses only the forecasts and generated paths.  The directional tariff forecast selects concentrated downside convexity, while the conflict forecast selects a capped call spread at its stated probability.  The volatility analysis changes sign as the target moves through the entry implied-volatility level.  Deep Sets and a typed graph network are then tested as supervised surrogates for the path evaluator.  Both interpolate well within one decision date, but neither recovers a held-out optimum in the chronological development test.  Direct compiled evaluation is also faster at the portfolio counts studied here.  The empirical results support the portfolio construction and valuation procedure.  Trading-performance and learned-search claims require more independent decision dates.
 \end{abstract}
 
+\SNtwocolumntableofcontents
+
 \section{The study}
+
+\begin{SNcolumns}
 
 The first decision is dated 1 April 2025.  SPY closes at \(561.03\), the
 selected 11 April option expiry has a median implied volatility of \(22.20\%\),
@@ -67,6 +48,8 @@ The analyst makes one discretionary choice at the entry close.  Later points
 in the rollout are the prescribed hedge, exercise, assignment, and close
 actions.  Re-selecting the portfolio through time would require a dated
 series of forecast probabilities; no such series is assumed here.
+
+\end{SNcolumns}
 
 \section{What happened}
 
@@ -292,6 +275,8 @@ median IV; every leg is still valued from its own entry IV and strike.
 
 \section{Surrogate models}
 
+\begin{SNcolumns}
+
 The path evaluator supplies four labels for each portfolio:
 \[
   y(q)=\left(
@@ -325,13 +310,15 @@ portfolio, underlying, and expiry data reside on their own nodes.  Two
 message-passing layers use relation-specific weights
 \cite{graphnetworks}:
 \[
+  \begin{aligned}
   m_v^{(k)}
-    =\sum_{(u,v,r)\in E}W_r^{(k)}h_u^{(k)},\qquad
+    &=\sum_{(u,v,r)\in E}W_r^{(k)}h_u^{(k)},\\
   h_v^{(k+1)}
-    =\operatorname{LN}\!\left(
+    &=\operatorname{LN}\!\left(
        h_v^{(k)}
        +\operatorname{SiLU}(W_0^{(k)}h_v^{(k)}+m_v^{(k)})
      \right).
+  \end{aligned}
 \]
 The four outputs are read from the final portfolio-node state and the shared
 context.  Hidden width is 20.  This graph can later represent multiple
@@ -350,16 +337,17 @@ final date once.
 
 The compiler, path engine, and learned ranking have separate jobs:
 \[
+\begin{aligned}
 \text{contracts and limits}
-\longrightarrow
-\text{candidate portfolios}
-\longrightarrow
-\text{pathwise labels}
-\longrightarrow
-\text{learned shortlist}.
+  &\longrightarrow \text{candidate portfolios}\\
+  &\longrightarrow \text{pathwise labels}\\
+  &\longrightarrow \text{learned shortlist}.
+\end{aligned}
 \]
 There is no reinforcement-learning result in this paper.  The models here are
 supervised regressors over a fixed action set.
+
+\end{SNcolumns}
 
 \section{Tariff results}
 
@@ -660,6 +648,8 @@ rank correlations of \(0.9945\) and \(0.9920\), respectively.
 
 \section{Conclusions}
 
+\begin{SNcolumns}
+
 The empirical procedure begins with a point-in-time American option chain and
 ends with listed quantities, entry Greeks, bounded payoff, scenario P\&L,
 lifecycle events, and a cash comparison.  The directional studies show how a
@@ -680,6 +670,8 @@ inventory, and account actions.  Those actions change later holdings, legal
 actions, and transaction costs; they are the setting in which a graph state
 and reinforcement learning may add value.  That proposition requires its
 own empirical test.
+
+\end{SNcolumns}
 
 \begin{thebibliography}{9}
 

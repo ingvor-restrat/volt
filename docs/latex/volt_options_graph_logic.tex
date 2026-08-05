@@ -1,35 +1,11 @@
-\documentclass[8pt]{article}
+\documentclass{strategynet-journal}
 
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
-\usepackage{mathpazo}
-\usepackage[scaled]{helvet}
-\usepackage{microtype}
-\usepackage[letterpaper,margin=1in]{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{enumitem}
-\usepackage{float}
-\usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
-\usepackage{xurl}
-\usepackage{hyperref}
 
 \hypersetup{
   pdftitle={Volt: Financial Semantics for Option Portfolio Graphs},
-  pdfauthor={research@strategynet.ai},
-  colorlinks=true,
-  linkcolor=blue!50!black,
-  citecolor=blue!50!black,
-  urlcolor=blue!60!black
+  pdfauthor={research@strategynet.ai}
 }
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0.55em}
-\setlist{nosep}
 
 \newcommand{\VOLT}{\textsf{Volt}}
 \newcommand{\COG}{\texttt{COG}}
@@ -37,8 +13,9 @@
 \newcommand{\Z}{\mathbb{Z}}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
 
+\SNHeader{strategynet.ai:Volt}
 \title{\VOLT{}: Financial Semantics for Option Portfolio Graphs}
-\author{research@strategynet.ai}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
 \date{July 2026}
 
 \begin{document}
@@ -48,7 +25,11 @@
 An option portfolio appears in several operational forms: listed contracts and quantities, an expiration payoff, live exercise and assignment state, executions and cash movements, and model features.  Independent implementations of these forms can disagree about which position was evaluated or traded.  \VOLT{} defines the listed contracts and signed positions as the authoritative portfolio and derives payoff, runtime, compiler, and graph views from that object.  European, Bermudan, and American exercise share one exercise-opportunity representation; the runtime records exercise, assignment, expiry, cash, and delivered underlying as state transitions.  A deterministic graph connects each option position to its portfolio, underlying, and expiry while retaining hashes of the contract portfolio and expiration-payoff projection.  The \COG{} compiler resolves bounded semantic actions to listed contracts and emits aligned action nodes and legal masks.  This paper defines those financial semantics, identifies the equivalence represented by each derived view, and states the implemented boundary supplied to portfolio discovery and sequential control.
 \end{abstract}
 
+\SNtwocolumntableofcontents
+
 \section{Introduction}
+
+\begin{SNcolumns}
 
 The security master identifies the listed contract, the position service
 records quantity, the risk system attaches marks and sensitivities, the payoff
@@ -84,6 +65,9 @@ related ideas to derivative payouts and lifecycle events
 \cite{frankau2009,actus,cdm}.  \VOLT{} applies this separation of meaning and
 interpretation to listed-option portfolio search.
 
+\end{SNcolumns}
+
+\begin{SNcolumns}
 \section{Contracts, positions, and market state}
 \label{sec:portfolio}
 
@@ -134,6 +118,8 @@ grammar, point-in-time contract resolution, and several portfolio guards.
 Account capital, portfolio margin, and broker eligibility remain inputs from
 the application that owns the account.
 
+\end{SNcolumns}
+
 \section{Derived identities}
 \label{sec:identity}
 
@@ -159,6 +145,8 @@ Model features and their links to contract and payoff identities \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\begin{SNcolumns}
 
 \subsection{Expiration-payoff projection}
 
@@ -282,6 +270,8 @@ serialization:
 Replaying the same versioned contract definitions, initial state,
 observations, and actions reproduces the state and emission sequence.
 
+\end{SNcolumns}
+
 \section{Portfolio graph}
 \label{sec:graph}
 
@@ -386,6 +376,8 @@ event nodes remain extensions.  Each additional relation is measured against
 an order-invariant set model through prediction and ranking
 \cite{deepsets,relational}.
 
+\begin{SNcolumns}
+
 \section{Compiler and candidate actions}
 \label{sec:compiler}
 
@@ -414,8 +406,12 @@ matching listed contracts in stable order.
 
 The state/action graph combines:
 \[
-  (\text{portfolio graph},\text{runtime context},
-    \text{action nodes},\text{action edges},\text{legal mask}).
+  \left(
+  \begin{gathered}
+    \text{portfolio graph},\ \text{runtime context},\\
+    \text{action nodes},\ \text{action edges},\ \text{legal mask}
+  \end{gathered}
+  \right).
 \]
 Action edges identify the current portfolio, a targeted live position, or the
 underlying used by a proposed addition.  A learned policy scores these action
@@ -460,6 +456,8 @@ Decision-time features use observations available at \(t\).  Future
 observations on \(\Xi_t\) create outcomes.  Dataset records therefore retain
 event time, as-of time, source revision, visible contract universe, quote
 rule, exercise and assignment assumptions, and split membership.
+
+\end{SNcolumns}
 
 \section{Implemented boundary}
 \label{sec:implementation}
@@ -510,6 +508,8 @@ Executable historical quote adapters, account and margin policy, promotion of
 the research hedge-policy interface, richer account and action relations,
 strategy macros, and GPU lowering remain integration work.
 
+\begin{SNcolumns}
+
 \section{Validation}
 
 Semantic tests compare direct portfolio payoff with the hinge projection,
@@ -546,6 +546,8 @@ point-in-time action nodes and deterministic legal masks.  Path evaluation
 supplies supervised outcomes.  These records support the direct portfolio
 search developed in the discovery paper and the state/action interface used
 by sequential control.
+
+\end{SNcolumns}
 
 \begin{thebibliography}{9}
 

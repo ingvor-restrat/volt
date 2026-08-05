@@ -1,44 +1,21 @@
-\documentclass[8pt]{article}
+\documentclass{strategynet-journal}
 
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
-\usepackage{mathpazo}
-\usepackage[scaled]{helvet}
-\usepackage{microtype}
-\usepackage[letterpaper,margin=1in]{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{enumitem}
-\usepackage{float}
-\usepackage{graphicx}
 \usepackage{pgfplots}
-\usepackage{xurl}
-\usepackage{hyperref}
 
 \pgfplotsset{compat=1.18}
 
 \hypersetup{
   pdftitle={Volt: Searching the Option Strategy Space},
-  pdfauthor={research@strategynet.ai},
-  colorlinks=true,
-  linkcolor=blue!50!black,
-  citecolor=blue!50!black,
-  urlcolor=blue!60!black
+  pdfauthor={research@strategynet.ai}
 }
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0.55em}
-\setlist{nosep}
 
 \newcommand{\VOLT}{\textsf{Volt}}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\Z}{\mathbb{Z}}
 
+\SNHeader{strategynet.ai:Volt}
 \title{\VOLT{}: Searching the Option Strategy Space}
-\author{research@strategynet.ai}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
 \date{July 2026}
 
 \begin{document}
@@ -47,6 +24,8 @@
 \begin{abstract}
 An option chain supports many more portfolios than the named templates usually used to search it.  Direct construction from listed contracts makes that wider space available.  American marks, exercise, assignment, and pathwise Greeks are costly, but portfolios sharing the same contracts can reuse those leg calculations; direct enumeration is then a strong baseline.  \VOLT{} trains order-invariant surrogates only where the remaining candidate or sequential evaluation cost may justify them.  Deep Sets supplies the set baseline; a parameter-matched typed graph network consumes the exported portfolio, position, underlying, and expiry relations.  This paper specifies the financial assumptions, mathematical formulation, and empirical criterion: recovery of high-ranked portfolios after all shared computation is separated from portfolio-specific work.  QUBO batch selection and sequential policy learning follow as separate experiments.
 \end{abstract}
+
+\SNtwocolumntableofcontents
 
 \section{Introduction}
 
@@ -150,6 +129,8 @@ management is discussed separately in Section~\ref{sec:control}.
 \section{Trading and derivatives setting}
 \label{sec:trading}
 
+\begin{SNcolumns}
+
 \subsection{Portfolio construction and strategy management}
 
 An entry portfolio specifies the contracts and signed quantities held at the
@@ -249,6 +230,8 @@ supplied assignment schedule.  The experiment therefore records:
 Least-squares Monte Carlo is one established approach to estimating
 continuation values for American options \cite{longstaffschwartz}.  It is one
 optional valuation component of the search method.
+
+\end{SNcolumns}
 
 \section{Mathematical formulation}
 \label{sec:math}
@@ -469,6 +452,8 @@ scores, selection rule, path cohort, financial assumptions, and results.
 \section{Empirical design}
 \label{sec:experiment}
 
+\begin{SNcolumns}
+
 \subsection{Initial study}
 
 The initial study uses listed American-style options on one underlying.  The
@@ -515,6 +500,8 @@ constraints, path source, pricing and quote rules, exercise and assignment
 rules, execution assumptions, target definition, model version, random seeds,
 and selection history.  Altering any of these inputs creates another experiment
 record while the portfolio quantity vector remains available for comparison.
+
+\end{SNcolumns}
 
 \section{Pilot integration results}
 \label{sec:pilot}
@@ -836,6 +823,8 @@ fields.  An LLM explanation is required to bind every numerical claim to the
 packet and to reserve claims about execution, causal event attribution,
 robustness, and innovation for the corresponding evidence.
 
+\begin{SNcolumns}
+
 \section{Current implementation}
 \label{sec:implementation}
 
@@ -938,6 +927,8 @@ separately.  Direct enumeration wins the present compute comparison, and the
 chronological development cohort recovers no exact optimum.  Graph structure,
 sequential management, and QUBO allocation therefore remain controlled
 extensions rather than established performance improvements.
+
+\end{SNcolumns}
 
 \begin{thebibliography}{9}
 
