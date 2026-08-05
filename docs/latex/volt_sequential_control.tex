@@ -121,7 +121,7 @@ Runtime lifecycle actions are \texttt{Hold}, \texttt{Close},
 \texttt{Exercise}, \texttt{Assign}, and \texttt{Expire}.  Assignment and
 expiry enter as external or system events.  A roll is represented by a
 multi-step close and addition plan; take-profit, stop, hedge, and roll
-instructions require a planning layer that emits those primitive actions.
+instructions require a planner that emits those primitive actions.
 
 Semantic actions resolve at the decision clock.  A request for a call in a
 tenor and delta bucket uses the contract universe and observations visible at
@@ -161,7 +161,7 @@ One transition can produce the financial vector
   \end{gathered}
   \right).
 \]
-The current scenario layer supplies fills, costs, journals, marked pathwise
+The current scenario evaluator supplies fills, costs, journals, marked pathwise
 P\&L, leg attribution, and terminal P\&L.  Drawdown, capital, turnover, and
 constraint-event measures require named account and risk components.
 
@@ -309,10 +309,10 @@ representation can depend on the particular position to which it applies.
 The final state representation joins the updated portfolio node, account
 node, and a pooled state summary \cite{relational}.
 
-Deep Sets is not a graph neural network in the usual architectural sense
-because it does not consume \(E_t\) or relation types.  It can be described as
-aggregation through a virtual global node, but that interpretation does not
-give it local or relation-specific message passing.  Conversely, both models
+Deep Sets is a permutation-invariant set model: it consumes neither \(E_t\) nor
+relation types.  Aggregation through a virtual global node provides a useful
+analogy, although its global pooling supplies no local or relation-specific
+message passing.  Both models
 are permutation invariant at readout, and both can score a variable number of
 legal actions.  The compiler constrains the contract and action universe and
 the runtime mask removes illegal actions before either model is trained; this
@@ -376,7 +376,7 @@ is interpreted.
   \label{fig:rl-loop}
 \end{figure}
 
-Figure~\ref{fig:rl-loop} makes the feedback boundary explicit.  Collection
+Figure~\ref{fig:rl-loop} makes the feedback loop explicit.  Collection
 workers use one frozen checkpoint for an epoch, run independent path
 environments, and write immutable trajectory fragments.  A deterministic
 merge orders fragments by stable identifiers before optimization.
@@ -504,7 +504,7 @@ limits, exact action nodes, and the composed point-in-time legal mask.
 
 A static research driver now supplies generated cohorts, American CRR marks,
 fixed exercise and assignment decisions, invariant portfolio tensors, and
-evidence packets.  Its fixed-horizon layer compares unhedged, scheduled
+evidence packets.  Its fixed-horizon module compares unhedged, scheduled
 delta-hedged, and delta-band policies with reconciled P\&L attribution,
 turnover, costs, drawdown, and exercise events.  These rules establish the
 first management baselines.  Deep Sets and a parameter-matched typed graph
@@ -517,8 +517,8 @@ action schedules back through the \VOLT{} simulator and runtime journal.
 
 \subsection{Generated runtime-graph benchmark}
 
-The first richer-state experiment is a supervised action-ranking check rather
-than a policy-return experiment.  Each of three seeds generates 120 states
+The first richer-state experiment evaluates supervised action ranking.  Policy
+returns require a separate temporal experiment.  Each of three seeds generates 120 states
 from twelve American contracts: calls and puts at three strikes and two
 expiries.  A state contains live and completed option lifecycles, cash,
 underlying inventory, account limits, and approximately 68 compiler action
@@ -575,11 +575,11 @@ generated episodes opens one long American call or put on day zero.  The
 policy may hold or close on days 5, 10, 15, 20, 25, and 30; every position is
 closed before its day-35 expiry.  The restricted action set excludes voluntary
 exercise and contains no short position subject to assignment.  These are
-stage-specific controls, not changes to the American contract definition.
+stage-specific controls.  The American contract definition remains unchanged.
 
 Latent physical drift and volatility generate the underlying path.  The
 policy observes the point-in-time graph, trailing return, and realized
-volatility, but not the latent labels.  American lattice values supply
+volatility.  Latent labels remain hidden from the policy.  American lattice values supply
 generated proxy marks.  Episode assignment occurs before graph construction,
 with 117 training, 27 validation, and 36 test paths.  One-shot training uses
 realized full-path action targets; 80 actor--critic epochs then use ordered
@@ -609,7 +609,7 @@ Clairvoyant bound & \(335.17\) & \(191.40\) & \(-147.57\) & \(117.45\) & \(17.64
 the mean of the worst ten percent of terminal outcomes; Score is (1).
 The seed was observed before (1) was fixed and supplies no prospective
 performance test.  The clairvoyant row uses the complete future path and is
-not an admissible trading policy.}
+included only as an upper bound.}
 \label{tab:hold-close-control}
 \end{table}
 
@@ -649,8 +649,8 @@ The selected policy's score is \(111.76\) dollars below close-first.  A paired
 10,000-sample episode bootstrap gives a 95\% interval of
 \([-199.19,-24.79]\) dollars for its improvement over the stronger rule.
 The claim gate fails, and all three per-seed gates also fail.  The experiment
-therefore establishes a working temporal learner and an adverse generated
-control result, not a trading advantage.
+therefore establishes a working temporal learner and records adverse generated
+control performance.  It provides no evidence of a trading advantage.
 
 The Deep Sets policy has 8,123 parameters, trains in 8.49 seconds, and scores
 292,789 states per second on the recorded single-thread CPU run.  The typed

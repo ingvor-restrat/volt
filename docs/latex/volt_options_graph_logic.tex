@@ -22,7 +22,7 @@
 \maketitle
 
 \begin{abstract}
-An option portfolio appears in several operational forms: listed contracts and quantities, an expiration payoff, live exercise and assignment state, executions and cash movements, and model features.  Independent implementations of these forms can disagree about which position was evaluated or traded.  \VOLT{} defines the listed contracts and signed positions as the authoritative portfolio and derives payoff, runtime, compiler, and graph views from that object.  European, Bermudan, and American exercise share one exercise-opportunity representation; the runtime records exercise, assignment, expiry, cash, and delivered underlying as state transitions.  A deterministic graph connects each option position to its portfolio, underlying, and expiry while retaining hashes of the contract portfolio and expiration-payoff projection.  The \COG{} compiler resolves bounded semantic actions to listed contracts and emits aligned action nodes and legal masks.  This paper defines those financial semantics, identifies the equivalence represented by each derived view, and states the implemented boundary supplied to portfolio discovery and sequential control.
+An option portfolio appears in several operational forms: listed contracts and quantities, an expiration payoff, live exercise and assignment state, executions and cash movements, and model features.  Independent implementations of these forms can disagree about which position was evaluated or traded.  \VOLT{} defines the listed contracts and signed positions as the authoritative portfolio and derives payoff, runtime, compiler, and graph views from that object.  European, Bermudan, and American exercise share one exercise-opportunity representation; the runtime records exercise, assignment, expiry, cash, and delivered underlying as state transitions.  A deterministic graph connects each option position to its portfolio, underlying, and expiry while retaining hashes of the contract portfolio and expiration-payoff projection.  The \COG{} compiler resolves bounded semantic actions to listed contracts and emits aligned action nodes and legal masks.  This paper defines those financial semantics, identifies the equivalence represented by each derived view, and states the functions currently available to portfolio discovery and sequential control.
 \end{abstract}
 
 \SNtwocolumntableofcontents
@@ -433,7 +433,7 @@ portfolio, applies the declared fill and cost rules, advances lifecycle
 actions through the runtime, and records pathwise and terminal P\&L with leg
 attribution.
 
-Two implemented fill conventions establish an explicit execution boundary.
+Two implemented fill conventions distinguish synthetic marks from executable quotes.
 \texttt{DeclaredMark} uses the supplied mark as a synthetic fill.
 \texttt{CrossAtTouch} buys at the ask and sells at the bid, and requires the
 corresponding quote side.  Historical or generated research must additionally
@@ -459,7 +459,7 @@ rule, exercise and assignment assumptions, and split membership.
 
 \end{SNcolumns}
 
-\section{Implemented boundary}
+\section{Implemented scope}
 \label{sec:implementation}
 
 \begin{center}

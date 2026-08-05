@@ -100,7 +100,7 @@ the Strait of Hormuz.  The first listed-market response came on Monday,
 of roughly seven million barrels per day of regional production at risk
 \cite{strategynet-conflict,ap-conflict}.
 
-The market response was concentrated rather than uniform.  USO rose from
+The market response varied sharply across assets.  USO rose from
 \(81.93\) on 27 February to \(119.84\) on 13 March.  The cross-sectional
 dispersion of the equity volatility score rose \(27\%\) through 9 March,
 while its mean declined.  The 10-day price-momentum mean initially rose from
@@ -157,8 +157,9 @@ The option-cost assumption is \(0.65\) dollars per contract side.  The
 delta-hedged study also charges one basis point for underlying trades.
 Results are reported in option-price units per share; multiplying by the
 contract multiplier converts one unit of quantity to dollars.  The marks do
-not reconstruct a fill at the bid or offer, so the reported replay is a
-marked implementation study rather than an executable fill record.
+not reconstruct a fill at the bid or offer.  The reported replay is therefore
+a marked implementation study; executable-fill evidence would require bid and
+offer observations.
 
 \begin{table}[H]
 \centering
@@ -238,8 +239,8 @@ terminal IV multiplier \(0.85\) &
 terminal IV multiplier \(1.25\) \\
 \bottomrule
 \end{tabular}
-\caption{Declared forecast inputs.  They are decision assumptions, not
-parameters estimated from the subsequent event path.}
+\caption{Declared forecast inputs, fixed as decision assumptions before the
+subsequent event path.}
 \label{tab:forecast-inputs}
 \end{table}
 
@@ -262,7 +263,7 @@ from \(0.45\) to \(1.60\) times the median entry IV, with the event-study
 target inserted into the grid.  Each target has 64 generated paths.  The
 option position is delta-hedged at every daily observation.  The target
 levels share the same standardized spot shocks, so movement across the scan
-comes from the volatility assumption rather than a new Monte Carlo sample.
+isolates the effect of the volatility assumption from Monte Carlo sampling.
 
 This setup gives ``rich'' and ``cheap'' precise meanings.  A target below the
 entry IV treats the options as rich relative to the forecast; a target above
@@ -286,8 +287,8 @@ The path evaluator supplies four labels for each portfolio:
     \Pr(P>0)
   \right).
 \]
-The learned models estimate these labels.  Utility is calculated from the
-first two predicted components; it is not a separate training target.
+The learned models estimate these labels.  After prediction, the first two
+components determine utility; training uses the component labels directly.
 
 For Deep Sets \cite{deepsets}, each active option leg has a 14-element feature
 vector containing signed quantity, call/put, log moneyness, mark divided by
@@ -455,8 +456,8 @@ The pure escalation outcome selects
 The call vertical supplies capped upside.  The short \(80\) put and long
 \(76\) put contribute premium and bounded downside.  Entry delta is
 \(0.2274\), gamma \(0.000073\), daily theta \(0.0332\), and vega
-\(-0.0126\) per point.  This is primarily a directional structure rather
-than a long-volatility position.
+\(-0.0126\) per point.  The structure's main exposure is directional, with
+negative entry vega.
 
 \begin{figure}[H]
   \centering

@@ -21,11 +21,19 @@ artifacts/
 
 # LaTeX intermediates (keep source and rendered PDFs)
 *.aux
+*.bbl
+*.bcf
+*.blg
 *.fdb_latexmk
 *.fls
+*.lof
 *.log
+*.lot
 *.out
+*.run.xml
+*.synctex.gz
 *.toc
+*.xdv
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

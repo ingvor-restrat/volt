@@ -520,7 +520,8 @@ holder exercise decisions; the same decisions generate short assignment.
 The target contains mean P\&L, lower-tail mean, P\&L standard deviation, and
 profit probability.  Utility is mean P\&L plus one quarter of the lower-tail
 mean.  The model sees 20\% of the exhaustive labels initially and acquires
-another 10\%, using 205,312 candidate--path evaluations instead of 683,520.
+another 10\%.  This requires 205,312 candidate--path evaluations, versus
+683,520 for exhaustive evaluation.
 
 On the remaining candidates, Deep Sets attains Spearman rank correlation
 \(0.972\), recovers all of the exhaustive top 20 after acquisition, and finds
@@ -530,7 +531,7 @@ features attains \(0.386\) rank correlation and recovers 18 of the top 20.
 The selected generated portfolio is long one \(105\) call and long one
 \(110\) call.  It has
 no exact match in the deliberately small reference catalogue used by the
-explanation layer.  That observation identifies a candidate for further
+explanation generator.  That observation identifies a candidate for further
 comparison; it supplies no novelty or robustness result.
 
 Across three candidate-split and initialization seeds on the same generated
@@ -545,7 +546,7 @@ six puts nearest spot pass the declared volume, transaction-count, intrinsic
 value, and American implied-volatility filters.  A 512-path cohort uses the
 eight validated daily observation times and the median selected-contract
 implied volatility.  The 22 July equity partition is absent and is recorded in
-the manifest rather than imputed.
+the manifest; no imputation is applied.
 
 Deep Sets reaches rank correlation \(0.996\), full top-20 recovery, and zero
 simple regret under the generated cohort.  The typed graph network reaches
@@ -795,9 +796,9 @@ marks, and contract-leg compilation.  Aggregating \(4{,}000\) daily-hedged
 portfolios then takes \(0.152\) seconds.  A Deep Sets search with a \(30\%\)
 label budget takes \(1.145\) seconds after the common work; the relation GNN
 takes \(13.763\) seconds.  Their rank correlations are \(0.9945\) and
-\(0.9920\), but neither is faster than direct enumeration.  The optimum is
-already in the initial evaluated sample, so zero regret is not credited to
-acquisition.
+\(0.9920\), but neither is faster than direct enumeration.  Because the optimum
+is already in the initial evaluated sample, the acquisition step receives no
+credit for the zero-regret result.
 
 The first three-date event transfer is also a development result.  The GNN
 has mean final-date rank correlations \(0.7486\) for the tariff state and
@@ -807,9 +808,9 @@ the corrected preprocessing is now locked and requires a new date for a
 prospective test.
 
 Validated NYMEX session data supplies contemporaneous CL, RB, and BZ evidence
-for the July energy checks.  This evidence is constant across candidates in
-one decision state, so it is recorded for explanation and future multi-date
-conditioning rather than credited with the within-state ranking.  The
+for the July energy checks.  Within a decision state this evidence is constant
+across candidates.  It supports explanation and future multi-date conditioning
+but cannot explain the within-state ranking.  The
 available research inventory contains outright futures and no identified
 options-on-futures series.  Futures options would require contract,
 exercise, delivery, margin, and settlement semantics beyond the current
@@ -833,7 +834,7 @@ needed by this formulation.  Contracts carry European, Bermudan, or American
 exercise schedules.  Position netting converts repeated positions into a
 single quantity per contract.  The runtime handles close, exercise,
 assignment, expiry, cash, delivered underlying, and journaled state changes.
-The market-data layer gives historical and generated option observations a
+The market-data component gives historical and generated option observations a
 shared versioned interface with declared price authority.  Scenario paths
 retain ordered points, source identity, and reproducibility seeds.
 The scenario evaluator consumes supplied option marks or quotes and reports
@@ -849,12 +850,12 @@ fixed exercise and assignment policies, constrained candidate enumeration,
 reusable contract-leg compilation, path-target aggregation, Deep Sets, typed graph, and ridge models, one
 batch-acquisition step, market-data adapters, and evidence packets.  The graph
 model consumes Volt nodes and typed edges and saves a transferable
-portfolio--state embedding.  The management layer adds
+portfolio--state embedding.  The management implementation adds
 fixed-horizon option closes, unhedged and delta-hedged policies, self-financing
 hedge accounting, full P\&L attribution, path and distribution risk measures,
 higher-order entry Greeks, and stress surfaces.
 
-The runtime research driver extends this boundary to multiple expiries, cash,
+The runtime research driver extends the current implementation to multiple expiries, cash,
 delivered underlying, completed option lifecycles, account limits, compiler
 action nodes, and a composed legal mask.  It trains state-relative action
 scorers and records graph construction, path evaluation, training, and
@@ -886,7 +887,7 @@ assignment, and inventory change the state.  Its data consist of
 state--action--reward trajectories.
 
 The \VOLT{} state/action graph and legal-action mask provide part of that
-environment boundary.  A reinforcement-learning study additionally requires a
+environment interface.  A reinforcement-learning study additionally requires a
 reward definition, transition scheduler, trajectory store, policy and value
 models, and out-of-time policy evaluation.  The set or graph encoder developed
 for static portfolios may initialize the policy representation, while control
@@ -925,8 +926,8 @@ The current experiments compare Deep Sets with conventional portfolio models,
 measure ranking quality, and charge shared and candidate-specific computation
 separately.  Direct enumeration wins the present compute comparison, and the
 chronological development cohort recovers no exact optimum.  Graph structure,
-sequential management, and QUBO allocation therefore remain controlled
-extensions rather than established performance improvements.
+sequential management, and QUBO allocation show no performance benefit in the
+current evidence.
 
 \end{SNcolumns}
 
