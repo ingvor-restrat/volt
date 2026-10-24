@@ -93,6 +93,26 @@ baselines and retains the exact portfolio/payoff hashes with every embedding.
 See [Supervised graph learning](docs/supervised-gnn.md) for the semantic
 boundary, evaluation policy, and route to reinforcement learning.
 
+## Optional Rust compute
+
+The [Volt Compute companion package](crates/volt-compute/README.md) provides native
+CPU, Metal, and CUDA numerical execution, memory admission, matrix operations,
+European option valuation, and a validated portfolio/market adapter. It builds
+with the repository's pinned Rust 1.99.1 toolchain in a shared Cargo workspace
+and leaves the core package dependencies unchanged. It also provides
+Black–Scholes AAD Greeks and spot gamma, GBM Monte Carlo risk, Heston Fourier risk, time-stepped markets, native Deep Hedging
+training/checkpoint/resume, and exact integer hedge reconciliation. Matched
+benchmarks compare learned, genuine model and no-hedge strategies on identical
+held-out paths. Heston path integration is a declared approximation; paper
+replication has not been established. The companion README documents commands,
+assumptions and the adaptive CPU-f64 Heston baseline.
+
+See [training on a compute host](docs/compute-training.md) for checkout, CPU/CUDA
+builds, background training, resume and held-out evaluation.
+
+Run `cargo test --release --locked --workspace` to test both crates. Plain
+`cargo test` selects the core; GPU support is enabled explicitly in `volt-compute`.
+
 ## Core model
 
 ```rust

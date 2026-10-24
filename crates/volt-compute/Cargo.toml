@@ -1,0 +1,31 @@
+[package]
+name = "volt-compute"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99.1"
+publish = false
+license = "Apache-2.0"
+description = "Native CPU, Metal, and CUDA numerical execution for Volt portfolios"
+repository = "https://github.com/ingvor-restrat/volt"
+readme = "README.md"
+default-run = "volt-compute"
+
+[features]
+default = []
+metal = ["burn/metal"]
+cuda = ["burn/cuda", "dep:cubecl", "dep:cubek"]
+fusion = ["burn/fusion"]
+
+[dependencies]
+burn = { version = "=0.22.1", default-features = false, features = ["std", "flex", "autodiff"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+thiserror = "2"
+libm = "0.2"
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+# CubeCL's LLVM erf polyfill is a single-precision approximation even for f64.
+# The CUDA C++ compiler uses native CUDA math functions for the required accuracy.
+cubecl = { version = "=0.11.3", default-features = false, features = ["cuda-cpp"], optional = true }
+cubek = { version = "=0.3.1", default-features = false, features = ["std", "stdlib", "matmul", "matmul-multi-level"], optional = true }
+volt = { package = "volt-options", path = "../..", version = "=0.1.4" }

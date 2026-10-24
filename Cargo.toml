@@ -2,18 +2,23 @@
 name = "volt-options"
 version = "0.1.4"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.99.1"
 description = "Typed, canonical, executable options portfolio logic"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/ingvor-restrat/volt"
 keywords = ["derivatives", "options", "portfolio", "simulation"]
 categories = ["algorithms", "simulation"]
-exclude = ["docs/latex/", "docs/markup/"]
+exclude = ["docs/latex/", "docs/markup/", "crates/volt-compute/"]
 
 [lib]
 name = "volt"
 path = "src/lib.rs"
+
+[workspace]
+resolver = "2"
+members = ["crates/volt-compute"]
+default-members = ["."]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

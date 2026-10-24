@@ -1,0 +1,38 @@
+//! Numerical execution, pricing, risk, and hedge accounting infrastructure for Volt.
+pub mod aad;
+pub mod aad_job;
+pub mod benchmark;
+pub mod budget;
+pub mod chunked;
+pub mod hedge_application;
+pub mod hedge_band;
+pub mod hedge_benchmark;
+pub mod hedge_ledger;
+pub mod hedge_policy;
+pub mod hedge_reconciliation;
+pub mod hedge_training;
+pub mod heston;
+pub mod heston_adaptive;
+pub mod heston_job;
+pub mod heston_validation;
+pub mod job;
+pub mod market_path_diagnostics;
+pub mod market_path_resolution;
+pub mod market_paths;
+pub mod matrix;
+pub mod matrix_workload;
+pub mod model_hedge;
+pub mod monte_carlo;
+pub mod monte_carlo_job;
+pub mod monte_carlo_validation;
+pub mod persistent;
+pub mod persistent_workload;
+pub mod pricing;
+pub mod risk_objective;
+pub mod runtime;
+pub mod second_order;
+pub mod volt_adapter;
+
+pub use matrix::ResidentMatrix;
+pub use pricing::{OptionRow, OptionSide, ResidentOptions, reference_price};
+pub use runtime::{ComputeError, ExecutionTarget, Precision, Session};
