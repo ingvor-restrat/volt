@@ -400,3 +400,83 @@ fn small_entropic_scale_keeps_mean_limit_and_nonzero_gradients() {
         }
     }
 }
+
+#[test]
+fn equivalent_call_plus_put_and_straddle_payoffs_have_identical_pnl_risk_and_gradient() {
+    for precision in precisions() {
+        let session = Session::new(target(), precision, 8).unwrap();
+        let mut straddle = paths();
+        let strike = 101.5;
+        let terminals = [102.0, 101.0];
+        straddle.payoffs = terminals
+            .iter()
+            .map(|s| HedgeLiability::Straddle { strike }.payoff(*s).unwrap())
+            .collect();
+        let mut composed = straddle.clone();
+        composed.payoffs = terminals
+            .iter()
+            .map(|s| {
+                HedgeLiability::Call { strike }.payoff(*s).unwrap()
+                    + HedgeLiability::Put { strike }.payoff(*s).unwrap()
+            })
+            .collect();
+        composed.source_hash = "two-contracts-same-aggregate-terminal-liability".into();
+        assert_eq!(straddle.payoffs, composed.payoffs);
+        let mut snapshot = HedgePolicy::new(&session, config(), 9)
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        for (i, p) in snapshot.parameters.iter_mut().enumerate() {
+            p.values.fill(match i % 10 {
+                0 | 4 | 8 => 0.2,
+                2 | 6 => 1.0,
+                _ => 0.3,
+            });
+        }
+        for objective in [
+            RiskObjective::SquaredLoss,
+            RiskObjective::Entropic { risk_aversion: 0.7 },
+            RiskObjective::Cvar { alpha: 0.5 },
+        ] {
+            let run = |batch: &HedgePathBatch| {
+                let mut policy = HedgePolicy::from_snapshot(&session, snapshot.clone()).unwrap();
+                let leaf = policy.parameters()[0].clone();
+                let rollout = policy_rollout(
+                    &session,
+                    &PreparedHedgePaths::upload(&session, batch).unwrap(),
+                    &mut policy,
+                    HedgeCostConfig {
+                        proportional: 0.001,
+                        terminal_proportional: 0.002,
+                    },
+                    5.0,
+                    true,
+                    false,
+                )
+                .unwrap();
+                let pnl = read(rollout.pnl.clone());
+                let costs = read(rollout.costs);
+                let loss = tensor_risk(
+                    rollout.pnl,
+                    objective,
+                    Some(vector(&session, vec![-1000.0]).autodiff().require_grad()),
+                )
+                .unwrap();
+                let value = read(loss.clone());
+                let grad = leaf
+                    .grad(&loss.backward())
+                    .unwrap()
+                    .try_to_vec_as::<f64>()
+                    .unwrap();
+                (pnl, costs, value, grad)
+            };
+            let direct = run(&straddle);
+            let equivalent = run(&composed);
+            assert_eq!(direct, equivalent);
+            assert!(
+                direct.3.iter().any(|x| x.abs() > 1e-6),
+                "nonzero comparison gradient required: {objective:?}"
+            );
+        }
+    }
+}

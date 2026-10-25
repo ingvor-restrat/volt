@@ -51,6 +51,54 @@ Small date-specific networks at batch 256 can train faster on CPU than GPU:
 dispatch and synchronization can dominate. Matrices, pricing and larger batches
 are different workloads; measure the actual workload.
 
+## European liabilities and the trained policy
+
+The JSON `liability` field describes the terminal amount owed by the option
+seller. In addition to a call, the application supports a put or a same-strike,
+same-expiry straddle:
+
+~~~json
+{"kind": "put", "strike": 100.0}
+~~~
+
+~~~json
+{"kind": "straddle", "strike": 100.0}
+~~~
+
+The straddle owes `abs(terminal_spot - strike)`, equal to the sum of the call
+and put payoffs. Values and holdings are per underlying unit in this application.
+The liability is subtracted once from terminal trading wealth. A positive
+liability describes a short option position; a long straddle requires the
+opposite option exposure and an appropriate hedge, rather than negating fees.
+The maturity is the configured market horizon. The current path-accounting
+adapter requires zero rates and dividend yield and supports European exercise.
+
+Set `premium_for_comparison` for the selected payoff and units. Changing the
+liability while retaining a call's premium gives an incorrect comparison;
+squared-loss training also uses that premium in its objective. The model
+benchmark supplies the corresponding put or straddle hedge. At zero carry,
+put-call parity gives put value `C - S + K` and straddle value `2*C - S + K`.
+Stock hedge holdings are respectively `delta_call - 1` and `2*delta_call - 1`;
+variance-claim holdings are respectively one and two times the call's. Fees are
+calculated from actual resulting trades, so straddle costs are not generally
+twice call-hedge costs. Checked baseline caches reuse call components, with the
+requested liability bound to the composed result. Source changes intentionally
+change the numerical-engine cache identity; use a new build's cache namespace.
+
+A fitted policy responds to market states and, when recurrence is enabled,
+current hedge inventory. It does not require training after every price move or
+trade. The liability, market law, cost assumptions and objective are fixed for
+that training run; this is not yet a policy conditioned on arbitrary portfolios.
+No analytic hedge is supplied as a training label: simulated terminal liability
+and after-cost trading gains determine the loss that is differentiated.
+
+Two portfolio constructions with identical pathwise cashflows have the same
+training objective when premium, hedging instruments, costs and constraints
+also agree. Matching today's price or Greeks alone is insufficient. Contract
+identity still determines settlement, funding and execution requirements.
+Checkpoint resume requires the original configuration: mathematical equivalence
+does not authorize editing a checkpoint's recorded liability or provenance.
+
 ## Frozen studies, background execution and resume
 
 A complete HedgeTrainingConfig JSON fixes dynamics, integration, objectives,

@@ -15,14 +15,30 @@ use sha2::{Digest, Sha256};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum HedgeLiability {
-    Call { strike: f64 },
-    NormalizedCallSpread { lower: f64, upper: f64 },
+    Call {
+        strike: f64,
+    },
+    Put {
+        strike: f64,
+    },
+    /// One European call plus one European put, with the same strike/expiry.
+    Straddle {
+        strike: f64,
+    },
+    NormalizedCallSpread {
+        lower: f64,
+        upper: f64,
+    },
     None,
 }
 impl HedgeLiability {
     pub fn payoff(&self, spot: f64) -> Result<f64, ComputeError> {
         let value = match *self {
             Self::Call { strike } if strike.is_finite() && strike > 0.0 => (spot - strike).max(0.0),
+            Self::Put { strike } if strike.is_finite() && strike > 0.0 => (strike - spot).max(0.0),
+            Self::Straddle { strike } if strike.is_finite() && strike > 0.0 => {
+                (spot - strike).abs()
+            }
             Self::NormalizedCallSpread { lower, upper }
                 if lower.is_finite() && upper.is_finite() && lower > 0.0 && upper > lower =>
             {

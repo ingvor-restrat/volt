@@ -495,14 +495,16 @@ fn rejects_unresolved_quadrature_budgets_or_unsupported_models_without_proxy() {
 }
 
 struct CacheTemp(std::path::PathBuf);
+static NEXT_CACHE_TEMP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 impl CacheTemp {
     fn new() -> Self {
+        let unique = NEXT_CACHE_TEMP.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
         let p = std::env::temp_dir().join(format!(
-            "volt-baseline-cache-{}-{nonce}",
+            "volt-baseline-cache-{}-{nonce}-{unique}",
             std::process::id()
         ));
         Self(p)
@@ -752,4 +754,348 @@ fn cached_heston_components_preserve_stock_and_variance_claim_columns() {
     for (a, b) in cached.holdings.iter().zip(direct.holdings) {
         close(*a, b, 1e-11);
     }
+}
+
+#[test]
+fn european_put_and_straddle_match_independent_bs_formulas_and_payoff_units() {
+    let market = generate_paths(&bs(0.2)).unwrap();
+    let normal = |x: f64| 0.5 * libm::erfc(-x / 2.0_f64.sqrt());
+    for strike in [80.0_f64, 100.0, 120.0] {
+        let d1 = ((100.0 / strike).ln() + 0.02) / 0.2;
+        let d2 = d1 - 0.2;
+        // Direct put formula, independently evaluated rather than call parity.
+        let price = strike * normal(-d2) - 100.0 * normal(-d1);
+        let delta = -normal(-d1);
+        let put = model_hedge_holdings(
+            std::slice::from_ref(&market),
+            HedgeLiability::Put { strike },
+            &config(),
+        )
+        .unwrap();
+        let straddle = model_hedge_holdings(
+            std::slice::from_ref(&market),
+            HedgeLiability::Straddle { strike },
+            &config(),
+        )
+        .unwrap();
+        let call_price = 100.0 * normal(d1) - strike * normal(d2);
+        for path in 0..2 {
+            close(put.initial_model_prices[path], price, 5e-14);
+            close(put.holdings[path], delta, 5e-15);
+            close(
+                straddle.initial_model_prices[path],
+                price + call_price,
+                8e-14,
+            );
+            close(straddle.holdings[path], normal(d1) + delta, 8e-15);
+        }
+        for spot in [1.0, 80.0, 100.0, 120.0, 1e6] {
+            let call = HedgeLiability::Call { strike }.payoff(spot).unwrap();
+            let put = HedgeLiability::Put { strike }.payoff(spot).unwrap();
+            close(
+                HedgeLiability::Straddle { strike }.payoff(spot).unwrap(),
+                call + put,
+                0.0,
+            );
+        }
+    }
+    // A nearly worthless put inherits call absolute error: no clipping or
+    // assertion of tight relative put accuracy is appropriate at this boundary.
+    let put =
+        model_hedge_holdings(&[market], HedgeLiability::Put { strike: 1.0 }, &config()).unwrap();
+    assert!(
+        put.initial_model_prices
+            .iter()
+            .all(|x| x.is_finite() && *x >= -1e-12)
+    );
+    for liability in [
+        HedgeLiability::Put { strike: 0.0 },
+        HedgeLiability::Straddle { strike: f64::NAN },
+    ] {
+        assert!(liability.payoff(100.0).is_err());
+    }
+}
+
+#[test]
+fn heston_put_and_straddle_parity_preserves_stock_and_funded_variance_risk() {
+    let market = generate_paths(&lewis()).unwrap();
+    for method in [
+        HestonBaselineMethod::DeviceFourier,
+        HestonBaselineMethod::AdaptiveScalar,
+    ] {
+        let cfg = ModelHedgeConfig {
+            heston_method: method,
+            ..config()
+        };
+        let call = model_hedge_holdings(
+            std::slice::from_ref(&market),
+            HedgeLiability::Call { strike: 100.0 },
+            &cfg,
+        )
+        .unwrap();
+        for (liability, weight) in [
+            (HedgeLiability::Put { strike: 100.0 }, 1.0),
+            (HedgeLiability::Straddle { strike: 100.0 }, 2.0),
+        ] {
+            let result =
+                model_hedge_holdings(std::slice::from_ref(&market), liability, &cfg).unwrap();
+            for path in 0..2 {
+                close(
+                    result.initial_model_prices[path],
+                    weight * 16.844899754126864,
+                    4e-7,
+                );
+                close(
+                    result.holdings[path * 2],
+                    weight * 0.6210009625614118 - 1.0,
+                    4e-7,
+                );
+                close(
+                    result.holdings[path * 2 + 1],
+                    weight * call.holdings[path * 2 + 1],
+                    1e-10,
+                );
+            }
+            assert_eq!(result.validation.pricing_jobs, call.validation.pricing_jobs);
+            assert!(result.validation.max_price_cutoff_difference <= cfg.tolerances.price_absolute);
+        }
+    }
+}
+
+#[test]
+fn parity_payoff_equivalence_drives_pnl_and_costs_use_actual_net_positions() {
+    let mut source = bs(0.2);
+    source.steps = 3;
+    source.dt = 1.0 / 3.0;
+    source.paths = 7;
+    let market = generate_paths(&source).unwrap();
+    let call_kind = HedgeLiability::Call { strike: 105.0 };
+    let call = model_hedge_holdings(std::slice::from_ref(&market), call_kind, &config()).unwrap();
+    let call_batch =
+        HedgePathBatch::from_markets(std::slice::from_ref(&market), call_kind).unwrap();
+    let call_rollout = scalar_hedge_pnl(
+        &call_batch,
+        &call.holdings,
+        HedgeCostConfig::default(),
+        call.initial_model_prices[0],
+    )
+    .unwrap();
+    for (liability, weight) in [
+        (HedgeLiability::Put { strike: 105.0 }, 1.0),
+        (HedgeLiability::Straddle { strike: 105.0 }, 2.0),
+    ] {
+        let result =
+            model_hedge_holdings(std::slice::from_ref(&market), liability, &config()).unwrap();
+        let batch = HedgePathBatch::from_markets(std::slice::from_ref(&market), liability).unwrap();
+        let free = scalar_hedge_pnl(
+            &batch,
+            &result.holdings,
+            HedgeCostConfig::default(),
+            result.initial_model_prices[0],
+        )
+        .unwrap();
+        let charged = scalar_hedge_pnl(
+            &batch,
+            &result.holdings,
+            HedgeCostConfig {
+                proportional: 0.003,
+                terminal_proportional: 0.007,
+            },
+            result.initial_model_prices[0],
+        )
+        .unwrap();
+        for path in 0..source.paths {
+            close(free.pnl[path], weight * call_rollout.pnl[path], 1e-13);
+            let start = path * source.steps;
+            let mut cost = 0.0;
+            let mut previous = 0.0;
+            for step in 0..source.steps {
+                let holding = result.holdings[start + step];
+                cost += 0.003 * (holding - previous).abs() * market.value(path, step, 0).unwrap();
+                previous = holding;
+            }
+            cost += 0.007 * previous.abs() * market.value(path, source.steps, 0).unwrap();
+            close(charged.costs[path], cost, 1e-13);
+            close(charged.pnl[path], free.pnl[path] - cost, 1e-13);
+        }
+        // Equivalent aggregate payoff with identical marks, opportunities and
+        // holdings produces identical objective inputs, independent of labels.
+        let mut equivalent = call_batch.clone();
+        equivalent.payoffs = (0..source.paths)
+            .map(|p| {
+                let spot = market.value(p, source.steps, 0).unwrap();
+                if weight == 1.0 {
+                    call_kind.payoff(spot).unwrap() - spot + 105.0
+                } else {
+                    call_kind.payoff(spot).unwrap()
+                        + HedgeLiability::Put { strike: 105.0 }.payoff(spot).unwrap()
+                }
+            })
+            .collect();
+        let same = scalar_hedge_pnl(
+            &equivalent,
+            &result.holdings,
+            HedgeCostConfig::default(),
+            result.initial_model_prices[0],
+        )
+        .unwrap();
+        for (a, b) in same.pnl.iter().zip(&free.pnl) {
+            close(*a, *b, 2e-14);
+        }
+    }
+}
+
+#[test]
+fn put_straddle_readonly_cache_reuses_calls_binds_manifest_and_refuses_wrong_strike() {
+    let temp = CacheTemp::new();
+    let mut cache = disk_cache(&temp);
+    for heston in [false, true] {
+        let market = generate_paths(&if heston { lewis() } else { bs(0.2) }).unwrap();
+        let cfg = ModelHedgeConfig {
+            heston_method: HestonBaselineMethod::AdaptiveScalar,
+            ..config()
+        };
+        cache.mode = BaselineCacheMode::ReadWrite;
+        let (call, access) = model_hedge_holdings_cached(
+            std::slice::from_ref(&market),
+            HedgeLiability::Call { strike: 105.0 },
+            &cfg,
+            Some(&cache),
+        )
+        .unwrap();
+        assert!(access.written);
+        cache.mode = BaselineCacheMode::ReadOnly;
+        let mut manifests = vec![access.key.unwrap()];
+        for (liability, weight) in [
+            (HedgeLiability::Put { strike: 105.0 }, 1.0),
+            (HedgeLiability::Straddle { strike: 105.0 }, 2.0),
+        ] {
+            let (cached, hit) = model_hedge_holdings_cached(
+                std::slice::from_ref(&market),
+                liability,
+                &cfg,
+                Some(&cache),
+            )
+            .unwrap();
+            let direct =
+                model_hedge_holdings(std::slice::from_ref(&market), liability, &cfg).unwrap();
+            assert!(hit.hit && !hit.written);
+            assert_eq!(hit.entry_hits, 1);
+            assert_eq!(hit.actual_function_evaluations, 0);
+            assert_eq!(cached.holdings, direct.holdings);
+            assert_eq!(cached.initial_model_prices, direct.initial_model_prices);
+            close(
+                cached.initial_model_prices[0],
+                weight * call.initial_model_prices[0] + 5.0,
+                0.0,
+            );
+            manifests.push(hit.key.unwrap());
+        }
+        assert!(
+            manifests
+                .iter()
+                .enumerate()
+                .all(|(i, a)| manifests.iter().skip(i + 1).all(|b| a != b))
+        );
+        assert!(
+            model_hedge_holdings_cached(
+                std::slice::from_ref(&market),
+                HedgeLiability::Put { strike: 101.0 },
+                &cfg,
+                Some(&cache)
+            )
+            .is_err()
+        );
+        assert!(
+            model_hedge_holdings_cached(
+                &[market],
+                HedgeLiability::Straddle { strike: 101.0 },
+                &cfg,
+                Some(&cache)
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn parity_composition_propagates_straddle_error_and_rejects_insufficient_allowances() {
+    let market = generate_paths(&lewis()).unwrap();
+    let temp = CacheTemp::new();
+    let cache = disk_cache(&temp);
+    let mut cfg = ModelHedgeConfig {
+        heston_method: HestonBaselineMethod::AdaptiveScalar,
+        ..config()
+    };
+    let result = model_hedge_holdings(
+        std::slice::from_ref(&market),
+        HedgeLiability::Straddle { strike: 105.0 },
+        &cfg,
+    )
+    .unwrap();
+    for i in 0..3 {
+        assert_eq!(
+            result.validation.composed_error_bounds[i],
+            2.0 * result.validation.adaptive_max_estimated_errors[i]
+        );
+    }
+    cfg.tolerances.price_absolute = 1e-30;
+    for liability in [
+        HedgeLiability::Put { strike: 105.0 },
+        HedgeLiability::Straddle { strike: 105.0 },
+    ] {
+        assert!(model_hedge_holdings(std::slice::from_ref(&market), liability, &cfg).is_err());
+        assert!(
+            model_hedge_holdings_cached(
+                std::slice::from_ref(&market),
+                liability,
+                &cfg,
+                Some(&cache)
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn two_market_straddle_applies_each_stock_and_inception_cash_offset_once() {
+    let first = generate_paths(&bs(0.2)).unwrap();
+    let mut other = bs(0.3);
+    other.initial_spot = 110.0;
+    other.seed += 1;
+    let second = generate_paths(&other).unwrap();
+    let markets = [first, second];
+    let call =
+        model_hedge_holdings(&markets, HedgeLiability::Call { strike: 105.0 }, &config()).unwrap();
+    let straddle = model_hedge_holdings(
+        &markets,
+        HedgeLiability::Straddle { strike: 105.0 },
+        &config(),
+    )
+    .unwrap();
+    let temp = CacheTemp::new();
+    let cache = disk_cache(&temp);
+    let (cached, _) = model_hedge_holdings_cached(
+        &markets,
+        HedgeLiability::Straddle { strike: 105.0 },
+        &config(),
+        Some(&cache),
+    )
+    .unwrap();
+    for path in 0..2 {
+        close(
+            straddle.initial_model_prices[path],
+            2.0 * call.initial_model_prices[path] + (105.0 - 100.0) + (105.0 - 110.0),
+            1e-13,
+        );
+        close(
+            cached.initial_model_prices[path],
+            straddle.initial_model_prices[path],
+            1e-13,
+        );
+    }
+    for (a, b) in straddle.holdings.iter().zip(&call.holdings) {
+        close(*a, 2.0 * b - 1.0, 0.0);
+    }
+    assert_eq!(cached.holdings, straddle.holdings);
 }

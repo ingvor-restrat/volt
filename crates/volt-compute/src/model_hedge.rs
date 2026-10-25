@@ -451,6 +451,8 @@ pub fn model_hedge_holdings(
         &mut result,
         &job_budget,
     )?;
+    validate_parity_composition(markets.len(), &mut result)?;
+    apply_parity_adjustment(markets, &mut result)?;
     Ok(result)
 }
 
@@ -787,13 +789,91 @@ fn key(o: &HestonOption, p: &HestonParams) -> StateKey {
 fn liability_legs(liability: HedgeLiability) -> Result<Vec<(f64, f64)>, ComputeError> {
     liability.payoff(100.0)?;
     Ok(match liability {
-        HedgeLiability::Call { strike } => vec![(strike, 1.0)],
+        HedgeLiability::Call { strike } | HedgeLiability::Put { strike } => vec![(strike, 1.0)],
+        HedgeLiability::Straddle { strike } => vec![(strike, 2.0)],
         HedgeLiability::NormalizedCallSpread { lower, upper } => vec![
             (lower, 1.0 / (upper - lower)),
             (upper, -1.0 / (upper - lower)),
         ],
         HedgeLiability::None => vec![],
     })
+}
+/// Exact European parity at the application boundary's required r=q=0.
+/// Put=C-S+K; Straddle=2C-S+K. The K term is an inception mark, not
+/// an extra terminal cashflow: the liability payoff already includes the put.
+/// Call absolute error is inherited (doubled for a straddle); relative error
+/// of a nearly worthless put can consequently be large. No clipping is used.
+fn parity_strike(liability: HedgeLiability) -> Option<f64> {
+    match liability {
+        HedgeLiability::Put { strike } | HedgeLiability::Straddle { strike } => Some(strike),
+        _ => None,
+    }
+}
+/// Apply absolute component-error admission only for new parity liabilities.
+/// Direct multi-system estimates use a conservative global maximum per system;
+/// cached composition sums each component estimate. Variance error means C_v,
+/// not the funded-claim holding error C_v/a(tau). Floating rounding is excluded.
+/// Fixed Fourier refinement
+/// differences are numerical diagnostics, not rigorous integration bounds.
+fn validate_parity_composition(
+    systems: usize,
+    result: &mut ModelHedgeResult,
+) -> Result<(), ComputeError> {
+    let weight = match result.liability {
+        HedgeLiability::Put { .. } => 1.0,
+        HedgeLiability::Straddle { .. } => 2.0,
+        _ => return Ok(()),
+    };
+    let v = &mut result.validation;
+    let errors = match result.execution_policy {
+        BaselineExecutionPolicy::AnalyticBlackScholesCpuF64 => [0.0; 3],
+        BaselineExecutionPolicy::AdaptiveScalarCpuF64 => v.adaptive_max_estimated_errors,
+        BaselineExecutionPolicy::DeviceFourier { .. } => [
+            v.max_price_node_difference + v.max_price_cutoff_difference,
+            v.max_delta_node_difference + v.max_delta_cutoff_difference,
+            v.max_variance_node_difference + v.max_variance_cutoff_difference,
+        ],
+    };
+    v.composed_error_bounds = [
+        weight * systems as f64 * errors[0],
+        weight * errors[1],
+        weight * errors[2],
+    ];
+    let t = result.config.tolerances;
+    if v.composed_error_bounds
+        .iter()
+        .zip([t.price_absolute, t.delta_absolute, t.variance_absolute])
+        .any(|(e, t)| !e.is_finite() || *e > t)
+    {
+        return Err(ComputeError::Execution("parity liability composition exceeds absolute model error allowance; tighten component resolution/tolerances".into()));
+    }
+    Ok(())
+}
+fn apply_parity_adjustment(
+    markets: &[MarketPaths],
+    result: &mut ModelHedgeResult,
+) -> Result<(), ComputeError> {
+    let Some(strike) = parity_strike(result.liability) else {
+        return Ok(());
+    };
+    let per = result.hedge_count / markets.len();
+    for path in 0..result.paths {
+        for (system, market) in markets.iter().enumerate() {
+            for step in 0..result.steps {
+                let offset = (path * result.steps + step) * result.hedge_count + system * per;
+                result.holdings[offset] =
+                    finite(result.holdings[offset] - 1.0, "parity stock holding")?;
+            }
+            let spot = market
+                .value(path, 0, STOCK)
+                .ok_or_else(|| invalid("missing parity spot"))?;
+            result.initial_model_prices[path] = finite(
+                result.initial_model_prices[path] + (strike - spot),
+                "parity initial price",
+            )?;
+        }
+    }
+    Ok(())
 }
 fn bs_call(spot: f64, strike: f64, time: f64, volatility: f64) -> Result<(f64, f64), ComputeError> {
     if volatility == 0.0 {
@@ -1129,6 +1209,8 @@ pub fn baseline_cache_working_bytes(
 /// Cache independent scalar call components. Multiple market systems and
 /// normalized spreads are assembled linearly from the same immutable call
 /// artifacts, so a one-system cohort is reusable inside a larger system set.
+/// Puts and straddles reuse the call artifacts with exact r=q=0 parity; cash
+/// offsets enter model value and stock offsets enter holdings, never fees.
 /// Access hashes for composed results identify an ordered component manifest.
 pub fn model_hedge_holdings_cached(
     markets: &[MarketPaths],
@@ -1203,7 +1285,12 @@ pub fn model_hedge_holdings_cached(
     let mut validation = BaselineValidation::default();
     let mut access = BaselineCacheAccess::default();
     let mut manifest = Sha256::new();
-    manifest.update(b"volt.baseline.component_manifest.v1\0");
+    if parity_strike(liability).is_some() {
+        manifest.update(b"volt.baseline.parity_component_manifest.v1\0");
+        manifest.update(cache_hash(&liability)?.as_bytes());
+    } else {
+        manifest.update(b"volt.baseline.component_manifest.v1\0");
+    }
     let mut component_bounds = vec![[0.0f64; 3]; markets.len()];
     for (component, market) in markets.iter().enumerate() {
         for (strike, weight) in &legs {
@@ -1282,34 +1369,33 @@ pub fn model_hedge_holdings_cached(
     access.payload_sha256 = Some(hash);
     access.hit = access.entry_misses == 0;
     access.written = access.entries_written > 0;
-    Ok((
-        ModelHedgeResult {
-            schema: "volt.compute.model_hedge.v1".into(),
-            paths: first.config.paths,
-            steps: first.config.steps,
-            hedge_count: hedges,
-            holdings: holdings
-                .into_iter()
-                .map(CompensatedSum::value)
-                .map(|v| finite(v, "composed holdings"))
-                .collect::<Result<_, _>>()?,
-            initial_model_prices: prices
-                .into_iter()
-                .map(CompensatedSum::value)
-                .map(|v| finite(v, "composed prices"))
-                .collect::<Result<_, _>>()?,
-            market_source_hashes: markets.iter().map(|m| m.content_hash.clone()).collect(),
-            liability,
-            config: config.clone(),
-            execution_policy: if heston {
-                BaselineExecutionPolicy::AdaptiveScalarCpuF64
-            } else {
-                BaselineExecutionPolicy::AnalyticBlackScholesCpuF64
-            },
-            validation,
+    let mut result = ModelHedgeResult {
+        schema: "volt.compute.model_hedge.v1".into(),
+        paths: first.config.paths,
+        steps: first.config.steps,
+        hedge_count: hedges,
+        holdings: holdings
+            .into_iter()
+            .map(CompensatedSum::value)
+            .map(|v| finite(v, "composed holdings"))
+            .collect::<Result<_, _>>()?,
+        initial_model_prices: prices
+            .into_iter()
+            .map(CompensatedSum::value)
+            .map(|v| finite(v, "composed prices"))
+            .collect::<Result<_, _>>()?,
+        market_source_hashes: markets.iter().map(|m| m.content_hash.clone()).collect(),
+        liability,
+        config: config.clone(),
+        execution_policy: if heston {
+            BaselineExecutionPolicy::AdaptiveScalarCpuF64
+        } else {
+            BaselineExecutionPolicy::AnalyticBlackScholesCpuF64
         },
-        access,
-    ))
+        validation,
+    };
+    apply_parity_adjustment(markets, &mut result)?;
+    Ok((result, access))
 }
 fn entry_counts(mut a: BaselineCacheAccess) -> BaselineCacheAccess {
     if a.key.is_some() {

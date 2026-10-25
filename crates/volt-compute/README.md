@@ -252,6 +252,14 @@ remain application responsibilities.
 
 ## Train, resume and benchmark Deep Hedging
 
+European liabilities include calls, puts, same-strike/expiry straddles and
+normalized call spreads. Training uses the aggregate terminal payoff and
+after-cost hedge profit, without an analytic hedge label. Each fitted policy
+is for the configured liability and responds to changing market state and
+optional hedge inventory. See the workspace
+[training guide](../../docs/compute-training.md#european-liabilities-and-the-trained-policy)
+for JSON examples, premium/sign conventions and payoff-equivalent portfolios.
+
 `hedge_policy` implements a separate two-hidden-layer ReLU network at each decision
 time, with BatchNorm, signed holdings and optional recurrence through previous
 holdings. The Heston profile uses 30 decisions, `(log S, V)` features, two hedge
