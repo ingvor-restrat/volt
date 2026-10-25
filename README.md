@@ -65,6 +65,17 @@ canonicalization, and payoff algebra.
 
 [![Volt simulation-driven browser dashboard](docs/markup/risk-web.gif)](docs/markup/README.md)
 
+The native European quote-to-Greeks application adds implied-volatility inversion,
+a volatility surface, portfolio Greeks and fully repriced scenarios. Its browser
+and `top`-style terminal viewer consume the same native snapshot format.
+[View both recordings and run commands](demo/live-greeks.html), or follow the
+[demo guide](docs/markup/README.md#european-quote-to-greeks-viewer). The examples use
+synthetic quotes; the valuation scope is European exercise.
+
+[![Native European Greeks in the browser](docs/markup/live-greeks-web.gif)](demo/live-greeks.html)
+
+[![Native European Greeks in the terminal](docs/markup/live-greeks-top.gif)](demo/live-greeks.html)
+
 `zap` shows how exact portfolio canonicalization and terminal-payoff projection
 reduce a small option search space. `cog` compiles structured options-design
 business logic into an immutable artifact, produces a point-in-time legal
