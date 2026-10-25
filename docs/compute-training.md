@@ -186,3 +186,108 @@ The model_band program separately tunes a declared no-trade-band grid on
 validation paths and evaluates frozen widths on a different cohort. Widths are
 physical inventory units. Its raw f64 P&L vector is described and hashed in its
 report, distinct from the eight-column checkpoint-benchmark format.
+
+## Straddle P&L with separate return and pricing volatility
+
+An option bought at 20% implied volatility need not subsequently experience
+20% realized volatility. The `volatility_strategy` application separates the
+constant volatility generating GBM returns from the volatility used to price
+and delta hedge a European straddle. Its generic example is a mechanism control,
+not an observed-market performance result:
+
+~~~sh
+cargo build --release --locked -p volt-compute --bin volatility_strategy
+mkdir -p target/straddle-example
+target/release/volatility_strategy --example-config \
+  --output target/straddle-example/request.json
+target/release/volatility_strategy --config target/straddle-example/request.json \
+  --plan-only --output target/straddle-example/plan.json
+RAYON_NUM_THREADS=1 target/release/volatility_strategy \
+  --config target/straddle-example/request.json \
+  --output target/straddle-example/report.json
+~~~
+
+The request contains signed contract quantity, multiplier, physical volatility,
+pricing volatility, fees and several hedge frequencies. Quantity times multiplier
+is applied once. Positive quantity buys the straddle and shorts its delta;
+negative quantity sells it and buys its delta. Opening trades, rebalances and
+terminal liquidation incur the declared stock fees. Zero rates/dividends and
+fractional stock holdings define this initial application; it has no option
+execution spread, margin or market-impact model.
+
+Coarser hedge grids read the same generated fine path and terminal stock.
+Reports retain the physical-market fingerprint separately from pricing and
+position settings. Each case includes mean profit and standard error, quantiles,
+loss CVaR, actual turnover/costs, an independent analytic mean control, and exact
+ledger audits. Gamma/theta attribution retains its higher-order residual.
+An optional fixed inventory band can be predeclared in the request. It is not
+tuned on the evaluation paths. Optional `--samples-output` exports streamed JSONL;
+its size can greatly exceed the summary report.
+
+## Quote chains, surfaces and a live risk panel
+
+The optional `live-risk` feature connects European quote analytics to a pinned
+public Hypercube engine. The financial core and default compute build do not
+require Hypercube or a web service.
+
+~~~sh
+cargo build --release --locked -p volt-compute --features live-risk \
+  --bin live_option_risk
+target/release/live_option_risk --address 127.0.0.1:8088
+~~~
+
+Open `http://127.0.0.1:8088`. The default source is a changing synthetic chain,
+clearly labelled in the panel. It shows bid/mid/ask IVs, a surface and expiry
+smile, portfolio Greeks, full-repricing scenarios and source freshness. The
+surface can be rotated or viewed as a heatmap. Freezing the browser view holds
+its selected generation while the server continues to calculate newer ones.
+
+A producer can supply complete normalized quote/book frames instead:
+
+~~~sh
+target/release/live_option_risk --example-frame > target/quote-frame.json
+target/release/live_option_risk --input target/quote-frame.json \
+  --once --output target/risk-snapshot.json
+target/release/live_option_risk --input target/quote-frame.json --serve \
+  --address 127.0.0.1:8088
+curl -H 'Content-Type: application/json' --data-binary @target/newer-frame.json \
+  http://127.0.0.1:8088/api/quotes
+~~~
+
+`GET /api/snapshot` returns one complete calculation and its Hypercube snapshot;
+`GET /api/stream` emits those generations as SSE. A successful external frame
+stops the synthetic generator. Frames bind a single underlying/common spot,
+currency, quote timestamps, valuation cutoff and portfolio revision. Remaining
+maturity is measured at that cutoff; the producer must update it as time passes.
+Generations and cutoffs cannot go backwards. A changed book needs a newer
+position revision. Rejected requests and failed atomic snapshot-file publication
+preserve the last accepted state. `--config` supplies bounded `LiveRiskConfig`
+settings, including quote age and request size. A vendor-specific feed adapter
+is separate from this normalized JSON boundary.
+
+The IV solver uses a safeguarded bracket and Newton/bisection steps, returning
+explicit boundary, conditioning and failure states. The fitted surface linearly
+interpolates total variance in log-forward moneyness and expiry; it refuses
+extrapolation. Residual, put-call parity, strike-shape and calendar diagnostics
+accompany the result. This interpolator reports violations and does not certify
+or repair an arbitrage-free surface.
+
+Default spot Greeks hold volatility fixed. `--sticky-log-moneyness` instead
+holds the fitted `(k,w)` surface fixed while bumping spot/forward and repricing;
+its delta/gamma are explicitly finite-bump results. Vega, theta and rho remain
+model partials, in the units displayed by the panel. Missing risk on a held
+contract makes portfolio totals unavailable rather than silently treating it
+as zero. Derived Hypercube timestamps conservatively include contributing
+surface observations; the original quote timestamps remain in the result.
+
+The backend is CPU f64. Measure complete quote-to-risk/publication work before
+choosing a GPU path; the current application does not claim a live vendor feed
+or a measured exchange-to-screen latency. CI also exercises the browser script's
+data/event wiring using a mocked DOM:
+
+~~~sh
+node crates/volt-compute/tests/live_risk_render.cjs target/risk-snapshot.json
+~~~
+
+That check complements the actual HTTP/SSE tests; browser layout review is a
+separate check.

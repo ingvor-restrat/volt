@@ -16,6 +16,8 @@ pub mod heston_adaptive;
 pub mod heston_job;
 pub mod heston_validation;
 pub mod job;
+#[cfg(feature = "live-risk")]
+pub mod live_risk;
 pub mod market_path_diagnostics;
 pub mod market_path_resolution;
 pub mod market_paths;
@@ -31,6 +33,8 @@ pub mod pricing;
 pub mod risk_objective;
 pub mod runtime;
 pub mod second_order;
+pub mod volatility_strategy;
+pub mod volatility_surface;
 pub mod volt_adapter;
 
 pub use matrix::ResidentMatrix;

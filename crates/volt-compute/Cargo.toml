@@ -15,6 +15,7 @@ default = []
 metal = ["burn/metal"]
 cuda = ["burn/cuda", "dep:cubecl", "dep:cubek"]
 fusion = ["burn/fusion"]
+live-risk = ["dep:hypercube"]
 
 [dependencies]
 burn = { version = "=0.22.1", default-features = false, features = ["std", "flex", "autodiff"] }
@@ -29,3 +30,9 @@ clap = { version = "4", features = ["derive"] }
 cubecl = { version = "=0.11.3", default-features = false, features = ["cuda-cpp"], optional = true }
 cubek = { version = "=0.3.1", default-features = false, features = ["std", "stdlib", "matmul", "matmul-multi-level"], optional = true }
 volt = { package = "volt-options", path = "../..", version = "=0.1.4" }
+hypercube = { package = "hypercube-engine", git = "https://github.com/ingvor-restrat/hypercube.git", rev = "6b0ef9cde8b48e54bca4ecaf52545f1097390e88", optional = true }
+
+[[bin]]
+name = "live_option_risk"
+path = "src/bin/live_option_risk.rs"
+required-features = ["live-risk"]

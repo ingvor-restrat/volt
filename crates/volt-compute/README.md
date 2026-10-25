@@ -260,6 +260,14 @@ optional hedge inventory. See the workspace
 [training guide](../../docs/compute-training.md#european-liabilities-and-the-trained-policy)
 for JSON examples, premium/sign conventions and payoff-equivalent portfolios.
 
+The `volatility_strategy` executable adds delta-hedged straddle controls with
+separate physical-return and option-pricing volatility, shared nested market
+paths, explicit stock costs, Greek/P&L attribution and exact ledger audits.
+The library supplies IV inversion and bounded total-variance interpolation.
+The optional `live-risk` feature adds a Hypercube-backed HTTP/SSE risk panel. Its default feed is
+synthetic; complete normalized European quote/book frames can be posted by an
+external producer. See the same guide for runnable examples and conventions.
+
 `hedge_policy` implements a separate two-hidden-layer ReLU network at each decision
 time, with BatchNorm, signed holdings and optional recurrence through previous
 holdings. The Heston profile uses 30 decisions, `(log S, V)` features, two hedge
