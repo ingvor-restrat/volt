@@ -16,7 +16,7 @@ const elements=new Map();const el=id=>{if(!elements.has(id))elements.set(id,new 
 const context={document:{getElementById:el},window:{addEventListener(){}},devicePixelRatio:1,setInterval(){},console,
  fetch:()=>Promise.resolve({json:()=>Promise.resolve(sample)}),EventSource:class {constructor(){eventStream=this;this.listeners={};}addEventListener(k,f){this.listeners[k]=f;}}};
 vm.createContext(context);vm.runInContext(html.match(/<script>([\s\S]*)<\/script>/)[1],context,{timeout:10000});
-(async()=>{await new Promise(setImmediate);assert(el('chain').innerHTML.includes('<tr data-id='));assert(el('metrics').innerHTML.includes('Vega'));assert(vm.runInContext('points.length',context)>0);
+(async()=>{await new Promise(setImmediate);assert(el('chain').innerHTML.includes('<tr data-id='));assert(el('metrics').innerHTML.includes('Vega'));assert(el('age').textContent.includes('Valuation age'));assert(el('age').textContent.includes('oldest quote'));assert(vm.runInContext('points.length',context)>0);
  el('heat').onclick();assert(vm.runInContext('heatmap',context));el('mesh').onclick();assert(!vm.runInContext('heatmap',context));
  el('side-filter').value='put';el('side-filter').onchange();assert(!el('chain').innerHTML.includes('<td>call</td>'));el('side-filter').value='all';el('side-filter').onchange();
  const old=vm.runInContext('snapshot.generation',context);el('pause').onclick();eventStream.listeners.snapshot({data:JSON.stringify({...sample,generation:old+1})});assert.equal(vm.runInContext('snapshot.generation',context),old);el('pause').onclick();assert.equal(vm.runInContext('snapshot.generation',context),old+1);
