@@ -17,7 +17,8 @@
 
 use crate::{ComputeError, Precision, Session};
 use burn::tensor::{
-    Bool, DType, Device, Gradients, Tensor, TensorCreationOptions, TensorData, activation::relu,
+    Bool, DType, Device, Gradients, Tensor, TensorCreationOptions, TensorData,
+    activation::{relu, sigmoid, tanh},
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -48,9 +49,26 @@ pub struct FeatureAffine {
     pub offsets: Vec<f64>,
     pub scales: Vec<f64>,
 }
+/// Shared Keras-style two single-step LSTM layers, two ReLU dense layers and
+/// a linear output. Cell/hidden states reset at every decision; temporal
+/// feedback comes only from declared features, wealth and previous holdings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SharedLstmResetConfig {
+    pub dropout_probability: f64,
+    /// Stateless dropout key; masks also depend on update/date/layer/row/column.
+    pub dropout_seed: u64,
+}
+fn is_false(x: &bool) -> bool {
+    !*x
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HedgePolicyConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_lstm_reset: Option<SharedLstmResetConfig>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub include_wealth: bool,
     pub time_steps: usize,
     pub feature_count: usize,
     pub hedge_count: usize,
@@ -69,6 +87,8 @@ pub struct HedgePolicyConfig {
 impl HedgePolicyConfig {
     pub fn paper_heston(max_batch_rows: usize) -> Self {
         Self {
+            shared_lstm_reset: None,
+            include_wealth: false,
             time_steps: 30,
             feature_count: 2,
             hedge_count: 2,
@@ -100,6 +120,7 @@ impl HedgePolicyConfig {
     }
     pub fn input_width(&self) -> usize {
         self.feature_count
+            + usize::from(self.include_wealth)
             + if self.include_previous_holdings {
                 self.hedge_count
             } else {
@@ -115,6 +136,15 @@ impl HedgePolicyConfig {
         {
             return Err(invalid(
                 "policy dimensions exceed supported positive bounds",
+            ));
+        }
+        if let Some(c) = &self.shared_lstm_reset
+            && (self.batch_norm.enabled
+                || !c.dropout_probability.is_finite()
+                || !(0.0..1.0).contains(&c.dropout_probability))
+        {
+            return Err(invalid(
+                "reset LSTM requires BatchNorm disabled and dropout in [0,1)",
             ));
         }
         if !self.batch_norm.epsilon.is_finite()
@@ -232,13 +262,30 @@ impl HedgePolicy {
         for (index, shape) in shapes.into_iter().enumerate() {
             let kind = index % 10;
             let values = (0..shape[0] * shape[1])
-                .map(|_| match kind {
-                    0 | 4 | 8 => {
-                        let limit = (6.0 / (shape[0] + shape[1]) as f64).sqrt();
-                        (uniform(&mut rng) * 2.0 - 1.0) * limit
+                .map(|element| {
+                    if config.shared_lstm_reset.is_some() {
+                        if matches!(index, 2 | 5) {
+                            if (config.hidden_width..2 * config.hidden_width).contains(&element) {
+                                1.0
+                            } else {
+                                0.0
+                            }
+                        } else if matches!(index, 7 | 9 | 11) {
+                            0.0
+                        } else {
+                            let limit = (6.0 / (shape[0] + shape[1]) as f64).sqrt();
+                            (uniform(&mut rng) * 2.0 - 1.0) * limit
+                        }
+                    } else {
+                        match kind {
+                            0 | 4 | 8 => {
+                                let limit = (6.0 / (shape[0] + shape[1]) as f64).sqrt();
+                                (uniform(&mut rng) * 2.0 - 1.0) * limit
+                            }
+                            2 | 6 => 1.0,
+                            _ => 0.0,
+                        }
                     }
-                    2 | 6 => 1.0,
-                    _ => 0.0,
                 })
                 .collect::<Vec<_>>();
             let value = make_tensor(session.device(), session.precision(), values, shape)
@@ -258,7 +305,11 @@ impl HedgePolicy {
             });
         }
         let mut norms = Vec::with_capacity(config.time_steps * 2);
-        for _ in 0..config.time_steps * 2 {
+        for _ in 0..if config.shared_lstm_reset.is_some() {
+            0
+        } else {
+            config.time_steps * 2
+        } {
             norms.push(BatchNormState {
                 mean: make_tensor(
                     session.device(),
@@ -344,10 +395,23 @@ impl HedgePolicy {
         previous: Tensor<2>,
         train: bool,
     ) -> Result<Tensor<2>, ComputeError> {
+        self.forward_at_with_wealth(step, features, previous, None, train)
+    }
+    /// Wealth remains attached during training; callers supply the current
+    /// financed account value before this decision, never a future payoff.
+    pub fn forward_at_with_wealth(
+        &mut self,
+        step: usize,
+        features: Tensor<2>,
+        previous: Tensor<2>,
+        wealth: Option<Tensor<1>>,
+        train: bool,
+    ) -> Result<Tensor<2>, ComputeError> {
         self.forward_mode(
             step,
             features,
             previous,
+            wealth,
             if train {
                 ForwardMode::Training
             } else {
@@ -367,13 +431,14 @@ impl HedgePolicy {
         features: Tensor<2>,
         previous: Tensor<2>,
     ) -> Result<Tensor<2>, ComputeError> {
-        self.forward_mode(step, features, previous, ForwardMode::Calibration)
+        self.forward_mode(step, features, previous, None, ForwardMode::Calibration)
     }
     fn forward_mode(
         &mut self,
         step: usize,
         features: Tensor<2>,
         previous: Tensor<2>,
+        wealth: Option<Tensor<1>>,
         forward_mode: ForwardMode,
     ) -> Result<Tensor<2>, ComputeError> {
         let train = matches!(forward_mode, ForwardMode::Training);
@@ -396,6 +461,15 @@ impl HedgePolicy {
                 "BatchNorm training/calibration requires at least two rows",
             ));
         }
+        if self.config.include_wealth != wealth.is_some() {
+            return Err(invalid("policy wealth context must match include_wealth"));
+        }
+        if let Some(w) = &wealth {
+            if w.dims() != [batch] {
+                return Err(invalid("wealth context shape mismatch"));
+            }
+            check_tensor(&w.clone().reshape([batch, 1]), &self.device, self.precision)?;
+        }
         check_tensor(&features, &self.device, self.precision)?;
         check_tensor(&previous, &self.device, self.precision)?;
         let mut finite = features
@@ -404,11 +478,25 @@ impl HedgePolicy {
             .is_finite()
             .all()
             .bool_and(previous.clone().without_autodiff().is_finite().all());
-        for (input, output) in [
-            (self.config.input_width(), self.config.hidden_width),
-            (self.config.hidden_width, self.config.hidden_width),
-            (self.config.hidden_width, self.config.hedge_count),
-        ] {
+        if let Some(w) = &wealth {
+            finite = finite.bool_and(w.clone().without_autodiff().is_finite().all());
+        }
+        let w = self.config.hidden_width;
+        let products = if self.config.shared_lstm_reset.is_some() {
+            vec![
+                (self.config.input_width(), 4 * w),
+                (w, 4 * w),
+                (w, w),
+                (w, self.config.hedge_count),
+            ]
+        } else {
+            vec![
+                (self.config.input_width(), w),
+                (w, w),
+                (w, self.config.hedge_count),
+            ]
+        };
+        for (input, output) in products {
             check_product_shape(batch, input, output, MAX_EXPANDED_PRODUCT_ELEMENTS)?;
         }
         if train
@@ -432,6 +520,9 @@ impl HedgePolicy {
                 - self.constant(a.offsets.clone(), [1, self.config.feature_count]))
                 * self.constant(a.scales.clone(), [1, self.config.feature_count]);
         }
+        if let Some(w) = wealth {
+            features = Tensor::cat(vec![features, mode(w.reshape([batch, 1]))], 1);
+        }
         let mut x = if self.config.include_previous_holdings {
             let mut previous = mode(previous);
             if let Some(scales) = &self.config.previous_holding_scales {
@@ -445,6 +536,16 @@ impl HedgePolicy {
         } else {
             features
         };
+        if self.config.shared_lstm_reset.is_some() {
+            let mut output = self.forward_shared_reset(x, step, train)?;
+            if let Some(scales) = &self.config.action_scales {
+                output = output * self.constant(scales.clone(), [1, self.config.hedge_count]);
+            }
+            if !bool_value(finite.bool_and(output.clone().without_autodiff().is_finite().all()))? {
+                return Err(invalid("nonfinite reset LSTM input/output"));
+            }
+            return Ok(output);
+        }
         let offset = step * 10;
         let mut norm_updates = Vec::with_capacity(2);
         for layer in 0..2 {
@@ -516,6 +617,75 @@ impl HedgePolicy {
             self.norms[index] = state;
         }
         Ok(output)
+    }
+    fn forward_shared_reset(
+        &self,
+        mut x: Tensor<2>,
+        step: usize,
+        train: bool,
+    ) -> Result<Tensor<2>, ComputeError> {
+        let [batch, _] = x.dims();
+        let w = self.config.hidden_width;
+        let mode = |p: Tensor<2>| {
+            if train {
+                p.autodiff()
+            } else {
+                p.without_autodiff()
+            }
+        };
+        for layer in 0..2 {
+            let at = layer * 3;
+            let zero = self.constant(vec![0.0; batch * w], [batch, w]);
+            let gates = strict_matmul(
+                x,
+                mode(self.parameters[at].value.clone()),
+                MAX_EXPANDED_PRODUCT_ELEMENTS,
+            )? + strict_matmul(
+                zero,
+                mode(self.parameters[at + 1].value.clone()),
+                MAX_EXPANDED_PRODUCT_ELEMENTS,
+            )? + mode(self.parameters[at + 2].value.clone());
+            let input = sigmoid(gates.clone().slice([0..batch, 0..w]));
+            let cell = input * tanh(gates.clone().slice([0..batch, 2 * w..3 * w]));
+            x = sigmoid(gates.slice([0..batch, 3 * w..4 * w])) * tanh(cell);
+        }
+        let c = self
+            .config
+            .shared_lstm_reset
+            .as_ref()
+            .expect("validated reset LSTM");
+        for layer in 0..2 {
+            let at = 6 + layer * 2;
+            x = relu(
+                strict_matmul(
+                    x,
+                    mode(self.parameters[at].value.clone()),
+                    MAX_EXPANDED_PRODUCT_ELEMENTS,
+                )? + mode(self.parameters[at + 1].value.clone()),
+            );
+            if train && c.dropout_probability > 0.0 {
+                let mut key = c.dropout_seed
+                    ^ self.updates.wrapping_mul(0x9e3779b97f4a7c15)
+                    ^ (step as u64).wrapping_mul(0xbf58476d1ce4e5b9)
+                    ^ (layer as u64).wrapping_mul(0x94d049bb133111eb);
+                let scale = 1.0 / (1.0 - c.dropout_probability);
+                let mask = (0..batch * w)
+                    .map(|_| {
+                        if uniform(&mut key) >= c.dropout_probability {
+                            scale
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                x = x * self.constant(mask, [batch, w]);
+            }
+        }
+        Ok(strict_matmul(
+            x,
+            mode(self.parameters[10].value.clone()),
+            MAX_EXPANDED_PRODUCT_ELEMENTS,
+        )? + mode(self.parameters[11].value.clone()))
     }
     /// All arithmetic for Adam and its moments stays on the original device.
     /// Only reduced finite flags and norm are downloaded. Unused parameters are
@@ -738,7 +908,14 @@ pub fn validate_policy_snapshot(s: &PolicySnapshot) -> Result<(), ComputeError> 
         return Err(invalid("policy checkpoint schema mismatch"));
     }
     let shapes = parameter_shapes(&s.config);
-    if s.parameters.len() != shapes.len() || s.batch_norm.len() != s.config.time_steps * 2 {
+    if s.parameters.len() != shapes.len()
+        || s.batch_norm.len()
+            != if s.config.shared_lstm_reset.is_some() {
+                0
+            } else {
+                s.config.time_steps * 2
+            }
+    {
         return Err(invalid("policy checkpoint parameter/state count mismatch"));
     }
     for (p, shape) in s.parameters.iter().zip(&shapes) {
@@ -821,7 +998,24 @@ fn check_product_shape(b: usize, i: usize, o: usize, cap: usize) -> Result<(), C
     }
     Ok(())
 }
-fn parameter_shapes(c: &HedgePolicyConfig) -> Vec<[usize; 2]> {
+pub(crate) fn parameter_shapes(c: &HedgePolicyConfig) -> Vec<[usize; 2]> {
+    if c.shared_lstm_reset.is_some() {
+        let w = c.hidden_width;
+        return vec![
+            [c.input_width(), 4 * w],
+            [w, 4 * w],
+            [1, 4 * w],
+            [w, 4 * w],
+            [w, 4 * w],
+            [1, 4 * w],
+            [w, w],
+            [1, w],
+            [w, w],
+            [1, w],
+            [w, c.hedge_count],
+            [1, c.hedge_count],
+        ];
+    }
     let mut out = Vec::with_capacity(c.time_steps * 10);
     for _ in 0..c.time_steps {
         let w = c.hidden_width;
@@ -869,6 +1063,15 @@ pub fn validate_policy_config(
         return Err(invalid(
             "policy optimizer/normalization constants collapse in f32",
         ));
+    }
+    if let Some(lstm) = &c.shared_lstm_reset {
+        check_values(
+            &[
+                lstm.dropout_probability,
+                1.0 / (1.0 - lstm.dropout_probability),
+            ],
+            precision,
+        )?;
     }
     if let Some(a) = &c.feature_affine {
         check_values(&a.offsets, precision)?;

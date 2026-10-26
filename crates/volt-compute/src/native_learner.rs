@@ -98,9 +98,14 @@ impl LearnerConfig {
         }
         let h = self.policy.hedge_count;
         let t = self.policy.time_steps;
-        if self.policy_engine != "volt_time_mlp" || self.policy.batch_norm.enabled {
+        let engine = if self.policy.shared_lstm_reset.is_some() {
+            "volt_shared_lstm_reset"
+        } else {
+            "volt_time_mlp"
+        };
+        if self.policy_engine != engine || self.policy.batch_norm.enabled {
             return Err(invalid(
-                "native v1 supports volt_time_mlp with batch_norm disabled",
+                "native policy engine/config mismatch or BatchNorm enabled",
             ));
         }
         if !self.learning_rate.is_finite()
@@ -255,6 +260,8 @@ pub enum Command {
         step: usize,
         features: Vec<f64>,
         previous_holdings: Vec<f64>,
+        #[serde(default)]
+        wealth: Option<Vec<f64>>,
         paths: usize,
     },
     Checkpoint,
@@ -421,6 +428,7 @@ impl NativeLearner {
                 step,
                 features,
                 previous_holdings,
+                wealth,
                 paths,
             } => {
                 let c = &self.config.policy;
@@ -435,10 +443,26 @@ impl NativeLearner {
                 {
                     return Err(invalid("invalid inference shapes/values"));
                 }
-                let result = self.policy.forward_at(
+                if c.include_wealth != wealth.is_some()
+                    || wealth.as_ref().is_some_and(|w| {
+                        w.len() != paths
+                            || w.iter().any(|x| {
+                                !x.is_finite()
+                                    || (self.config.precision == Precision::F32
+                                        && !(*x as f32).is_finite())
+                            })
+                    })
+                {
+                    return Err(invalid(
+                        "inference wealth must match include_wealth and paths",
+                    ));
+                }
+                let wealth = wealth.map(|w| self.session.vector(w));
+                let result = self.policy.forward_at_with_wealth(
                     step,
                     tensor2(&self.session, features, [paths, c.feature_count]),
                     tensor2(&self.session, previous_holdings, [paths, c.hedge_count]),
+                    wealth,
                     false,
                 )?;
                 let holdings = result.try_to_vec_as::<f64>().map_err(execution)?;
@@ -552,6 +576,8 @@ impl NativeLearner {
             &self.config.budget,
             true,
         )?;
+        // The common planner includes gated/reset architecture work and fixed
+        // reserves. Keep a second complete candidate for transactional updates.
         let update_compute = plan
             .estimated_compute_bytes
             .checked_mul(2)
@@ -679,7 +705,14 @@ fn rollout(
     let fees = tensor2(session, config.trading_costs.clone(), [1, h]);
     let mut holdings = Vec::new();
     for t in 0..config.policy.time_steps {
-        let target = policy.forward_at(t, batch.features[t].clone(), previous.clone(), train)?;
+        let wealth = config.policy.include_wealth.then(|| value.clone());
+        let target = policy.forward_at_with_wealth(
+            t,
+            batch.features[t].clone(),
+            previous.clone(),
+            wealth,
+            train,
+        )?;
         let charge = ((target.clone() - previous).abs() * batch.marks[t].clone() * fees.clone())
             .sum_dim(1)
             .reshape([n]);

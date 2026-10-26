@@ -57,3 +57,71 @@ Jormungandr's optional native backend manages this process through HTTP:
 https://github.com/ingvor-restrat/jormungandr/blob/main/docs/native-learners.md
 
 The integration tests cover scalar ledger reconciliation, all four objectives, finite-difference parameter gradients and exact optimizer continuation after restore. This initial policy profile establishes the native training interface; the JIVR surface simulator and the follow-on paper's architecture require additional research implementation.
+
+## Shared reset LSTM policy
+
+Set `policy_engine` to `"volt_shared_lstm_reset"` and set
+`policy.shared_lstm_reset` to `{"dropout_probability":0.5,"dropout_seed":713}`.
+The policy has two shared single-step LSTM layers, two shared ReLU dense layers
+and a signed linear output. `hidden_width` applies to all four hidden layers.
+Set `include_wealth: true` and `include_previous_holdings: true` for the source
+profile: each decision receives features, current financed portfolio value and
+previous holdings, in that order. Feature and holding transforms retain their
+existing meanings. Wealth uses the portfolio's quoted currency units.
+BatchNorm must remain disabled.
+
+This follows the `RNNFNN` architecture in the [author implementation at
+64aef8c](https://github.com/cpmendoza/deep-hedging_with_options/blob/64aef8c35b3cc4d31de8c499e2cc9e9f23fb5b3d/src/models/deep_agent.py).
+Its configured profile uses width56 and dropout0.5 after each of the two dense
+layers. The pinned TensorFlow-v1 code calls Dropout without an explicit
+training flag; under an unfed default learning phase those layers are identity.
+External session/notebook phase settings can change that behavior. Native
+training uses its explicit `train` mode, so active dropout is a declared native
+setting, not a claim of historical random-mask or learning-phase parity.
+Every LSTM call has sequence length one and starts with zero cell and
+hidden state. Weights are shared across decision dates; financial wealth and
+holdings carry history. This engine does not carry a persistent LSTM memory
+between dates. The source's four-LSTM variant, autoencoder, no-trade gate and
+rolling-option market construction are separate features.
+
+Each LSTM stores a kernel, recurrent kernel and **one** bias in Keras gate order
+`[input, forget, cell, output]`. Recurrent kernels and forget gates have zero
+contribution with the declared reset state. They remain in checkpoints for an
+explicit parameter mapping. Native initialization uses seeded Glorot uniform
+kernels, zero biases and unit forget biases; it does not claim the same random
+sample or orthogonal recurrent initializer as Keras. Imported explicit weights
+are used for cross-framework tests. The six dense leaves follow the six LSTM
+leaves, for twelve parameter tensors shared across all dates.
+
+Training applies inverted dropout after each dense ReLU. Masks are determined
+by `(dropout_seed, policy update, decision, dense layer, row, column)`. The seed
+and update counter are checkpointed; restoring a checkpoint and repeating the
+same batches reproduces optimizer continuation exactly. Evaluation/inference
+use no dropout and do not advance any random stream. This deterministic stream
+is a native convention, not a claim of Keras random-mask parity. Mask generation
+currently runs on the host; accelerator throughput requires a measured workload.
+
+`infer` accepts a `wealth` array with one finite value per path when
+`include_wealth` is true. Missing, extra or incorrectly sized wealth is rejected.
+For example, after configuring a two-feature/two-instrument policy:
+
+```json
+{"op":"infer","step":0,"paths":1,"features":[0.2,0.3],"previous_holdings":[0,0],"wealth":[2.5]}
+```
+
+The training rollout supplies attached wealth tensors internally, so gradients
+include the effect of earlier holdings on later portfolio value and actions.
+The low-level policy API adds `forward_at_with_wealth`; the existing `forward_at`
+remains unchanged for policies without wealth inputs. Optional architecture and
+wealth fields are omitted from legacy MLP serialization, preserving its existing
+snapshot layout and restore behavior.
+
+Admission reserves two candidate jobs and the common architecture-aware planner. Shared parameters are counted once;
+CPU GEMM planning counts retained gate and activation vectors with conservative
+forward/backward workspace. Accelerator planning uses a sixteenfold MLP tape
+allowance for explicit products. The fixed runtime reserve is added once per
+candidate. This is an admission estimate, not measured allocation. Larger
+widths, horizons and batches need explicit memory budgets. Tests compare actual
+Keras forward holdings, financed P&L, all shared parameter gradients and the first
+canonical Adam update with dropout disabled; separate tests cover active-dropout
+resume, wealth feedback and inference purity.

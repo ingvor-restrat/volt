@@ -491,11 +491,22 @@ pub fn plan_hedging(
     let d = config.hedge_count as u64;
     let f = config.feature_count as u64;
     let input = config.input_width() as u64;
-    let parameters = t
-        .checked_mul(input * h + h * h + h * d + 6 * h + d)
+    // Reuse the actual leaf layout: shared reset LSTM parameters are not
+    // multiplied by the number of decision dates.
+    let parameters = crate::hedge_policy::parameter_shapes(config)
+        .iter()
+        .try_fold(0u64, |n, s| {
+            n.checked_add((s[0] as u64).checked_mul(s[1] as u64)?)
+        })
         .ok_or_else(overflow)?;
+    let shared_reset = config.shared_lstm_reset.is_some();
     let expanded = input * h + h * h + h * d;
-    if p.checked_mul((input * h).max(h * h).max(h * d))
+    let largest_product = if shared_reset {
+        (input * 4 * h).max(h * 4 * h).max(h * d)
+    } else {
+        (input * h).max(h * h).max(h * d)
+    };
+    if p.checked_mul(largest_product)
         .is_none_or(|n| n > crate::hedge_policy::MAX_EXPANDED_PRODUCT_ELEMENTS as u64)
     {
         return Err(ComputeError::BudgetExceeded(
@@ -508,9 +519,27 @@ pub fn plan_hedging(
     } else {
         12 * expanded + t * (4 * d + 2 * f + 16)
     };
+    // Four gates, recurrent products, two additional dense transforms and
+    // dropout intermediates fit conservatively inside 16x the MLP tape. Fixed
+    // runtime reserves remain separate; these are estimates, not peak claims.
+    let tape = if shared_reset && target == crate::ExecutionTarget::Cpu {
+        // CPU uses GEMM, not a B*input*output tensor expansion. Count retained
+        // gate/activation vectors (including dense/dropout/wealth context),
+        // with a conservative 12x forward/backward workspace allowance.
+        if training {
+            t.checked_mul(12 * (input + 64 * h + 8 * d + 8 * f))
+                .ok_or_else(overflow)?
+        } else {
+            12 * (input + 64 * h + 8 * d + 8 * f) + t * (4 * d + 2 * f + 16)
+        }
+    } else {
+        tape.checked_mul(if shared_reset { 16 } else { 1 })
+            .ok_or_else(overflow)?
+    };
+    let normalization = if shared_reset { 0 } else { t * 8 * h };
     let slots = p
         .checked_mul(tape)
-        .and_then(|v| v.checked_add(parameters * 12 + t * 8 * h))
+        .and_then(|v| v.checked_add(parameters * 12 + normalization))
         .ok_or_else(overflow)?;
     let scalar = if precision == Precision::F64 { 8 } else { 4 };
     let compute = slots
@@ -524,8 +553,16 @@ pub fn plan_hedging(
         target,
         crate::ExecutionTarget::Cpu | crate::ExecutionTarget::Metal
     );
+    let mask_staging = if shared_reset && training {
+        p.checked_mul(h)
+            .and_then(|n| n.checked_mul(16))
+            .ok_or_else(overflow)?
+    } else {
+        0
+    };
     let host = source
-        .checked_add(parameters * 96)
+        .checked_add(mask_staging)
+        .and_then(|v| v.checked_add(parameters * 96))
         .and_then(|v| v.checked_add(if shared { compute } else { 0 }))
         .ok_or_else(overflow)?;
     let usable = |bytes: u64| {
