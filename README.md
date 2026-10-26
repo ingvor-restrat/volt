@@ -161,3 +161,9 @@ specific data archives, production cohort builders, trained policies, services,
 and execution adapters remain outside Volt.
 
 Licensed under Apache-2.0.
+
+## Numerical application papers
+
+The [computation and hedging papers](docs/latex/compute/README.md) explain pricing,
+Greeks, hedge learning, live option analytics and straddle experiments, with
+[canonical LaTeX sources and PDFs](docs/latex/compute/).

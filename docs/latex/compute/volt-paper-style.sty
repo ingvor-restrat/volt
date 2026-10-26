@@ -1,0 +1,17 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{volt-paper-style}[Compact headings for the Volt paper series]
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-1.8ex \@plus -.4ex \@minus -.2ex}%
+  {.7ex \@plus .2ex}%
+  {\normalfont\fontsize{9}{11}\selectfont\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-1.4ex \@plus -.3ex \@minus -.2ex}%
+  {.5ex \@plus .1ex}%
+  {\normalfont\normalsize\bfseries}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {-1.2ex \@plus -.2ex \@minus -.1ex}%
+  {.4ex \@plus .1ex}%
+  {\normalfont\normalsize\itshape}}
+\makeatother
+\endinput

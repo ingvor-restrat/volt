@@ -39,3 +39,9 @@ latexmk -pdf -interaction=nonstopmode -halt-on-error \
 ```
 
 `latexmk -c` removes intermediate files without deleting the PDFs or sources.
+
+## Computation and hedging applications
+
+The [compute collection](compute/README.md) contains canonical sources and PDFs
+for pricing/AAD, Deep Hedging, live option analytics and volatility strategies.
+Build them with `python docs/latex/compute/build.py` from the repository root.
