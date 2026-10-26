@@ -27,6 +27,7 @@ pub mod model_hedge;
 pub mod monte_carlo;
 pub mod monte_carlo_job;
 pub mod monte_carlo_validation;
+pub mod native_learner;
 pub mod persistent;
 pub mod persistent_workload;
 pub mod pricing;

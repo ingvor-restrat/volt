@@ -303,6 +303,37 @@ impl HedgePolicy {
     pub fn updates(&self) -> u64 {
         self.updates
     }
+    /// Start an independent trainable policy with device-local tensor handles.
+    /// New AD leaves prevent graph reuse; immutable storage and Adam state can
+    /// be shared until an out-of-place update replaces the candidate tensors.
+    /// This avoids a host checkpoint round trip for transactional learners.
+    pub fn fork_trainable(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            precision: self.precision,
+            device: self.device.clone(),
+            parameters: self
+                .parameters
+                .iter()
+                .map(|p| Parameter {
+                    value: p.value.clone().without_autodiff().autodiff().require_grad(),
+                    first: p.first.clone(),
+                    second: p.second.clone(),
+                    step: p.step,
+                })
+                .collect(),
+            norms: self
+                .norms
+                .iter()
+                .map(|n| BatchNormState {
+                    mean: n.mean.clone(),
+                    variance: n.variance.clone(),
+                    batches: n.batches,
+                })
+                .collect(),
+            updates: self.updates,
+        }
+    }
     /// Training preserves the recurrent AD graph and updates running statistics.
     /// Evaluation detaches all operands and creates no AD graph, including when
     /// callers supply tracked inputs. Eval never updates BatchNorm statistics.

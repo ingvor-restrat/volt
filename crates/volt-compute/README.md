@@ -252,6 +252,11 @@ remain application responsibilities.
 
 ## Train, resume and benchmark Deep Hedging
 
+For training controlled by another application, the persistent
+[`native_learner` worker](docs-native-learner.md) accepts whole scenario batches,
+continuous holdings inference, versioned updates and portable optimizer checkpoints.
+Jormungandr can supervise it through its optional native-learner HTTP API.
+
 European liabilities include calls, puts, same-strike/expiry straddles and
 normalized call spreads. Training uses the aggregate terminal payoff and
 after-cost hedge profit, without an analytic hedge label. Each fitted policy
