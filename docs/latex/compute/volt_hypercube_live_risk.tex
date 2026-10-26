@@ -11,7 +11,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-\normalsize An options trader sees prices moving across hundreds of strikes and expiries while the underlying stock moves alongside them. Which changes come from the stock, which reflect a change in the market's assessment of volatility, and how much of either movement reaches the portfolio? We develop the calculations behind these questions using a European call quoted near 6.09 and a position of ten short contracts. The example connects bid and ask prices to implied volatility, builds the coordinates of a volatility surface, and shows how a stock hedge leaves substantial curvature and volatility exposure. We then extend the calculation across stocks: equity-factor loadings translate option delta into common return exposures, while separate volatility loadings describe changes in the surfaces themselves. This provides a practical basis for comparing securities, locating concentrated risks and investigating unusual option prices. Volt supplies the numerical calculations and Hypercube organizes the observations and results. The implemented single-underlying application provides the starting point for the cross-sectional analysis developed here.
+\normalsize An options trader sees prices moving across hundreds of strikes and expiries while the underlying stock moves alongside them. Which changes come from the stock, which reflect a change in the market's assessment of volatility, and how much of either movement reaches the portfolio? We develop the calculations behind these questions using a European call quoted near 6.09 and a position of ten short contracts. The example connects bid and ask prices to implied volatility, builds the coordinates of a volatility surface, and shows how a stock hedge leaves substantial curvature and volatility exposure. We then extend the calculation across stocks: equity-factor loadings translate option delta into common return exposures, while separate volatility loadings describe changes in the surfaces themselves. This provides a practical basis for comparing securities, locating concentrated risks and investigating unusual option prices. Volt supplies the numerical calculations and Hypercube organizes the observations and results. An exercise-aware worker and Options Risk viewer connect these calculations to a dated cross-section of stock and ETF options.
 \end{abstract}
 \SNtwocolumntableofcontents
 \begin{SNcolumns}
@@ -305,14 +305,28 @@ comparison; the remaining difference includes higher-order and interaction
 terms. Trade cash flows and changes in holdings complete an attribution of
 realized portfolio P\&L.
 
-Volt currently provides the double-precision CPU inversion, surface and risk
-calculations for a single underlying~\cite{volt}. Hypercube organizes the
-observations and calculated results~\cite{hypercube}. In a local scaling test on
-an Apple M3 running other applications, a synthetic 1,296-quote chain took a
-median 8.225 milliseconds for the numerical calculation and 15.188 milliseconds
-for the complete local request and response. The test used 20 updates after three warm-up submissions. One millisecond is
-one thousandth of a second. The request interval includes parsing and
-serialization; feed arrival and browser rendering require separate measurements.
+The European quote API provides double-precision CPU inversion, fitted
+volatility and risk calculations for a single underlying~\cite{volt}. Hypercube organizes the
+observations and calculated results~\cite{hypercube}. \section{An exercise-aware market viewer}
+Volt's exercise-pricing worker supports American rights throughout a declared
+interval and Bermudan rights on explicit dates, including cash-dividend
+events. A producer submits dated quotes to
+\texttt{POST /api/options-risk/frame}; the panel receives completed results
+from \texttt{GET /api/options-risk/snapshot}. Implied volatility uses the stock
+observation paired with each option quote. Subsequent stock updates reprice
+the contract at that retained volatility until another option quote arrives.
+Saved snapshots also support file replay.
+
+A historical capture supplies 64 American contracts across eight stock and
+ETF underlyings, arriving over about 24 seconds. Every contract received prices
+and Greeks. The replay supplies flat 4\% continuously compounded interest,
+zero continuous yield and an empty cash-dividend schedule as modelling
+assumptions. Its illustrative book holds one long contract per row.
+Observed quotes and paired stock prices supply the market inputs.
+
+The Options Risk panel groups signed exposures by underlying and lets the
+reader edit contract quantities. Wide spreads and quote ages accompany the
+calculated Greeks. Production use supplies the relevant carry and dividends.
 
 \end{SNcolumns}
 \clearpage

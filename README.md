@@ -76,6 +76,14 @@ synthetic quotes; the valuation scope is European exercise.
 
 [![Native European Greeks in the terminal](docs/markup/live-greeks-top.gif)](demo/live-greeks.html)
 
+American and Bermudan requests use the [exercise-aware pricing API](docs/exercise-pricing.md),
+including dated exercise, dividends, implied volatility and Greeks. The
+[HTTP worker and terminal viewer](docs/exercise-risk-service.md) connect these
+calculations to dated quotes and stock observations. See the
+[research collection](https://strategynet.ai/research/options) for actual historical
+American-option recordings and the application papers. Raw replay data stays
+outside this source checkout.
+
 `zap` shows how exact portfolio canonicalization and terminal-payoff projection
 reduce a small option search space. `cog` compiles structured options-design
 business logic into an immutable artifact, produces a point-in-time legal

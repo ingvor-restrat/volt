@@ -505,14 +505,10 @@ It checks both the resulting holdings and the derivatives through that
 feedback. Detaching earlier holdings changes the gradient, as expected when
 earlier decisions affect the cost of later trades.
 
-A separate Black--Scholes learning control used two hedge dates, 512 training
-paths, 2,048 independent validation paths and 1,000 updates. Both implementations
-started at validation CVaR 0.28610. The author implementation finished at
-0.26150 and Volt at 0.26156, versus 0.44826 unhedged and 0.26872 for the same-fee
-discrete analytic-delta control. The learning comparison disables
-batch normalization and holdings feedback. The feedback test case separately
-checks holdings recurrence; the author's network in this comparison omits batch normalization,
-and its broader latent-state APIs are outside this comparison.
+A matched two-date Black--Scholes control completed 1,000 updates using
+512 training paths and 2,048 validation paths. Validation CVaR finished at
+0.26150 for the author implementation and 0.26156 for Volt, compared with
+0.44826 unhedged and 0.26872 for the same-fee delta hedge.
 
 Rounding the CVaR tail to a whole observation changes the estimator whenever
 the selected tail contains fractional probability mass. For five losses $4,1,0,-1,-2$ and confidence 0.7, the
@@ -615,6 +611,27 @@ numerical changes can alter a long nonlinear optimization trajectory~\cite{repro
 Matched forward and gradient controls already show close agreement in the
 cases tested. The recorded result therefore characterizes the declared training setup.
 
+\subsection{Matched Heston training with the author's implementation}
+The larger matched experiment used 30 hedge dates, stock and a funded
+integrated-variance instrument, with two width-17 hidden layers. Three paired
+seeds shared paths and initial weights. Each engine completed 10,000 updates
+using 131,072 training paths and 8,192 validation paths, followed by assessment
+on 32,768 fresh common paths.
+
+Mean policy CVaR was 0.28700 for the author implementation and 0.28896 for
+Volt, compared with 0.24552 for the model hedge and 1.44924 without hedging.
+The author-minus-Volt difference was $-0.00196$, with an adjusted 95\% interval
+of $[-0.00828,0.00463]$. The learning implementations agree closely under this
+specification, while the model hedge retains lower measured tail risk.
+
+Earlier policies trained on 8,192 paths and selected on 4,096 paths produced
+CVaRs of 0.46150 and 0.45563 on the same fresh cohort. Increasing both pools
+reduced CVaR by roughly 0.17 in each engine. The comparison preserved initial
+weights, nested scenario prefixes, objectives and update counts. It shows how
+strongly sample settings affect this application and establishes a foundation
+for the next studies. Exact recovery of the original historical tables remains
+an additional numerical question.
+
 \section{Applications and extensions}
 The scenario interface separates the market model from the liability and
 trading account. An Asian payoff uses a running average; a lookback uses an
@@ -630,7 +647,12 @@ The reported experiment uses European expiry settlement. For exercise-aware
 applications, Becker, Cheridito and Jentzen supply learned stopping rules and
 pricing-and-hedging constructions with independent valuation
 bounds~\cite{stopping,american}. The exercise convention, cash timing and
-holder's rule form part of that application specification.
+holder's rule form part of that application specification. Volt now provides
+a CPU double-precision pricing reference for European, American and dated
+Bermudan rights, including cash dividends, implied volatility and Greeks.
+Applications can use those marks and exercise rules when constructing their
+training accounts; learning the holder's stopping policy is an additional
+optimization problem.
 
 The implemented straddle study illustrates another use of the same financial
 tooling. Eighteen long/short European configurations compare 30, 60 and 120

@@ -483,6 +483,35 @@ or statistical estimate. The shared-factor checks cover 256 positions with
 repricing. The supported precision is explicit: Metal uses f32,
 while CPU and CUDA provide f32 and f64.
 
+\section{American and Bermudan option requests}
+Early exercise adds a decision to valuation. A holder compares immediate
+exercise proceeds with the value of continuing to hold the contract.
+Bermudan options permit that comparison on specified dates; American options
+permit it throughout the exercise interval. Cash dividends also change the
+stock price and the relative value of exercising before the payment.
+
+Volt exposes this calculation through the \texttt{exercise\_pricer} command
+and the library functions \texttt{price}, \texttt{price\_and\_greeks},
+\texttt{implied\_volatility} and \texttt{price\_batch} in
+\texttt{exercise\_pricing}. The request includes dated exercise rights, spot,
+strike, volatility, continuously compounded interest, continuous dividend
+yield and explicit cash dividends. Values and Greeks are per underlying unit;
+position quantities and contract multipliers enter portfolio aggregation.
+
+A nonuniform stock-price grid concentrates points near strike. The calculation
+uses finite-difference rollback and policy iteration for the American exercise
+condition, with explicit treatment of the dated events. Twelve reference
+checks cover converged tree and QuantLib comparisons, grid and bump behaviour,
+exercise timing, dividend events and implied-volatility identification.
+Theta at an exact Bermudan opportunity has a separate event-time convention
+and may be unavailable in the returned result. The request diagnostics report
+the numerical grid and exercise calculation.
+
+This CPU double-precision reference extends the pricing tools available to an
+application. Its measured costs and refinement checks accompany the request.
+The GPU timings below describe their stated workloads; exercise-aware rollback
+has its own execution route and workload.
+
 \section{Choosing an execution route}
 We measured the supplied calculation tools on a system with an NVIDIA RTX 4090
 and an AMD Ryzen Threadripper PRO 7985WX processor running Linux~\cite{volt}. The CPU results
