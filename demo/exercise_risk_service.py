@@ -41,6 +41,16 @@ def finite(value, name):
     return float(value)
 
 
+def client_origin(origin, configured=()):
+    if not origin:
+        return None
+    parsed = urlparse(origin)
+    tauri = {"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"}
+    if origin in configured or origin in tauri or (parsed.scheme in ("http", "https") and parsed.hostname in ("localhost", "127.0.0.1", "::1")):
+        return origin
+    raise PermissionError("origin is outside the worker's configured clients")
+
+
 def calculate(frame, pricer, grid, timeout, iv_cache=None, workers=4):
     iv_cache = {} if iv_cache is None else iv_cache
     start = time.perf_counter()
@@ -217,13 +227,7 @@ def serve(args):
         def log_message(self, *_):
             pass
         def origin(self):
-            origin = self.headers.get("Origin")
-            if not origin:
-                return None
-            parsed = urlparse(origin)
-            if origin in args.allow_origin or (parsed.scheme in ("http", "https") and parsed.hostname in ("localhost", "127.0.0.1", "::1")):
-                return origin
-            raise PermissionError("origin is outside the worker's configured clients")
+            return client_origin(self.headers.get("Origin"), args.allow_origin)
         def send(self, status, data):
             body = json.dumps(data, allow_nan=False).encode()
             self.send_response(status)

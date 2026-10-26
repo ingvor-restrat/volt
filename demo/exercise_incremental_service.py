@@ -14,9 +14,8 @@ import os
 from pathlib import Path
 import subprocess
 import threading
-from urllib.parse import urlparse
 from exercise_incremental import IncrementalExerciseRisk, NativePublisher
-from exercise_risk_service import decode_ns, PREFIX
+from exercise_risk_service import client_origin, decode_ns, PREFIX
 
 MAX_BYTES = 2 * 1024 * 1024
 
@@ -34,13 +33,7 @@ def make_server(args, engine):
             pass
 
         def allowed_origin(self):
-            origin = self.headers.get('Origin')
-            if not origin:
-                return None
-            parsed = urlparse(origin)
-            if origin in args.allow_origin or (parsed.scheme in ('http', 'https') and parsed.hostname in ('localhost', '127.0.0.1', '::1')):
-                return origin
-            raise PermissionError('origin is outside configured clients')
+            return client_origin(self.headers.get('Origin'), args.allow_origin)
 
         def reply(self, code, data):
             body = json.dumps(data, allow_nan=False, separators=(',', ':')).encode()

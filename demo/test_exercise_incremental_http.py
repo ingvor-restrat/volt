@@ -59,6 +59,9 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/api/options-risk/snapshot',headers={'Origin':'https://external.example'})[0],403)
         status,_,headers=self.request('/api/options-risk/snapshot',headers={'Origin':'http://localhost:3000'})
         self.assertEqual(status,200);self.assertEqual(headers['Access-Control-Allow-Origin'],'http://localhost:3000')
+        for origin in ['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost']:
+            status,_,headers=self.request('/api/options-risk/snapshot',headers={'Origin':origin})
+            self.assertEqual(status,200);self.assertEqual(headers['Access-Control-Allow-Origin'],origin)
         connection = http.client.HTTPConnection('127.0.0.1', self.server.server_address[1], timeout=5)
         connection.putrequest('POST', '/api/options-risk/event')
         for key, value in [('Authorization','Bearer test-token'), ('Content-Type','application/json'), ('Content-Length',str(2*1024*1024+1))]:

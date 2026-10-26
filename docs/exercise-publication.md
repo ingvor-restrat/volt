@@ -67,7 +67,7 @@ python3 demo/exercise_incremental_service.py \
 `GET /api/options-risk/snapshot`; `/health` also checks native-publisher liveness.
 The default listener is local. A nonlocal binding requires the bearer token from
 `VOLT_RISK_TOKEN`, sent as `Authorization: Bearer …`. Configured `--allow-origin`
-values supplement local browser origins. There is no vendor connector. The
+values supplement local browser and Tauri application origins. There is no vendor connector. The
 existing `demo/exercise_risk_service.py` remains the complete-frame HTTP interface.
 
 ## Units and missing values
