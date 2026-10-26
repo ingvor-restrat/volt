@@ -34,7 +34,7 @@ class ExerciseRiskServiceTests(unittest.TestCase):
         self.assertEqual(len(cache),2)
         for a,b in zip(first['rows'],second['rows']):
             self.assertEqual(a['iv'],b['iv']);self.assertGreater(b['risk']['valuation']['price'],a['risk']['valuation']['price'])
-            self.assertEqual(b['calibration_ns'],str(self.now));self.assertEqual(b['risk_asof_ns'],str(later))
+            self.assertEqual(b['calibration_spot_ns'],str(self.now));self.assertEqual(b['calibration_ns'],str(self.now));self.assertEqual(b['risk_asof_ns'],str(later))
     def test_rejects_future_or_duplicate_observations(self):
         frame=copy.deepcopy(self.frame);frame['quotes'][0]['spot_ns']=str(self.now+1)
         with self.assertRaisesRegex(ValueError,'observations'):self.run_frame(frame)

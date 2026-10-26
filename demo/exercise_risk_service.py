@@ -127,7 +127,7 @@ def calculate(frame, pricer, grid, timeout, iv_cache=None, workers=4):
                                         "quote_ns": str(quote["quote_ns"]), "spot_ns": str(calibration_spot_ns), "grid": grid},
                                        sort_keys=True, allow_nan=False).encode()).hexdigest()
         keys[option["contract_id"]] = key
-        calibrations[option["contract_id"]] = (calibration_ns, calibration_spot)
+        calibrations[option["contract_id"]] = (calibration_ns, calibration_spot, calibration_spot_ns)
         if key not in iv_cache:
             missing_calibrations.append({"option": option, "market_price": (quote["bid"] + quote["ask"]) / 2})
     for result in run(missing_calibrations):
@@ -176,7 +176,8 @@ def calculate(frame, pricer, grid, timeout, iv_cache=None, workers=4):
                "quantity": quote.get("quantity", 0), "multiplier": quote.get("multiplier", 100),
                "position_units": units, "iv": iv, "risk": risk, "error": result.get("error"),
                "calibration_ns": str(calibrations[o["contract_id"]][0]),
-               "calibration_spot": calibrations[o["contract_id"]][1], "risk_asof_ns": str(as_of)}
+               "calibration_spot": calibrations[o["contract_id"]][1],
+               "calibration_spot_ns": str(calibrations[o["contract_id"]][2]), "risk_asof_ns": str(as_of)}
         rows.append(row)
         if units:
             if not risk:

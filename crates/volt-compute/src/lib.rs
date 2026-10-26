@@ -5,11 +5,14 @@ pub mod benchmark;
 pub mod budget;
 pub mod chunked;
 pub mod exercise_pricing;
+#[cfg(feature = "live-risk")]
+pub mod exercise_publication;
 pub mod factor_scenarios;
 pub mod hedge_application;
 pub mod hedge_band;
 pub mod hedge_benchmark;
 pub mod hedge_ledger;
+pub mod hedge_lot_qubo;
 pub mod hedge_policy;
 pub mod hedge_reconciliation;
 pub mod hedge_training;

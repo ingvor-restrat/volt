@@ -36,3 +36,8 @@ hypercube = { package = "hypercube-engine", git = "https://github.com/ingvor-res
 name = "live_option_risk"
 path = "src/bin/live_option_risk.rs"
 required-features = ["live-risk"]
+
+[[bin]]
+name = "exercise_cube"
+path = "src/bin/exercise_cube.rs"
+required-features = ["live-risk"]

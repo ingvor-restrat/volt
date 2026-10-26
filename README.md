@@ -79,7 +79,9 @@ synthetic quotes; the valuation scope is European exercise.
 American and Bermudan requests use the [exercise-aware pricing API](docs/exercise-pricing.md),
 including dated exercise, dividends, implied volatility and Greeks. The
 [HTTP worker and terminal viewer](docs/exercise-risk-service.md) connect these
-calculations to dated quotes and stock observations. See the
+calculations to dated quotes and stock observations. The
+[incremental Hypercube service](docs/exercise-publication.md) recalculates the affected
+underlying and publishes a combined view with explicit calculation ages. See the
 [research collection](https://strategynet.ai/research/options) for actual historical
 American-option recordings and the application papers. Raw replay data stays
 outside this source checkout.
