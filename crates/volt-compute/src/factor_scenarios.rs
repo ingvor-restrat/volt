@@ -542,6 +542,7 @@ pub fn generate(
     let physical = digest(&(&marks, &signals, &coefficients))?;
     let dataset = digest(&("volt.factor_scenarios.v1", RNG_CONTRACT, m, c))?;
     let batch = EpisodeBatch {
+        force_trade_signal: None,
         paths: r.paths,
         provenance: BatchProvenance {
             dataset_id: dataset,

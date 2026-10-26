@@ -34,12 +34,24 @@ pub struct BatchNormConfig {
     pub epsilon: f64,
     pub momentum: f64,
 }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdamEpsilonConvention {
+    #[default]
+    BiasCorrected,
+    TensorflowUncorrected,
+}
+fn canonical_epsilon(x: &AdamEpsilonConvention) -> bool {
+    *x == AdamEpsilonConvention::BiasCorrected
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdamConfig {
     pub beta1: f64,
     pub beta2: f64,
     pub epsilon: f64,
+    #[serde(default, skip_serializing_if = "canonical_epsilon")]
+    pub epsilon_convention: AdamEpsilonConvention,
 }
 /// Explicit optional preprocessing (a deviation from the raw paper profile):
 /// normalized feature = (raw feature - offset) * scale.
@@ -48,6 +60,16 @@ pub struct AdamConfig {
 pub struct FeatureAffine {
     pub offsets: Vec<f64>,
     pub scales: Vec<f64>,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurrentActivation {
+    #[default]
+    Sigmoid,
+    HardSigmoid,
+}
+fn default_recurrent_activation(x: &RecurrentActivation) -> bool {
+    *x == RecurrentActivation::Sigmoid
 }
 /// Shared Keras-style two single-step LSTM layers, two ReLU dense layers and
 /// a linear output. Cell/hidden states reset at every decision; temporal
@@ -58,6 +80,36 @@ pub struct SharedLstmResetConfig {
     pub dropout_probability: f64,
     /// Stateless dropout key; masks also depend on update/date/layer/row/column.
     pub dropout_seed: u64,
+    #[serde(default, skip_serializing_if = "default_recurrent_activation")]
+    pub recurrent_activation: RecurrentActivation,
+}
+/// Source small-trade rule, with a learned nonnegative scalar threshold.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SmallTradeGateConfig {
+    pub sharpness: f64,
+    pub force_threshold: f64,
+    pub initial_trade_threshold: f64,
+    pub inference_sharpen: bool,
+}
+impl Default for SmallTradeGateConfig {
+    fn default() -> Self {
+        Self {
+            sharpness: 1000.0,
+            force_threshold: 0.1,
+            initial_trade_threshold: 0.001,
+            inference_sharpen: true,
+        }
+    }
+}
+/// Decision-time financial observations and an explicit small-trade phase.
+#[derive(Default)]
+pub struct PolicyForwardContext {
+    pub wealth: Option<Tensor<1>>,
+    /// Nonnegative source roll/settlement observations; None means static assets.
+    pub force_trade_signal: Option<Tensor<2>>,
+    /// None follows config: soft while training, optionally sharpened at inference.
+    pub sharpen_gate: Option<bool>,
 }
 fn is_false(x: &bool) -> bool {
     !*x
@@ -69,6 +121,8 @@ pub struct HedgePolicyConfig {
     pub shared_lstm_reset: Option<SharedLstmResetConfig>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub include_wealth: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub small_trade_gate: Option<SmallTradeGateConfig>,
     pub time_steps: usize,
     pub feature_count: usize,
     pub hedge_count: usize,
@@ -89,6 +143,7 @@ impl HedgePolicyConfig {
         Self {
             shared_lstm_reset: None,
             include_wealth: false,
+            small_trade_gate: None,
             time_steps: 30,
             feature_count: 2,
             hedge_count: 2,
@@ -104,6 +159,7 @@ impl HedgePolicyConfig {
                 beta1: 0.9,
                 beta2: 0.999,
                 epsilon: 1e-8,
+                epsilon_convention: AdamEpsilonConvention::BiasCorrected,
             },
             feature_affine: None,
             action_scales: None,
@@ -146,6 +202,17 @@ impl HedgePolicyConfig {
             return Err(invalid(
                 "reset LSTM requires BatchNorm disabled and dropout in [0,1)",
             ));
+        }
+        if let Some(g) = &self.small_trade_gate
+            && (self.shared_lstm_reset.is_none()
+                || !g.sharpness.is_finite()
+                || g.sharpness <= 0.0
+                || !g.force_threshold.is_finite()
+                || g.force_threshold < 0.0
+                || !g.initial_trade_threshold.is_finite()
+                || g.initial_trade_threshold < 0.0)
+        {
+            return Err(invalid("invalid reset LSTM small-trade rule"));
         }
         if !self.batch_norm.epsilon.is_finite()
             || self.batch_norm.epsilon <= 0.0
@@ -264,7 +331,13 @@ impl HedgePolicy {
             let values = (0..shape[0] * shape[1])
                 .map(|element| {
                     if config.shared_lstm_reset.is_some() {
-                        if matches!(index, 2 | 5) {
+                        if index == 12 {
+                            config
+                                .small_trade_gate
+                                .as_ref()
+                                .expect("threshold layout")
+                                .initial_trade_threshold
+                        } else if matches!(index, 2 | 5) {
                             if (config.hidden_width..2 * config.hidden_width).contains(&element) {
                                 1.0
                             } else {
@@ -407,11 +480,30 @@ impl HedgePolicy {
         wealth: Option<Tensor<1>>,
         train: bool,
     ) -> Result<Tensor<2>, ComputeError> {
+        self.forward_at_with_context(
+            step,
+            features,
+            previous,
+            PolicyForwardContext {
+                wealth,
+                ..PolicyForwardContext::default()
+            },
+            train,
+        )
+    }
+    pub fn forward_at_with_context(
+        &mut self,
+        step: usize,
+        features: Tensor<2>,
+        previous: Tensor<2>,
+        context: PolicyForwardContext,
+        train: bool,
+    ) -> Result<Tensor<2>, ComputeError> {
         self.forward_mode(
             step,
             features,
             previous,
-            wealth,
+            context,
             if train {
                 ForwardMode::Training
             } else {
@@ -431,16 +523,27 @@ impl HedgePolicy {
         features: Tensor<2>,
         previous: Tensor<2>,
     ) -> Result<Tensor<2>, ComputeError> {
-        self.forward_mode(step, features, previous, None, ForwardMode::Calibration)
+        self.forward_mode(
+            step,
+            features,
+            previous,
+            PolicyForwardContext::default(),
+            ForwardMode::Calibration,
+        )
     }
     fn forward_mode(
         &mut self,
         step: usize,
         features: Tensor<2>,
         previous: Tensor<2>,
-        wealth: Option<Tensor<1>>,
+        context: PolicyForwardContext,
         forward_mode: ForwardMode,
     ) -> Result<Tensor<2>, ComputeError> {
+        let PolicyForwardContext {
+            wealth,
+            force_trade_signal,
+            sharpen_gate,
+        } = context;
         let train = matches!(forward_mode, ForwardMode::Training);
         let calibrate = matches!(forward_mode, ForwardMode::Calibration);
         if step >= self.config.time_steps {
@@ -461,6 +564,36 @@ impl HedgePolicy {
                 "BatchNorm training/calibration requires at least two rows",
             ));
         }
+        if self.config.small_trade_gate.is_none()
+            && (force_trade_signal.is_some() || sharpen_gate.is_some())
+        {
+            return Err(invalid("small-trade context requires configured rule"));
+        }
+        if let Some(signal) = &force_trade_signal {
+            if signal.dims() != [batch, self.config.hedge_count] {
+                return Err(invalid("forced-trade signal shape mismatch"));
+            }
+            check_tensor(signal, &self.device, self.precision)?;
+            if !bool_value(
+                signal
+                    .clone()
+                    .without_autodiff()
+                    .is_finite()
+                    .all()
+                    .bool_and(
+                        signal
+                            .clone()
+                            .without_autodiff()
+                            .greater_equal_elem(0.0)
+                            .all(),
+                    ),
+            )? {
+                return Err(invalid(
+                    "forced-trade signals must be finite and nonnegative",
+                ));
+            }
+        }
+        let physical_previous = previous.clone();
         if self.config.include_wealth != wealth.is_some() {
             return Err(invalid("policy wealth context must match include_wealth"));
         }
@@ -540,6 +673,26 @@ impl HedgePolicy {
             let mut output = self.forward_shared_reset(x, step, train)?;
             if let Some(scales) = &self.config.action_scales {
                 output = output * self.constant(scales.clone(), [1, self.config.hedge_count]);
+            }
+            if let Some(rule) = &self.config.small_trade_gate {
+                let previous = mode(physical_previous);
+                let threshold = mode(self.parameters[12].value.clone());
+                let activity = sigmoid(
+                    ((output.clone() - previous.clone()).abs().sum_dim(1) - threshold)
+                        * rule.sharpness,
+                );
+                let signal = force_trade_signal.map(mode).unwrap_or_else(|| {
+                    self.constant(
+                        vec![0.0; batch * self.config.hedge_count],
+                        [batch, self.config.hedge_count],
+                    )
+                });
+                let forced = sigmoid((signal - rule.force_threshold) * rule.sharpness);
+                let mut fraction = forced.max_pair(activity);
+                if sharpen_gate.unwrap_or(!train && rule.inference_sharpen) {
+                    fraction = sigmoid((fraction - 0.5) * rule.sharpness);
+                }
+                output = fraction.clone() * output + (1.0 - fraction) * previous;
             }
             if !bool_value(finite.bool_and(output.clone().without_autodiff().is_finite().all()))? {
                 return Err(invalid("nonfinite reset LSTM input/output"));
@@ -633,6 +786,16 @@ impl HedgePolicy {
                 p.without_autodiff()
             }
         };
+        let activation = self
+            .config
+            .shared_lstm_reset
+            .as_ref()
+            .expect("validated reset LSTM")
+            .recurrent_activation;
+        let recurrent = |x: Tensor<2>| match activation {
+            RecurrentActivation::Sigmoid => sigmoid(x),
+            RecurrentActivation::HardSigmoid => (x * 0.2 + 0.5).clamp(0., 1.),
+        };
         for layer in 0..2 {
             let at = layer * 3;
             let zero = self.constant(vec![0.0; batch * w], [batch, w]);
@@ -645,9 +808,9 @@ impl HedgePolicy {
                 mode(self.parameters[at + 1].value.clone()),
                 MAX_EXPANDED_PRODUCT_ELEMENTS,
             )? + mode(self.parameters[at + 2].value.clone());
-            let input = sigmoid(gates.clone().slice([0..batch, 0..w]));
+            let input = recurrent(gates.clone().slice([0..batch, 0..w]));
             let cell = input * tanh(gates.clone().slice([0..batch, 2 * w..3 * w]));
-            x = sigmoid(gates.slice([0..batch, 3 * w..4 * w])) * tanh(cell);
+            x = recurrent(gates.slice([0..batch, 3 * w..4 * w])) * tanh(cell);
         }
         let c = self
             .config
@@ -725,8 +888,20 @@ impl HedgePolicy {
             let second = p.second.clone() * a.beta2 + g.clone().square() * (1.0 - a.beta2);
             let corrected_first = first.clone() * (1.0 / (1.0 - a.beta1.powf(step as f64)));
             let corrected_second = second.clone() * (1.0 / (1.0 - a.beta2.powf(step as f64)));
-            let value = p.value.clone().without_autodiff()
-                - corrected_first / (corrected_second.sqrt() + a.epsilon) * learning_rate;
+            let update = match a.epsilon_convention {
+                AdamEpsilonConvention::BiasCorrected => {
+                    corrected_first / (corrected_second.sqrt() + a.epsilon) * learning_rate
+                }
+                AdamEpsilonConvention::TensorflowUncorrected => {
+                    first.clone() / (second.clone().sqrt() + a.epsilon)
+                        * (learning_rate * (1.0 - a.beta2.powf(step as f64)).sqrt()
+                            / (1.0 - a.beta1.powf(step as f64)))
+                }
+            };
+            let mut value = p.value.clone().without_autodiff() - update;
+            if self.config.small_trade_gate.is_some() && index == 12 {
+                value = value.clamp_min(0.0);
+            }
             finite_flags.push(
                 g.clone()
                     .is_finite()
@@ -941,6 +1116,9 @@ pub fn validate_policy_snapshot(s: &PolicySnapshot) -> Result<(), ComputeError> 
             return Err(invalid("invalid Adam checkpoint moments"));
         }
     }
+    if s.config.small_trade_gate.is_some() && s.parameters[12].values[0] < 0.0 {
+        return Err(invalid("negative small-trade threshold in checkpoint"));
+    }
     for n in &s.batch_norm {
         if n.running_mean.len() != s.config.hidden_width
             || n.running_variance.len() != s.config.hidden_width
@@ -1001,7 +1179,7 @@ fn check_product_shape(b: usize, i: usize, o: usize, cap: usize) -> Result<(), C
 pub(crate) fn parameter_shapes(c: &HedgePolicyConfig) -> Vec<[usize; 2]> {
     if c.shared_lstm_reset.is_some() {
         let w = c.hidden_width;
-        return vec![
+        let mut shapes = vec![
             [c.input_width(), 4 * w],
             [w, 4 * w],
             [1, 4 * w],
@@ -1015,6 +1193,10 @@ pub(crate) fn parameter_shapes(c: &HedgePolicyConfig) -> Vec<[usize; 2]> {
             [w, c.hedge_count],
             [1, c.hedge_count],
         ];
+        if c.small_trade_gate.is_some() {
+            shapes.push([1, 1]);
+        }
+        return shapes;
     }
     let mut out = Vec::with_capacity(c.time_steps * 10);
     for _ in 0..c.time_steps {
@@ -1063,6 +1245,23 @@ pub fn validate_policy_config(
         return Err(invalid(
             "policy optimizer/normalization constants collapse in f32",
         ));
+    }
+    if let Some(g) = &c.small_trade_gate {
+        check_values(
+            &[g.sharpness, g.force_threshold, g.initial_trade_threshold],
+            precision,
+        )?;
+        if precision == Precision::F32
+            && [
+                (g.sharpness, true),
+                (g.force_threshold, g.force_threshold > 0.0),
+                (g.initial_trade_threshold, g.initial_trade_threshold > 0.0),
+            ]
+            .iter()
+            .any(|(x, positive)| *positive && (*x as f32) <= 0.0)
+        {
+            return Err(invalid("small-trade constants underflow in f32"));
+        }
     }
     if let Some(lstm) = &c.shared_lstm_reset {
         check_values(

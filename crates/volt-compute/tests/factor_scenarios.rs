@@ -224,6 +224,7 @@ fn native_learner_executes_same_funded_cashflows() {
         .handle(Command::Evaluate {
             batch_id: "factor".into(),
             retain_holdings: true,
+            sharpen_gate: None,
         })
         .unwrap();
     for p in 0..2 {

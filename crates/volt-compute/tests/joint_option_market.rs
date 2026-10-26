@@ -244,6 +244,7 @@ fn funding_costs_shapes_and_native_learner_upload() {
         .handle(Command::Evaluate {
             batch_id: "joint".into(),
             retain_holdings: true,
+            sharpen_gate: None,
         })
         .unwrap();
     for path in 0..2 {

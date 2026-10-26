@@ -4,9 +4,10 @@ use crate::{
     ComputeError, ExecutionTarget, Precision, Session,
     budget::MemoryBudget,
     hedge_application::{HedgePathBatch, plan_hedging, tensor_risk},
-    hedge_policy::{HedgePolicy, HedgePolicyConfig, PolicySnapshot},
+    hedge_policy::{HedgePolicy, HedgePolicyConfig, PolicyForwardContext, PolicySnapshot},
     risk_objective::RiskObjective,
 };
+use burn::tensor::Bool;
 use burn::tensor::{DType, Tensor, TensorCreationOptions, TensorData, activation::relu};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -38,6 +39,15 @@ pub enum Objective {
     },
 }
 
+/// Source probability of any intermediate tracking violation. This Boolean
+/// diagnostic has zero pathwise gradient; no surrogate derivative is used.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrackingPenaltyConfig {
+    pub liability_feature: usize,
+    pub threshold_multiple: f64,
+    pub coefficient: f64,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LearnerConfig {
@@ -48,6 +58,8 @@ pub struct LearnerConfig {
     pub seed: u64,
     pub learning_rate: f64,
     pub objective: Objective,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tracking_penalty: Option<TrackingPenaltyConfig>,
     pub premium: f64,
     /// Per-instrument fraction of traded notional, including opening trades.
     pub trading_costs: Vec<f64>,
@@ -75,6 +87,7 @@ impl Default for LearnerConfig {
             seed: 23,
             learning_rate: 0.001,
             objective: Objective::SquaredLoss,
+            tracking_penalty: None,
             premium: 0.0,
             trading_costs: vec![0.0; 2],
             liquidation_costs: vec![0.0; 2],
@@ -98,6 +111,18 @@ impl LearnerConfig {
         }
         let h = self.policy.hedge_count;
         let t = self.policy.time_steps;
+        if let Some(t) = &self.tracking_penalty
+            && (t.liability_feature >= self.policy.feature_count
+                || !t.threshold_multiple.is_finite()
+                || t.threshold_multiple < 0.0
+                || !t.coefficient.is_finite()
+                || t.coefficient < 0.0
+                || (self.precision == Precision::F32
+                    && (!(t.threshold_multiple as f32).is_finite()
+                        || (t.threshold_multiple > 0.0 && (t.threshold_multiple as f32) == 0.0))))
+        {
+            return Err(invalid("invalid tracking diagnostic configuration"));
+        }
         let engine = if self.policy.shared_lstm_reset.is_some() {
             "volt_shared_lstm_reset"
         } else {
@@ -204,6 +229,10 @@ pub struct EpisodeBatch {
     pub features: Vec<f64>,
     /// Terminal liabilities, positive for an amount owed. Multipliers applied upstream.
     pub payoffs: Vec<f64>,
+    /// Optional current per-asset roll/settlement observations, [path,date,asset].
+    /// Static instruments omit this field. This does not itself model roll cash flows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub force_trade_signal: Option<Vec<f64>>,
 }
 struct ResidentBatch {
     split: Split,
@@ -212,6 +241,7 @@ struct ResidentBatch {
     // Upload once and retain native device tensors across training commands.
     marks: Vec<Tensor<2>>,
     features: Vec<Tensor<2>>,
+    force_trade_signal: Option<Vec<Tensor<2>>>,
     payoffs: Tensor<1>,
     compute_bytes: u64,
     host_bytes: u64,
@@ -255,6 +285,8 @@ pub enum Command {
         batch_id: String,
         #[serde(default)]
         retain_holdings: bool,
+        #[serde(default)]
+        sharpen_gate: Option<bool>,
     },
     Infer {
         step: usize,
@@ -262,6 +294,10 @@ pub enum Command {
         previous_holdings: Vec<f64>,
         #[serde(default)]
         wealth: Option<Vec<f64>>,
+        #[serde(default)]
+        force_trade_signal: Option<Vec<f64>>,
+        #[serde(default)]
+        sharpen_gate: Option<bool>,
         paths: usize,
     },
     Checkpoint,
@@ -365,16 +401,22 @@ impl NativeLearner {
                 }
                 // Commit only a successful complete update; failures preserve live weights/Adam.
                 let mut candidate = self.policy.fork_trainable();
-                let (pnl, _, _) = rollout(
+                let (pnl, _, _, tracking) = rollout(
                     &self.session,
                     &self.config,
                     batch,
                     &mut candidate,
                     true,
                     false,
+                    Some(false),
                 )?;
                 let loss = objective(&self.session, pnl, &self.config.objective)?;
                 let value = self.session.read_vector(&loss)?[0];
+                let tracking = tracking
+                    .map(|t| self.session.read_vector(&t.float().mean()))
+                    .transpose()?
+                    .map(|x| x[0]);
+                validate_tracking_scalar(value, tracking, self.config.tracking_penalty.as_ref())?;
                 if !value.is_finite() {
                     return Err(invalid("nonfinite objective"));
                 }
@@ -383,28 +425,49 @@ impl NativeLearner {
                     candidate.backward_update(&mut loss.backward(), self.config.learning_rate)?;
                 self.session.synchronize()?;
                 self.policy = candidate;
-                Ok(
-                    json!({"version":self.policy.updates(),"loss_before_update":value,"gradient_l2_norm":stats.gradient_l2_norm,"updated_parameters":stats.updated_parameters,"backward_update_ms":start.elapsed().as_secs_f64()*1000.0,"batch_id":batch_id,"batch_sha256":batch.hash,"paths":batch.batch.paths}),
-                )
+                let mut result = json!({"version":self.policy.updates(),"loss_before_update":value,"gradient_l2_norm":stats.gradient_l2_norm,"updated_parameters":stats.updated_parameters,"backward_update_ms":start.elapsed().as_secs_f64()*1000.0,"batch_id":batch_id,"batch_sha256":batch.hash,"paths":batch.batch.paths});
+                if let Some(fraction) = tracking {
+                    let penalty = fraction
+                        * self
+                            .config
+                            .tracking_penalty
+                            .as_ref()
+                            .expect("tracking config")
+                            .coefficient;
+                    result["tracking_violation_fraction"] = json!(fraction);
+                    result["tracking_penalty"] = json!(penalty);
+                    result["source_loss_before_update"] = json!(value + penalty);
+                }
+                Ok(result)
             }
             Command::Evaluate {
                 batch_id,
                 retain_holdings,
+                sharpen_gate,
             } => {
                 let batch = self
                     .batches
                     .get(&batch_id)
                     .ok_or_else(|| invalid("unknown batch_id"))?;
-                let (pnl, costs, holdings) = rollout(
+                if sharpen_gate.is_some() && self.config.policy.small_trade_gate.is_none() {
+                    return Err(invalid("sharpen override requires small-trade rule"));
+                }
+                let (pnl, costs, holdings, tracking) = rollout(
                     &self.session,
                     &self.config,
                     batch,
                     &mut self.policy,
                     false,
                     retain_holdings,
+                    sharpen_gate,
                 )?;
                 let loss = objective(&self.session, pnl.clone(), &self.config.objective)?;
                 let loss = self.session.read_vector(&loss)?[0];
+                let tracking = tracking
+                    .map(|t| self.session.read_vector(&t.float().mean()))
+                    .transpose()?
+                    .map(|x| x[0]);
+                validate_tracking_scalar(loss, tracking, self.config.tracking_penalty.as_ref())?;
                 let pnl = self.session.read_vector(&pnl)?;
                 let costs = self.session.read_vector(&costs)?;
                 let holdings = holdings
@@ -420,15 +483,28 @@ impl NativeLearner {
                 {
                     return Err(invalid("nonfinite evaluation"));
                 }
-                Ok(
-                    json!({"version":self.policy.updates(),"split":batch.split,"batch_sha256":batch.hash,"loss":loss,"pnl":pnl,"costs":costs,"holdings":holdings}),
-                )
+                let mut result = json!({"version":self.policy.updates(),"split":batch.split,"batch_sha256":batch.hash,"loss":loss,"pnl":pnl,"costs":costs,"holdings":holdings});
+                if let Some(fraction) = tracking {
+                    let penalty = fraction
+                        * self
+                            .config
+                            .tracking_penalty
+                            .as_ref()
+                            .expect("tracking config")
+                            .coefficient;
+                    result["tracking_violation_fraction"] = json!(fraction);
+                    result["tracking_penalty"] = json!(penalty);
+                    result["source_loss"] = json!(loss + penalty);
+                }
+                Ok(result)
             }
             Command::Infer {
                 step,
                 features,
                 previous_holdings,
                 wealth,
+                force_trade_signal,
+                sharpen_gate,
                 paths,
             } => {
                 let c = &self.config.policy;
@@ -458,11 +534,28 @@ impl NativeLearner {
                     ));
                 }
                 let wealth = wealth.map(|w| self.session.vector(w));
-                let result = self.policy.forward_at_with_wealth(
+                if force_trade_signal.as_ref().is_some_and(|x| {
+                    x.len() != paths * c.hedge_count
+                        || x.iter().any(|v| {
+                            !v.is_finite()
+                                || *v < 0.0
+                                || (self.config.precision == Precision::F32
+                                    && !(*v as f32).is_finite())
+                        })
+                }) {
+                    return Err(invalid("invalid forced-trade signal"));
+                }
+                let signal =
+                    force_trade_signal.map(|x| tensor2(&self.session, x, [paths, c.hedge_count]));
+                let result = self.policy.forward_at_with_context(
                     step,
                     tensor2(&self.session, features, [paths, c.feature_count]),
                     tensor2(&self.session, previous_holdings, [paths, c.hedge_count]),
-                    wealth,
+                    PolicyForwardContext {
+                        wealth,
+                        force_trade_signal: signal,
+                        sharpen_gate,
+                    },
                     false,
                 )?;
                 let holdings = result.try_to_vec_as::<f64>().map_err(execution)?;
@@ -566,6 +659,21 @@ impl NativeLearner {
             source_hash: hash.clone(),
         };
         model.validate()?;
+        if let Some(signal) = &batch.force_trade_signal
+            && (c.small_trade_gate.is_none()
+                || batch
+                    .paths
+                    .checked_mul(c.time_steps)
+                    .and_then(|n| n.checked_mul(c.hedge_count))
+                    != Some(signal.len())
+                || signal.iter().any(|x| {
+                    !x.is_finite()
+                        || *x < 0.0
+                        || (self.config.precision == Precision::F32 && !(*x as f32).is_finite())
+                }))
+        {
+            return Err(invalid("invalid forced-trade episode observations"));
+        }
         // Reuse Volt's full recurrent-policy planner. Reserve a second full job
         // for transactional candidate weights and this financed recurrence.
         let plan = plan_hedging(
@@ -593,7 +701,10 @@ impl NativeLearner {
         } else {
             4
         };
-        let elements = (batch.marks.len() + batch.features.len() + batch.payoffs.len()) as u64;
+        let elements = (batch.marks.len()
+            + batch.features.len()
+            + batch.payoffs.len()
+            + batch.force_trade_signal.as_ref().map_or(0, Vec::len)) as u64;
         let compute = elements.saturating_mul(scalar);
         let host = elements
             .saturating_mul(8)
@@ -665,6 +776,22 @@ impl NativeLearner {
                 ));
             }
         }
+        let force_trade_signal = batch.force_trade_signal.as_ref().map(|signal| {
+            (0..c.time_steps)
+                .map(|t| {
+                    tensor2(
+                        &self.session,
+                        (0..batch.paths)
+                            .flat_map(|p| {
+                                let at = (p * c.time_steps + t) * c.hedge_count;
+                                signal[at..at + c.hedge_count].iter().copied()
+                            })
+                            .collect(),
+                        [batch.paths, c.hedge_count],
+                    )
+                })
+                .collect()
+        });
         let payoffs = self.session.vector(batch.payoffs.clone());
         self.session.synchronize()?;
         let paths = batch.paths;
@@ -676,6 +803,7 @@ impl NativeLearner {
                 hash: hash.clone(),
                 marks,
                 features,
+                force_trade_signal,
                 payoffs,
                 compute_bytes: compute,
                 host_bytes: host,
@@ -689,6 +817,25 @@ impl NativeLearner {
     }
 }
 
+fn validate_tracking_scalar(
+    loss: f64,
+    fraction: Option<f64>,
+    config: Option<&TrackingPenaltyConfig>,
+) -> Result<(), ComputeError> {
+    if let Some(f) = fraction {
+        let c = config.ok_or_else(|| invalid("missing tracking configuration"))?;
+        if !f.is_finite() || !(0.0..=1.0).contains(&f) || !(loss + f * c.coefficient).is_finite() {
+            return Err(invalid("nonfinite tracking diagnostic"));
+        }
+    }
+    Ok(())
+}
+type NativeRollout = (
+    Tensor<1>,
+    Tensor<1>,
+    Vec<Tensor<2>>,
+    Option<Tensor<1, Bool>>,
+);
 fn rollout(
     session: &Session,
     config: &LearnerConfig,
@@ -696,7 +843,8 @@ fn rollout(
     policy: &mut HedgePolicy,
     train: bool,
     retain: bool,
-) -> Result<(Tensor<1>, Tensor<1>, Vec<Tensor<2>>), ComputeError> {
+    sharpen_gate: Option<bool>,
+) -> Result<NativeRollout, ComputeError> {
     let n = batch.batch.paths;
     let h = config.policy.hedge_count;
     let mut previous = tensor2(session, vec![0.0; n * h], [n, h]);
@@ -704,13 +852,22 @@ fn rollout(
     let mut costs = session.vector(vec![0.0; n]);
     let fees = tensor2(session, config.trading_costs.clone(), [1, h]);
     let mut holdings = Vec::new();
+    let mut tracking = config
+        .tracking_penalty
+        .as_ref()
+        .map(|_| session.vector(vec![0.0; n]).greater_elem(0.0));
     for t in 0..config.policy.time_steps {
         let wealth = config.policy.include_wealth.then(|| value.clone());
-        let target = policy.forward_at_with_wealth(
+        let context = PolicyForwardContext {
+            wealth,
+            force_trade_signal: batch.force_trade_signal.as_ref().map(|v| v[t].clone()),
+            sharpen_gate: config.policy.small_trade_gate.as_ref().and(sharpen_gate),
+        };
+        let target = policy.forward_at_with_context(
             t,
             batch.features[t].clone(),
             previous.clone(),
-            wealth,
+            context,
             train,
         )?;
         let charge = ((target.clone() - previous).abs() * batch.marks[t].clone() * fees.clone())
@@ -730,6 +887,26 @@ fn rollout(
             + (target.clone() * batch.marks[t + 1].clone() * income)
                 .sum_dim(1)
                 .reshape([n]);
+        if t + 1 < config.policy.time_steps
+            && let Some(rule) = &config.tracking_penalty
+        {
+            let liability = batch.features[t + 1]
+                .clone()
+                .slice([0..n, rule.liability_feature..rule.liability_feature + 1])
+                .reshape([n]);
+            let threshold = batch.features[0]
+                .clone()
+                .slice([0..n, rule.liability_feature..rule.liability_feature + 1])
+                .reshape([n])
+                * rule.threshold_multiple;
+            let violation = (liability - value.clone().without_autodiff()).greater(threshold);
+            tracking = Some(
+                tracking
+                    .take()
+                    .expect("tracking accumulator")
+                    .bool_or(violation),
+            );
+        }
         costs = costs + charge.without_autodiff();
         previous = target.clone();
         if retain {
@@ -745,6 +922,7 @@ fn rollout(
         value - terminal.clone() - batch.payoffs.clone(),
         costs + terminal.without_autodiff(),
         holdings,
+        tracking,
     ))
 }
 

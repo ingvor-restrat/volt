@@ -738,6 +738,7 @@ fn assemble(
         income.extend([dividend, 1.]);
     }
     let batch = EpisodeBatch {
+        force_trade_signal: None,
         paths: range.paths,
         provenance: BatchProvenance {
             dataset_id: id.clone(),

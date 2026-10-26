@@ -81,7 +81,7 @@ setting, not a claim of historical random-mask or learning-phase parity.
 Every LSTM call has sequence length one and starts with zero cell and
 hidden state. Weights are shared across decision dates; financial wealth and
 holdings carry history. This engine does not carry a persistent LSTM memory
-between dates. The source's four-LSTM variant, autoencoder, no-trade gate and
+between dates. The source's four-LSTM variant, autoencoder and
 rolling-option market construction are separate features.
 
 Each LSTM stores a kernel, recurrent kernel and **one** bias in Keras gate order
@@ -120,8 +120,73 @@ Admission reserves two candidate jobs and the common architecture-aware planner.
 CPU GEMM planning counts retained gate and activation vectors with conservative
 forward/backward workspace. Accelerator planning uses a sixteenfold MLP tape
 allowance for explicit products. The fixed runtime reserve is added once per
-candidate. This is an admission estimate, not measured allocation. Larger
+candidate. This estimate governs admission; runtime profiling records actual allocation. Larger
 widths, horizons and batches need explicit memory budgets. Tests compare actual
 Keras forward holdings, financed P&L, all shared parameter gradients and the first
 canonical Adam update with dropout disabled; separate tests cover active-dropout
 resume, wealth feedback and inference purity.
+
+
+### Source small-trade rule and tracking report
+
+The reset policy optionally accepts `small_trade_gate` with `sharpness: 1000`,
+`force_threshold: 0.1`, `initial_trade_threshold: 0.001`, and
+`inference_sharpen: true`. A thirteenth shared parameter is the nonnegative
+trainable trade threshold, projected to zero after an update if necessary.
+The activity fraction is `sigmoid(sharpness * (sum(abs(target - previous)) - threshold))`.
+The sum adds changes in **physical holdings quantities across instruments**.
+Contract denomination, multipliers and action units determine its numerical
+scale. Producers specify any action normalization explicitly.
+
+An optional `force_trade_signal` array has layout `[path, decision, instrument]`.
+Its nonnegative observations produce a second sigmoid around `force_threshold`;
+the greater activity/force fraction interpolates target and previous holdings.
+Omitting the array supplies zero observations, appropriate for the static
+84-day hedge call over the source 63-day experiment. A producer that rolls hedge instruments
+supplies the settlement and roll cashflows alongside the force observations.
+
+Training uses the smooth fraction. Source validation uses
+`evaluate` with `sharpen_gate: false`. Inference defaults to the configured
+sharpening `sigmoid(sharpness * (fraction - 0.5))`; `infer` and `evaluate` accept
+an explicit override. Low-level callers use `forward_at_with_context` to supply
+wealth, force observations and this phase choice. Existing APIs remain supported.
+
+Optional learner `tracking_penalty` contains `liability_feature`,
+`threshold_multiple` and `coefficient`. Before maturity it records whether
+`liability_next - wealth_next > liability_initial * threshold_multiple` occurred
+on any decision interval. It reports the path fraction and coefficient times
+that fraction. The source uses a Boolean comparison with zero pathwise derivative; the native
+calculation preserves this choice. `loss` / `loss_before_update` remain
+the primary risk objective used for selection. `source_loss` /
+`source_loss_before_update` additionally report this penalty. Coefficient units
+therefore depend on the chosen risk objective.
+
+Adam optionally accepts `epsilon_convention: "tensorflow_uncorrected"`. This
+uses `lr * sqrt(1-beta2^step)/(1-beta1^step) * m/(sqrt(v)+epsilon)`, matching the
+source epsilon-hat placement. The omitted default remains the existing
+bias-corrected-denominator convention and retains legacy serialized configs.
+Actual TensorFlow controls cover smooth/sharpened holdings, financed P&L, all
+thirteen gradients and both first-step conventions. TensorFlow uses its own scalar types for exponentiation. The controls record
+numerical agreement under those types, with dropout disabled.
+
+Run the bounded synthetic example from the repository root after building the
+`native_learner` and `joint_option_scenarios` release binaries:
+
+```sh
+python3 examples/joint_option_learning.py --output /tmp/volt-joint-example
+```
+
+The example exercises this rule, explicit soft validation, sharpening, source
+Adam placement, tracking reports and checkpoint export. The example uses
+illustrative generator coefficients and declared synthetic datasets. Historical
+studies supply their calibration and dated observations.
+
+The optional reset configuration `recurrent_activation: "hard_sigmoid"` matches
+the pinned source's `tf.compat.v1.keras.layers.LSTM` default:
+`clip(0.2 * x + 0.5, 0, 1)` for the input/forget/output gates. The omitted
+default remains `sigmoid`, as in modern `tf.keras.layers.LSTM` and existing
+native checkpoints. Both use tanh for the cell proposal/output. Source default
+matching requires explicitly selecting hard sigmoid; the runnable example does
+so. Direct tests execute the pinned author's complete `DeepAgent` class with
+common weights and a static financial fixture, in addition to modern Keras
+component controls.

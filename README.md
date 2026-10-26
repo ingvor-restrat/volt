@@ -65,16 +65,28 @@ canonicalization, and payoff algebra.
 
 [![Volt simulation-driven browser dashboard](docs/markup/risk-web.gif)](docs/markup/README.md)
 
-The native European quote-to-Greeks application adds implied-volatility inversion,
-a volatility surface, portfolio Greeks and fully repriced scenarios. Its browser
-and `top`-style terminal viewer consume the same native snapshot format.
-[View both recordings and run commands](demo/live-greeks.html), or follow the
-[demo guide](docs/markup/README.md#european-quote-to-greeks-viewer). The examples use
-synthetic quotes; the valuation scope is European exercise.
+The Options Risk application follows observed quotes and paired stock prices
+through implied volatility, exercise-aware Greeks and portfolio exposures. The
+historical demonstration covers 64 American contracts across eight stocks and
+ETFs, with an illustrative position book and explicit carry assumptions.
+[Watch the browser and terminal recordings](https://strategynet.ai/research/options).
 
-[![Native European Greeks in the browser](docs/markup/live-greeks-web.gif)](demo/live-greeks.html)
+[![Historical American option risk across eight underlyings](https://strategynet.ai/research/options/exercise-risk-web.png)](https://strategynet.ai/research/options)
 
-[![Native European Greeks in the terminal](docs/markup/live-greeks-top.gif)](demo/live-greeks.html)
+<details>
+<summary>European synthetic examples</summary>
+
+The European quote-to-Greeks example adds fitted volatility, portfolio Greeks
+and fully repriced scenarios. Its browser and `top`-style terminal viewer consume
+the same native snapshot format.
+[View recordings and run commands](demo/live-greeks.html), or follow the
+[demo guide](docs/markup/README.md#european-quote-to-greeks-viewer).
+
+[![European Greeks in the browser](docs/markup/live-greeks-web.gif)](demo/live-greeks.html)
+
+[![European Greeks in the terminal](docs/markup/live-greeks-top.gif)](demo/live-greeks.html)
+
+</details>
 
 American and Bermudan requests use the [exercise-aware pricing API](docs/exercise-pricing.md),
 including dated exercise, dividends, implied volatility and Greeks. The
