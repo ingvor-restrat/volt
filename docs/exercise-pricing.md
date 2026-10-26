@@ -15,6 +15,11 @@ Business calendars and broker cutoffs enter through the caller's contract
 and exercise schedule. Prices are per underlying unit. The caller applies signed contract quantity,
 multiplier, currency conversion and settlement accounting.
 
+The price result includes `intrinsic_value`, `exercise_permitted_now` and
+`at_exercise_value`. These describe the numerical exercise condition at the
+requested market state. The solver determines continuation versus exercise
+under the supplied model as part of valuation.
+
 ## Run a request
 
 Save this synthetic one-year American put request as `request.json`:
@@ -171,8 +176,12 @@ Cheridito and Jentzen's [Deep Optimal Stopping](https://jmlr.org/papers/v20/18-2
 learns finite-date stopping rules, including Bermudan max-call examples.
 Their [Pricing and hedging American-style options with deep learning](https://arxiv.org/abs/1912.11060)
 combines a candidate exercise policy, price bounds and dynamic hedging.
-These are useful references for a later joint stopping/hedging study; this
-module supplies a one-asset finite-difference reference for that work.
+The first learning application can use this numerical holder rule and train
+the writer's hedge. Its episode account needs exercise times, dated settlement,
+hedge closure and cash financing after settlement. The current native learner
+studies settle their liabilities at the terminal date. A subsequent application
+can learn the holder rule itself, using the numerical reference and independent
+price bounds to assess the stopping policy.
 
 Method references: [Rannacher damping](https://doi.org/10.1007/BF01390130),
 [Reisinger and Witte on policy iteration](https://arxiv.org/abs/1012.4976), and
