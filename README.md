@@ -86,6 +86,11 @@ underlying and publishes a combined view with explicit calculation ages. See the
 American-option recordings and the application papers. Raw replay data stays
 outside this source checkout.
 
+[Factor scenarios](docs/factor-scenarios.md) connect covariance, return forecasts and
+option liabilities to separate hedge-only, signal-only and combined policy tasks.
+[Financial lot allocation](docs/financial-lot-qubo.md) supplies a quadratic
+Greek-risk objective and an exact discrete baseline with fees and position limits.
+
 `zap` shows how exact portfolio canonicalization and terminal-payoff projection
 reduce a small option search space. `cog` compiles structured options-design
 business logic into an immutable artifact, produces a point-in-time legal
