@@ -132,7 +132,7 @@ impl JointOptionConfig {
             hedge_call_days: 84,
             stock_cost: 0.0005,
             option_cost: 0.02,
-            terminal_costs: [0., 0.],
+            terminal_costs: [0., 0.02],
             gamma_feature: GammaFeatureConvention::AuthorSqrtTimeDividend,
             max_working_bytes: 64 * 1024 * 1024,
             provenance,

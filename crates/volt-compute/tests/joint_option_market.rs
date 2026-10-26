@@ -191,6 +191,7 @@ fn funding_costs_shapes_and_native_learner_upload() {
     assert_eq!(x.batch.marks.len(), 2 * 4 * 2);
     assert_eq!(x.batch.features.len(), 2 * 3 * 17);
     assert_eq!(x.economics.trading_costs, [0.0005, 0.02]);
+    assert_eq!(x.economics.liquidation_costs, [0., 0.02]);
     for t in 0..3 {
         near(x.economics.cash_growth[t], (c.rate * c.dt).exp(), 0.);
         near(
@@ -277,6 +278,15 @@ fn funding_costs_shapes_and_native_learner_upload() {
             fees += charge;
             previous = target;
         }
+        let terminal_fee = (0..2)
+            .map(|i| {
+                previous[i].abs()
+                    * x.batch.marks[(path * 4 + 3) * 2 + i]
+                    * x.economics.liquidation_costs[i]
+            })
+            .sum::<f64>();
+        value -= terminal_fee;
+        fees += terminal_fee;
         near(
             value - x.batch.payoffs[path],
             evaluation["pnl"][path].as_f64().unwrap(),

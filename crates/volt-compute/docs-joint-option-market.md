@@ -70,7 +70,7 @@ The surface uses the source coordinate `M=ln(F/K)/sqrt(tau)`, with `F=S*exp((r-q
 - `income_growth[t,stock]=exp(q*dt)`, and1 for the call;
 - trading and terminal-liquidation cost arrays.
 
-These are the arrays consumed by the funded recurrence in `native_learner::LearnerConfig`. Terminal costs default to zero, matching the source's terminal mark convention; alternative liquidation charges are explicit changes. Index return dynamics contain an estimated risk-price/cumulant adjustment. Option marks use Black–Scholes prices at the current IV surface. Those physical-return and pricing conventions serve different roles; their combination supplies no global arbitrage guarantee.
+These are the arrays consumed by the funded recurrence in `native_learner::LearnerConfig`. Terminal costs default to `[0,0.02]`: the source leaves stock without a terminal charge and charges the option rate on liquidating the longer-dated call. Opening/rebalancing costs and terminal costs are separate arrays; changing a research fee schedule requires specifying both. Index return dynamics contain an estimated risk-price/cumulant adjustment. Option marks use Black–Scholes prices at the current IV surface. Those physical-return and pricing conventions serve different roles; their combination supplies no global arbitrage guarantee.
 
 ### Preserve the source gamma feature explicitly
 
