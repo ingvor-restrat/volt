@@ -4,6 +4,8 @@ pub mod aad_job;
 pub mod benchmark;
 pub mod budget;
 pub mod chunked;
+pub mod exercise_pricing;
+pub mod factor_scenarios;
 pub mod hedge_application;
 pub mod hedge_band;
 pub mod hedge_benchmark;
@@ -16,6 +18,7 @@ pub mod heston_adaptive;
 pub mod heston_job;
 pub mod heston_validation;
 pub mod job;
+pub mod joint_option_market;
 #[cfg(feature = "live-risk")]
 pub mod live_risk;
 pub mod market_path_diagnostics;
