@@ -148,6 +148,14 @@ assumptions and the adaptive CPU-f64 Heston baseline.
 See [training on a compute host](docs/compute-training.md) for checkout, CPU/CUDA
 builds, background training, resume and held-out evaluation.
 
+The [Bermudan application](docs/bermudan-market.md) adds numerical holder rules,
+dated settlement, dividends and complete writer training. The
+[learned-stopping guide](crates/volt-compute/docs-deep-stopping.md) develops the
+2019 direct exercise objective, 2020 continuation regression, valuation bounds
+and interval hedging. Run the complete synthetic writer workflow with
+`python3 examples/bermudan_learning.py --output /tmp/volt-bermudan-example`
+after building the `bermudan_market` and `native_learner` release binaries.
+
 Run `cargo test --release --locked --workspace` to test both crates. Plain
 `cargo test` selects the core; GPU support is enabled explicitly in `volt-compute`.
 

@@ -320,7 +320,10 @@ fn boundary(o: &ExerciseOption, t: i64, smax: f64, ts: &[i64]) -> (f64, f64) {
     let mut hi = 0f64;
     let candidates = std::iter::once(t).chain(ts.iter().copied().filter(|d| *d > t));
     for u in candidates {
-        if !o.exercise_at(u) {
+        // A Bermudan rollback first values continuation; the dated obstacle
+        // is applied afterward. Its boundary must therefore exclude exercising
+        // immediately at the lower interval endpoint.
+        if !o.exercise_at(u) || (u == t && !o.american_at(t)) {
             continue;
         }
         let tau = years(t, u);
@@ -469,6 +472,18 @@ fn solve_on_times(
     c: &ExerciseGrid,
     retained: Option<&[i64]>,
 ) -> Result<Solution, ComputeError> {
+    solve_capturing(o, c, retained, None)
+}
+struct HolderCapture {
+    dates: Vec<i64>,
+    slices: Vec<HolderSlice>,
+}
+fn solve_capturing(
+    o: &ExerciseOption,
+    c: &ExerciseGrid,
+    retained: Option<&[i64]>,
+    mut capture: Option<&mut HolderCapture>,
+) -> Result<Solution, ComputeError> {
     o.validate()?;
     c.validate()?;
     let n = c.space_steps;
@@ -504,13 +519,18 @@ fn solve_on_times(
     if xs.windows(2).any(|w| w[1] <= w[0]) {
         return Err(execution("degenerate spatial mesh"));
     }
-    let ts = if let Some(retained) = retained {
+    let mut ts = if let Some(retained) = retained {
         let mut ts = vec![o.valuation_time.0];
         ts.extend(retained.iter().copied().filter(|t| *t > o.valuation_time.0));
         ts
     } else {
         time_grid(o, c)
     };
+    if let Some(saved) = capture.as_ref() {
+        ts.extend(saved.dates.iter().copied());
+        ts.sort_unstable();
+        ts.dedup();
+    }
     if n.checked_mul(ts.len()).is_none_or(|n| n > 12_000_000) {
         return Err(invalid("event-expanded grid exceeds solve cell limit"));
     }
@@ -580,6 +600,16 @@ fn solve_on_times(
         op.diag[i] = -a - u - o.rate;
     }
     let mut v = xs.iter().map(|s| o.payoff(*s)).collect::<Vec<_>>();
+    if let Some(saved) = capture.as_mut()
+        && saved.dates.binary_search(&o.exercise.expiry().0).is_ok()
+    {
+        saved.slices.push(HolderSlice {
+            date: o.exercise.expiry(),
+            exercise_permitted: true,
+            values: v.clone(),
+            continuation_values: vec![0.; v.len()],
+        });
+    }
     let mut damping = c.rannacher_intervals;
     for j in (0..ts.len() - 1).rev() {
         let lo = ts[j];
@@ -600,6 +630,10 @@ fn solve_on_times(
                 .collect();
             event = true;
         }
+        let retain = capture
+            .as_ref()
+            .is_some_and(|s| s.dates.binary_search(&lo).is_ok());
+        let continuation = retain.then(|| v.clone());
         if o.exercise_at(lo) {
             for (s, value) in xs.iter().zip(&mut v) {
                 *value = value.max(o.payoff(*s));
@@ -607,6 +641,16 @@ fn solve_on_times(
             if !o.american_at(lo) {
                 event = true;
             }
+        }
+        if let Some(continuation_values) = continuation
+            && let Some(saved) = capture.as_mut()
+        {
+            saved.slices.push(HolderSlice {
+                date: TimestampNs(lo),
+                exercise_permitted: o.exercise_at(lo),
+                values: v.clone(),
+                continuation_values,
+            });
         }
         if event {
             damping = c.rannacher_intervals;
@@ -1042,4 +1086,237 @@ pub fn price_batch(request: &ExerciseBatchRequest) -> Result<ExerciseBatchResult
             "cpu_f64_finite_difference; flat r/q/vol; Actual365Fixed; per underlying unit".into(),
         rows,
     })
+}
+
+/// Saved pre-dividend value and continuation at one exact decision timestamp.
+/// Constructed only by the solver; scalar arrays have the same immutable mesh.
+#[derive(Debug, Clone, Serialize)]
+pub struct HolderSlice {
+    pub date: TimestampNs,
+    pub exercise_permitted: bool,
+    values: Vec<f64>,
+    continuation_values: Vec<f64>,
+}
+/// Reusable numerical holder policy for a dated Bermudan/European contract.
+/// Includes all requested decision dates, with exercise before a coincident cash
+/// dividend. American contracts use an explicit Bermudan discretization here;
+/// continuous American pricing remains available through [`price`].
+#[derive(Debug, Clone, Serialize)]
+pub struct HolderGrid {
+    option: ExerciseOption,
+    spot_nodes: Vec<f64>,
+    slices: Vec<HolderSlice>,
+    pub price0: f64,
+    pub diagnostics: ExerciseDiagnostics,
+    pub cache_key: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HolderDecision {
+    pub value: f64,
+    pub continuation_value: f64,
+    pub immediate_payoff: f64,
+    pub delta: f64,
+    pub exercise_permitted: bool,
+    pub exercise_now: bool,
+}
+impl HolderGrid {
+    pub fn dates(&self) -> impl Iterator<Item = TimestampNs> + '_ {
+        self.slices.iter().map(|s| s.date)
+    }
+    pub fn spot_nodes(&self) -> &[f64] {
+        &self.spot_nodes
+    }
+    pub fn scalar_values(&self) -> usize {
+        self.spot_nodes.len() * (1 + 2 * self.slices.len())
+    }
+    /// Interpolate at an exact saved date. Exercise uses positive intrinsic
+    /// versus continuation; ties continue, except expiry always settles.
+    /// Delta is per spot currency unit, from the continuation stencil when the
+    /// holder continues and from intrinsic when exercising. Endpoint stencils
+    /// are one-sided. Out-of-grid states fail explicitly.
+    pub fn evaluate(&self, date: TimestampNs, spot: f64) -> Result<HolderDecision, ComputeError> {
+        if !spot.is_finite() || spot < 0. || spot > self.spot_nodes[self.spot_nodes.len() - 1] {
+            return Err(invalid("holder policy spot outside saved grid"));
+        }
+        let index = self
+            .slices
+            .binary_search_by_key(&date, |s| s.date)
+            .map_err(|_| invalid("holder policy date was not saved"))?;
+        let slice = &self.slices[index];
+        let continuation = linear(&self.spot_nodes, &slice.continuation_values, spot);
+        let payoff = self.option.payoff(spot);
+        let terminal = date == self.option.exercise.expiry();
+        let exercise =
+            terminal || (slice.exercise_permitted && payoff > continuation && payoff > 0.);
+        let values = if slice.exercise_permitted {
+            &slice.continuation_values
+        } else {
+            &slice.values
+        };
+        let delta = if exercise {
+            match self.option.side {
+                OptionSide::Call => {
+                    if spot > self.option.strike {
+                        1.
+                    } else {
+                        0.
+                    }
+                }
+                OptionSide::Put => {
+                    if spot < self.option.strike {
+                        -1.
+                    } else {
+                        0.
+                    }
+                }
+            }
+        } else {
+            let n = self.spot_nodes.len();
+            if spot < self.spot_nodes[1] {
+                (values[1] - values[0]) / (self.spot_nodes[1] - self.spot_nodes[0])
+            } else if spot > self.spot_nodes[n - 2] {
+                (values[n - 1] - values[n - 2]) / (self.spot_nodes[n - 1] - self.spot_nodes[n - 2])
+            } else {
+                derivatives(&self.spot_nodes, values, spot)?.0
+            }
+        };
+        let value = if slice.exercise_permitted {
+            if exercise { payoff } else { continuation }
+        } else {
+            linear(&self.spot_nodes, &slice.values, spot)
+        };
+        if [value, continuation, payoff, delta]
+            .iter()
+            .any(|v| !v.is_finite())
+        {
+            return Err(execution("nonfinite holder interpolation"));
+        }
+        Ok(HolderDecision {
+            value,
+            continuation_value: continuation,
+            immediate_payoff: payoff,
+            delta,
+            exercise_permitted: slice.exercise_permitted,
+            exercise_now: exercise,
+        })
+    }
+}
+/// Save a bounded reusable holder grid in one rollback. Dates must be strictly
+/// increasing and include valuation and expiry. Every exercise opportunity must
+/// be saved, preventing accidental skipping of the contractual stopping dates.
+/// `max_saved_scalar_values` includes mesh and both scalar arrays at every date;
+/// its maximum is 8 million values (64 MB of f64 data), excluding solver scratch.
+pub fn build_holder_grid(
+    option: &ExerciseOption,
+    grid: &ExerciseGrid,
+    dates: &[TimestampNs],
+    max_saved_scalar_values: usize,
+) -> Result<HolderGrid, ComputeError> {
+    use sha2::{Digest, Sha256};
+    option.validate()?;
+    grid.validate()?;
+    if matches!(option.exercise, ExerciseSchedule::American { .. }) {
+        return Err(ComputeError::Unsupported("holder maps require explicit Bermudan/European opportunities; use dated Bermudan discretization for American stopping".into()));
+    }
+    let values = (grid.space_steps + 1)
+        .checked_mul(
+            dates
+                .len()
+                .checked_mul(2)
+                .and_then(|n| n.checked_add(1))
+                .ok_or_else(|| invalid("holder storage overflow"))?,
+        )
+        .ok_or_else(|| invalid("holder storage overflow"))?;
+    if dates.len() < 2
+        || dates.len() > MAX_EVENTS + 1
+        || dates[0] != option.valuation_time
+        || dates.last() != Some(&option.exercise.expiry())
+        || dates.windows(2).any(|w| w[0] >= w[1])
+        || values > max_saved_scalar_values
+        || max_saved_scalar_values > 8_000_000
+    {
+        return Err(invalid("invalid holder dates or saved-scalar admission"));
+    }
+    if let ExerciseSchedule::Bermudan { opportunities } = &option.exercise
+        && opportunities
+            .iter()
+            .filter(|d| **d >= option.valuation_time)
+            .any(|d| dates.binary_search(d).is_err())
+    {
+        return Err(invalid(
+            "holder dates omit a contractual exercise opportunity",
+        ));
+    }
+    let mut capture = HolderCapture {
+        dates: dates.iter().map(|d| d.0).collect(),
+        slices: Vec::with_capacity(dates.len()),
+    };
+    let solution = solve_capturing(option, grid, None, Some(&mut capture))?;
+    capture.slices.sort_unstable_by_key(|s| s.date);
+    if capture.slices.len() != dates.len() {
+        return Err(execution("holder rollback omitted a requested date"));
+    }
+    let price0 = linear(&solution.nodes, &solution.values, option.spot);
+    let mut digest = Sha256::new();
+    digest.update(b"volt.holder-grid.v1\0");
+    digest.update(include_bytes!("exercise_pricing.rs"));
+    digest.update(serde_json::to_vec(&(option, grid, dates)).map_err(|e| invalid(e.to_string()))?);
+    Ok(HolderGrid {
+        option: option.clone(),
+        spot_nodes: solution.nodes,
+        slices: capture.slices,
+        price0,
+        diagnostics: solution.diagnostics,
+        cache_key: format!("{:x}", digest.finalize()),
+    })
+}
+
+/// One-entry immutable policy cache. The cache owns at most its admitted scalar
+/// count; callers retaining returned `Arc`s own those additional grids.
+pub struct HolderGridCache {
+    max_saved_scalar_values: usize,
+    entry: Option<std::sync::Arc<HolderGrid>>,
+}
+impl HolderGridCache {
+    pub fn new(max_saved_scalar_values: usize) -> Result<Self, ComputeError> {
+        if max_saved_scalar_values == 0 || max_saved_scalar_values > 8_000_000 {
+            return Err(invalid(
+                "holder cache scalar admission outside supported range",
+            ));
+        }
+        Ok(Self {
+            max_saved_scalar_values,
+            entry: None,
+        })
+    }
+    pub fn get_or_build(
+        &mut self,
+        option: &ExerciseOption,
+        grid: &ExerciseGrid,
+        dates: &[TimestampNs],
+    ) -> Result<std::sync::Arc<HolderGrid>, ComputeError> {
+        // The complete input and solver source identify a numerical policy.
+        use sha2::{Digest, Sha256};
+        let mut digest = Sha256::new();
+        digest.update(b"volt.holder-grid.v1\0");
+        digest.update(include_bytes!("exercise_pricing.rs"));
+        digest.update(
+            serde_json::to_vec(&(option, grid, dates)).map_err(|e| invalid(e.to_string()))?,
+        );
+        let key = format!("{:x}", digest.finalize());
+        if let Some(entry) = &self.entry
+            && entry.cache_key == key
+        {
+            return Ok(entry.clone());
+        }
+        self.entry = None;
+        let holder = std::sync::Arc::new(build_holder_grid(
+            option,
+            grid,
+            dates,
+            self.max_saved_scalar_values,
+        )?);
+        self.entry = Some(holder.clone());
+        Ok(holder)
+    }
 }

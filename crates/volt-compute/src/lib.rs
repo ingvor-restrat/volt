@@ -2,8 +2,10 @@
 pub mod aad;
 pub mod aad_job;
 pub mod benchmark;
+pub mod bermudan_market;
 pub mod budget;
 pub mod chunked;
+pub mod deep_stopping;
 pub mod exercise_pricing;
 #[cfg(feature = "live-risk")]
 pub mod exercise_publication;
