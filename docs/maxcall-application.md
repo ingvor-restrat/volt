@@ -82,3 +82,12 @@ Tests exercise the actual checkpoint-to-episode executable, signed settlement,
 checkpoint-digest refusal and atomic preservation of an existing output file.
 Separate market controls check correlated stock moments, independent conditional
 streams, financed accounts and the selected-policy-tail valuation estimator.
+
+## Published-case comparison and reading
+
+The [executed study](benchmarks/maxcall-five-asset-20261027/README.md) records
+three full-schedule holder fits and independent lower/upper valuation. Their
+midpoints are 26.1576–26.1609 against the paper's 26.154, with wider sampling
+intervals. It also records matched CPU/Metal/CUDA update measurements.
+The [application paper](latex/compute/volt_multi_asset_hedging.pdf) develops the
+mathematics, account convention and practical execution choices.

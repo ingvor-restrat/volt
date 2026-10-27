@@ -1,0 +1,1722 @@
+{
+  "schema": "volt.maxcall.accuracy_qualified_benchmark_summary.v1",
+  "utc": "2026-10-27T17:50:27.081346+00:00",
+  "profile": "Optional canonical-zero translations, strict native dtype, BN/tanh,widthd+50,3blocks*(3warm+20measured),1CPUthread",
+  "source_v2_sha256": "6331e1eb0f1f868f10d7a64c0d6064fca443245503b10c554c61d355c1d6989f",
+  "rows": [
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 5,
+      "batch": 256,
+      "cpu_f32_ms": 0.6458745,
+      "gpu_f32_ms": 7.0828755,
+      "cpu_over_gpu_speed_ratio": 0.09118817632753816,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.004404325974039222,
+        "first_parameters": 6.60741803722577e-06,
+        "final_prediction": 6.894599553935957e-05,
+        "final_parameters": 5.7735671826536475e-05,
+        "training_losses": 2.2435952590947557e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.033791999999999996,
+          "parameter_flush_snapshot_ms": 0.015583,
+          "dataset_upload_sync_ms": 0.005915999999999999,
+          "first_inference_ms": 0.27987500000000004,
+          "first_training_update_ms": 0.9720840000000001,
+          "warm_inference_readback_ms": 0.18945900000000002
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.173292,
+          "parameter_flush_snapshot_ms": 4.814417,
+          "dataset_upload_sync_ms": 0.514667,
+          "first_inference_ms": 94.160416,
+          "first_training_update_ms": 767.599833,
+          "warm_inference_readback_ms": 0.8065
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 0.6458745,
+        "min_update_ms": 0.5721660000000001,
+        "max_update_ms": 0.8002079999999999,
+        "p10_update_ms": 0.585708,
+        "p90_update_ms": 0.749125,
+        "block_median_update_ms": [
+          0.7187085,
+          0.5985210000000001,
+          0.6257915000000001
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.003,
+          "forward_seconds": 0.23375,
+          "backward_seconds": 0.324917,
+          "optimizer_seconds": 0.030542,
+          "readback_seconds": 0.0269165,
+          "synchronization_seconds": 0.000124
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 7.0828755,
+        "min_update_ms": 5.721708,
+        "max_update_ms": 191.075834,
+        "p10_update_ms": 6.047333,
+        "p90_update_ms": 8.601374999999999,
+        "block_median_update_ms": [
+          8.4412295,
+          6.207854,
+          6.634708
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.47552099999999997,
+          "forward_seconds": 1.44575,
+          "backward_seconds": 2.70925,
+          "optimizer_seconds": 0.8869374999999999,
+          "readback_seconds": 1.2701875,
+          "synchronization_seconds": 5.023084
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        38.58,
+        36.63
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        32.120000000000005,
+        37.7
+      ],
+      "loadavg_before_cpu": [
+        27.36962890625,
+        28.78955078125,
+        23.07177734375
+      ],
+      "loadavg_before_gpu": [
+        20.14794921875,
+        26.78466796875,
+        22.56787109375
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 5,
+      "batch": 1024,
+      "cpu_f32_ms": 2.333667,
+      "gpu_f32_ms": 9.670978999999999,
+      "cpu_over_gpu_speed_ratio": 0.24130618006718868,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.004404325974039222,
+        "first_parameters": 6.596015426233198e-06,
+        "final_prediction": 8.277152334304912e-05,
+        "final_parameters": 2.398129692896998e-05,
+        "training_losses": 2.3635723022321647e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.043375,
+          "parameter_flush_snapshot_ms": 0.020707999999999997,
+          "dataset_upload_sync_ms": 0.023916,
+          "first_inference_ms": 0.8882920000000001,
+          "first_training_update_ms": 2.583375,
+          "warm_inference_readback_ms": 0.7825
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.1225,
+          "parameter_flush_snapshot_ms": 4.409666,
+          "dataset_upload_sync_ms": 0.46979200000000004,
+          "first_inference_ms": 80.28825,
+          "first_training_update_ms": 767.939208,
+          "warm_inference_readback_ms": 0.7725839999999999
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 2.333667,
+        "min_update_ms": 1.931417,
+        "max_update_ms": 2.660875,
+        "p10_update_ms": 2.010291,
+        "p90_update_ms": 2.511167,
+        "block_median_update_ms": [
+          2.257063,
+          2.3565414999999996,
+          2.365625
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.009812,
+          "forward_seconds": 0.9629375,
+          "backward_seconds": 1.295458,
+          "optimizer_seconds": 0.0362295,
+          "readback_seconds": 0.031292,
+          "synchronization_seconds": 0.000125
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 9.670978999999999,
+        "min_update_ms": 8.331042,
+        "max_update_ms": 204.87574999999998,
+        "p10_update_ms": 8.652375000000001,
+        "p90_update_ms": 12.169291000000001,
+        "block_median_update_ms": [
+          11.334958,
+          9.639249999999999,
+          8.852521
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5137505,
+          "forward_seconds": 2.242146,
+          "backward_seconds": 4.664167,
+          "optimizer_seconds": 1.001979,
+          "readback_seconds": 1.2500209999999998,
+          "synchronization_seconds": 7.5766875
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        36.49,
+        46.7
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        37.76,
+        39.66
+      ],
+      "loadavg_before_cpu": [
+        16.13916015625,
+        25.30712890625,
+        22.1572265625
+      ],
+      "loadavg_before_gpu": [
+        13.8603515625,
+        23.875,
+        21.74609375
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 5,
+      "batch": 8192,
+      "cpu_f32_ms": 16.6244795,
+      "gpu_f32_ms": 38.0158335,
+      "cpu_over_gpu_speed_ratio": 0.43730409067579695,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.009661337113786448,
+        "first_parameters": 6.613646736239409e-06,
+        "final_prediction": 0.00010126117887023993,
+        "final_parameters": 3.124417296174263e-05,
+        "training_losses": 2.3129200942311403e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.038625,
+          "parameter_flush_snapshot_ms": 0.013916,
+          "dataset_upload_sync_ms": 0.164625,
+          "first_inference_ms": 5.935666,
+          "first_training_update_ms": 19.624416,
+          "warm_inference_readback_ms": 5.500083999999999
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.147625,
+          "parameter_flush_snapshot_ms": 4.4916670000000005,
+          "dataset_upload_sync_ms": 0.728709,
+          "first_inference_ms": 103.09616700000001,
+          "first_training_update_ms": 629.498875,
+          "warm_inference_readback_ms": 1.618167
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 16.6244795,
+        "min_update_ms": 15.691083,
+        "max_update_ms": 17.919292,
+        "p10_update_ms": 16.051,
+        "p90_update_ms": 17.502041,
+        "block_median_update_ms": [
+          16.611145999999998,
+          16.607667000000003,
+          16.867416999999996
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.06512499999999999,
+          "forward_seconds": 6.9687920000000005,
+          "backward_seconds": 9.528083500000001,
+          "optimizer_seconds": 0.042917000000000004,
+          "readback_seconds": 0.035125,
+          "synchronization_seconds": 0.00033299999999999996
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 38.0158335,
+        "min_update_ms": 37.590709,
+        "max_update_ms": 259.68629100000004,
+        "p10_update_ms": 37.665499999999994,
+        "p90_update_ms": 38.909208,
+        "block_median_update_ms": [
+          38.138228999999995,
+          38.0480625,
+          37.938354000000004
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5215000000000001,
+          "forward_seconds": 9.470979,
+          "backward_seconds": 25.625145500000002,
+          "optimizer_seconds": 1.092084,
+          "readback_seconds": 1.21075,
+          "synchronization_seconds": 35.68925
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        36.84,
+        40.5
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        32.39,
+        30.819999999999993
+      ],
+      "loadavg_before_cpu": [
+        11.40380859375,
+        22.1630859375,
+        21.2080078125
+      ],
+      "loadavg_before_gpu": [
+        11.87841796875,
+        20.69921875,
+        20.7236328125
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 10,
+      "batch": 256,
+      "cpu_f32_ms": 0.7317914999999999,
+      "gpu_f32_ms": 6.7922495000000005,
+      "cpu_over_gpu_speed_ratio": 0.10773919597623731,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.00689828314915803,
+        "first_parameters": 6.580258744722994e-06,
+        "final_prediction": 0.00010316430898680285,
+        "final_parameters": 4.202444975512482e-05,
+        "training_losses": 2.710916633566374e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.04375,
+          "parameter_flush_snapshot_ms": 0.02,
+          "dataset_upload_sync_ms": 0.012625,
+          "first_inference_ms": 0.34670799999999996,
+          "first_training_update_ms": 1.101917,
+          "warm_inference_readback_ms": 0.22620800000000002
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.144125,
+          "parameter_flush_snapshot_ms": 4.562458,
+          "dataset_upload_sync_ms": 0.512375,
+          "first_inference_ms": 111.296834,
+          "first_training_update_ms": 975.4002499999999,
+          "warm_inference_readback_ms": 0.8296669999999999
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 0.7317914999999999,
+        "min_update_ms": 0.6228330000000001,
+        "max_update_ms": 0.885458,
+        "p10_update_ms": 0.64775,
+        "p90_update_ms": 0.804459,
+        "block_median_update_ms": [
+          0.7366455,
+          0.695854,
+          0.7317914999999999
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0035,
+          "forward_seconds": 0.26139599999999996,
+          "backward_seconds": 0.3794165,
+          "optimizer_seconds": 0.034437499999999996,
+          "readback_seconds": 0.0313125,
+          "synchronization_seconds": 8.4e-05
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 6.7922495000000005,
+        "min_update_ms": 5.7405420000000005,
+        "max_update_ms": 258.235166,
+        "p10_update_ms": 6.001333,
+        "p90_update_ms": 9.045042,
+        "block_median_update_ms": [
+          8.615229,
+          6.218437,
+          6.776229
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.4528335,
+          "forward_seconds": 1.430646,
+          "backward_seconds": 2.5242085000000003,
+          "optimizer_seconds": 0.9247085,
+          "readback_seconds": 1.1598745,
+          "synchronization_seconds": 4.641207999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        36.29,
+        33.349999999999994
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        34.55,
+        36.47
+      ],
+      "loadavg_before_cpu": [
+        24.1572265625,
+        28.05517578125,
+        22.8779296875
+      ],
+      "loadavg_before_gpu": [
+        19.2548828125,
+        26.4892578125,
+        22.48828125
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 10,
+      "batch": 1024,
+      "cpu_f32_ms": 2.436104,
+      "gpu_f32_ms": 8.7909585,
+      "cpu_over_gpu_speed_ratio": 0.27711471962926454,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.0078912225369107,
+        "first_parameters": 6.5834709059303644e-06,
+        "final_prediction": 9.416781967314538e-05,
+        "final_parameters": 2.6821457517911854e-05,
+        "training_losses": 2.6295874154993584e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.038,
+          "parameter_flush_snapshot_ms": 0.016833,
+          "dataset_upload_sync_ms": 0.027875,
+          "first_inference_ms": 0.8378329999999999,
+          "first_training_update_ms": 2.649375,
+          "warm_inference_readback_ms": 0.744209
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.130166,
+          "parameter_flush_snapshot_ms": 4.364667,
+          "dataset_upload_sync_ms": 0.437958,
+          "first_inference_ms": 103.83666699999999,
+          "first_training_update_ms": 923.249875,
+          "warm_inference_readback_ms": 0.794833
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 2.436104,
+        "min_update_ms": 2.2143330000000003,
+        "max_update_ms": 2.804208,
+        "p10_update_ms": 2.262833,
+        "p90_update_ms": 2.7144589999999997,
+        "block_median_update_ms": [
+          2.561083,
+          2.4148335000000003,
+          2.4151875
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0123125,
+          "forward_seconds": 1.0064579999999999,
+          "backward_seconds": 1.3437915,
+          "optimizer_seconds": 0.036333500000000005,
+          "readback_seconds": 0.031979,
+          "synchronization_seconds": 0.000166
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 8.7909585,
+        "min_update_ms": 7.821834,
+        "max_update_ms": 235.072375,
+        "p10_update_ms": 8.064042,
+        "p90_update_ms": 10.176166,
+        "block_median_update_ms": [
+          9.9326455,
+          8.5812495,
+          8.379186999999998
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.4595625,
+          "forward_seconds": 2.0245420000000003,
+          "backward_seconds": 4.1193124999999995,
+          "optimizer_seconds": 0.9561875,
+          "readback_seconds": 1.0835005,
+          "synchronization_seconds": 6.686855
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        43.36,
+        44.61
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        36.8,
+        40.82
+      ],
+      "loadavg_before_cpu": [
+        15.6474609375,
+        25.052734375,
+        22.0859375
+      ],
+      "loadavg_before_gpu": [
+        12.5634765625,
+        22.927734375,
+        21.45556640625
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 10,
+      "batch": 8192,
+      "cpu_f32_ms": 18.566041,
+      "gpu_f32_ms": 41.942813,
+      "cpu_over_gpu_speed_ratio": 0.4426513071500473,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.011398004644583274,
+        "first_parameters": 6.609938412559835e-06,
+        "final_prediction": 0.00011558490179155442,
+        "final_parameters": 4.0893147109173906e-05,
+        "training_losses": 2.5609221286451316e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.056,
+          "parameter_flush_snapshot_ms": 0.015125,
+          "dataset_upload_sync_ms": 0.22508399999999998,
+          "first_inference_ms": 6.176292,
+          "first_training_update_ms": 20.83625,
+          "warm_inference_readback_ms": 5.457167
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.148125,
+          "parameter_flush_snapshot_ms": 4.295249999999999,
+          "dataset_upload_sync_ms": 0.837125,
+          "first_inference_ms": 93.178667,
+          "first_training_update_ms": 789.731625,
+          "warm_inference_readback_ms": 1.814375
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 18.566041,
+        "min_update_ms": 17.321292,
+        "max_update_ms": 20.209584,
+        "p10_update_ms": 17.618083,
+        "p90_update_ms": 19.571042000000002,
+        "block_median_update_ms": [
+          18.601667,
+          18.651416,
+          18.447479
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.08516699999999999,
+          "forward_seconds": 7.837646,
+          "backward_seconds": 10.4803335,
+          "optimizer_seconds": 0.045604,
+          "readback_seconds": 0.0381875,
+          "synchronization_seconds": 0.000334
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 41.942813,
+        "min_update_ms": 41.27325,
+        "max_update_ms": 235.22475,
+        "p10_update_ms": 41.511458000000005,
+        "p90_update_ms": 42.421958000000004,
+        "block_median_update_ms": [
+          41.977583499999994,
+          41.8307705,
+          41.977124999999994
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5202914999999999,
+          "forward_seconds": 10.4647705,
+          "backward_seconds": 28.458728999999998,
+          "optimizer_seconds": 1.107146,
+          "readback_seconds": 1.2650415,
+          "synchronization_seconds": 39.498500500000006
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        33.09,
+        36.41
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        45.62,
+        38.67
+      ],
+      "loadavg_before_cpu": [
+        12.732421875,
+        22.259765625,
+        21.24755859375
+      ],
+      "loadavg_before_gpu": [
+        11.3486328125,
+        20.296875,
+        20.58056640625
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 50,
+      "batch": 256,
+      "cpu_f32_ms": 1.3433540000000002,
+      "gpu_f32_ms": 8.659791499999999,
+      "cpu_over_gpu_speed_ratio": 0.155125443840074,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.02078660204534355,
+        "first_parameters": 1.1895018751545459e-05,
+        "final_prediction": 8.753616491001134e-05,
+        "final_parameters": 0.00023501521925690643,
+        "training_losses": 1.809756545939195e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.127417,
+          "parameter_flush_snapshot_ms": 0.031916,
+          "dataset_upload_sync_ms": 0.031,
+          "first_inference_ms": 0.5388339999999999,
+          "first_training_update_ms": 1.82325,
+          "warm_inference_readback_ms": 0.43524999999999997
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.20191699999999999,
+          "parameter_flush_snapshot_ms": 4.75425,
+          "dataset_upload_sync_ms": 0.572041,
+          "first_inference_ms": 99.402,
+          "first_training_update_ms": 1011.9712499999999,
+          "warm_inference_readback_ms": 1.129459
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 1.3433540000000002,
+        "min_update_ms": 1.186458,
+        "max_update_ms": 1.461208,
+        "p10_update_ms": 1.252208,
+        "p90_update_ms": 1.4085,
+        "block_median_update_ms": [
+          1.3510624999999998,
+          1.3227505000000002,
+          1.3597085
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.004042,
+          "forward_seconds": 0.48108399999999996,
+          "backward_seconds": 0.7155,
+          "optimizer_seconds": 0.051604000000000004,
+          "readback_seconds": 0.0664795,
+          "synchronization_seconds": 8.4e-05
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 8.659791499999999,
+        "min_update_ms": 6.595125,
+        "max_update_ms": 275.988958,
+        "p10_update_ms": 7.026375,
+        "p90_update_ms": 9.97175,
+        "block_median_update_ms": [
+          9.8083335,
+          7.2180625,
+          8.659791499999999
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5061875,
+          "forward_seconds": 2.3408955,
+          "backward_seconds": 3.3528540000000002,
+          "optimizer_seconds": 1.0413125,
+          "readback_seconds": 1.3959375,
+          "synchronization_seconds": 6.572604
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        33.019999999999996,
+        33.67
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        40.27,
+        29.010000000000005
+      ],
+      "loadavg_before_cpu": [
+        22.86328125,
+        27.72216796875,
+        22.79052734375
+      ],
+      "loadavg_before_gpu": [
+        12.87841796875,
+        23.33544921875,
+        21.57958984375
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 50,
+      "batch": 1024,
+      "cpu_f32_ms": 4.541812,
+      "gpu_f32_ms": 10.2871875,
+      "cpu_over_gpu_speed_ratio": 0.4415018196178499,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.02078660204534355,
+        "first_parameters": 0.00011372880353576645,
+        "final_prediction": 0.00010788889653221782,
+        "final_parameters": 0.0003293673958730857,
+        "training_losses": 1.7833597413243827e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.118834,
+          "parameter_flush_snapshot_ms": 0.032209,
+          "dataset_upload_sync_ms": 0.109833,
+          "first_inference_ms": 1.390917,
+          "first_training_update_ms": 5.570125,
+          "warm_inference_readback_ms": 1.523875
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.184875,
+          "parameter_flush_snapshot_ms": 4.340959,
+          "dataset_upload_sync_ms": 0.6120410000000001,
+          "first_inference_ms": 99.33016599999999,
+          "first_training_update_ms": 916.3953750000001,
+          "warm_inference_readback_ms": 1.109875
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 4.541812,
+        "min_update_ms": 4.106834,
+        "max_update_ms": 5.135375,
+        "p10_update_ms": 4.2318750000000005,
+        "p90_update_ms": 4.9267080000000005,
+        "block_median_update_ms": [
+          4.504395499999999,
+          4.623541,
+          4.4457085
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.012937500000000001,
+          "forward_seconds": 1.7829580000000003,
+          "backward_seconds": 2.569646,
+          "optimizer_seconds": 0.0542495,
+          "readback_seconds": 0.06310450000000001,
+          "synchronization_seconds": 0.0002095
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 10.2871875,
+        "min_update_ms": 9.733500000000001,
+        "max_update_ms": 267.418,
+        "p10_update_ms": 9.95675,
+        "p90_update_ms": 11.532416999999999,
+        "block_median_update_ms": [
+          10.852938,
+          10.061145499999999,
+          10.191833
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5053755,
+          "forward_seconds": 2.4689375,
+          "backward_seconds": 5.0994165,
+          "optimizer_seconds": 0.9684165,
+          "readback_seconds": 1.1714379999999998,
+          "synchronization_seconds": 8.1746455
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        43.83,
+        46.32
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        32.540000000000006,
+        36.8
+      ],
+      "loadavg_before_cpu": [
+        15.35498046875,
+        24.8359375,
+        22.0263671875
+      ],
+      "loadavg_before_gpu": [
+        12.39794921875,
+        21.87255859375,
+        21.12158203125
+      ]
+    },
+    {
+      "hardware": "Apple M3 Max /macOS",
+      "gpu_backend": "metal",
+      "dimension": 50,
+      "batch": 8192,
+      "cpu_f32_ms": 34.889937,
+      "gpu_f32_ms": 56.6791665,
+      "cpu_over_gpu_speed_ratio": 0.6155689851226024,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.030926830528764663,
+        "first_parameters": 1.1820322027179554e-05,
+        "final_prediction": 0.0001153895885490801,
+        "final_parameters": 0.00011303573447835638,
+        "training_losses": 1.884171996188471e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.129,
+          "parameter_flush_snapshot_ms": 0.032833,
+          "dataset_upload_sync_ms": 0.9584590000000001,
+          "first_inference_ms": 11.261292,
+          "first_training_update_ms": 36.622583,
+          "warm_inference_readback_ms": 9.625709
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.204125,
+          "parameter_flush_snapshot_ms": 4.625,
+          "dataset_upload_sync_ms": 1.765875,
+          "first_inference_ms": 109.74449999999999,
+          "first_training_update_ms": 814.754833,
+          "warm_inference_readback_ms": 4.355625
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 34.889937,
+        "min_update_ms": 33.087792,
+        "max_update_ms": 37.078708,
+        "p10_update_ms": 33.542207999999995,
+        "p90_update_ms": 36.381791,
+        "block_median_update_ms": [
+          35.3784165,
+          34.83681250000001,
+          34.412125
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0792085,
+          "forward_seconds": 13.9265835,
+          "backward_seconds": 20.558854,
+          "optimizer_seconds": 0.061854000000000006,
+          "readback_seconds": 0.06812499999999999,
+          "synchronization_seconds": 0.0004994999999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 56.6791665,
+        "min_update_ms": 56.001458,
+        "max_update_ms": 295.937791,
+        "p10_update_ms": 56.20225,
+        "p90_update_ms": 57.137042,
+        "block_median_update_ms": [
+          56.679479,
+          56.6833335,
+          56.67016649999999
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.5229790000000001,
+          "forward_seconds": 14.285604,
+          "backward_seconds": 39.418082999999996,
+          "optimizer_seconds": 1.1357495,
+          "readback_seconds": 1.2039585000000002,
+          "synchronization_seconds": 54.2790835
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        37.85,
+        37.21
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        38.3,
+        33.370000000000005
+      ],
+      "loadavg_before_cpu": [
+        12.50927734375,
+        21.5810546875,
+        21.0263671875
+      ],
+      "loadavg_before_gpu": [
+        11.2705078125,
+        19.70751953125,
+        20.36279296875
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 5,
+      "batch": 256,
+      "cpu_f32_ms": 1.38684,
+      "gpu_f32_ms": 5.3806235000000004,
+      "cpu_over_gpu_speed_ratio": 0.25774708079834985,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.0030062917503668393,
+        "first_parameters": 6.595087717502531e-06,
+        "final_prediction": 5.998889725489606e-05,
+        "final_parameters": 3.356898988022517e-05,
+        "training_losses": 0.0
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.048804,
+          "parameter_flush_snapshot_ms": 0.016856,
+          "dataset_upload_sync_ms": 0.010526,
+          "first_inference_ms": 51.422054,
+          "first_training_update_ms": 1.6082539999999999,
+          "warm_inference_readback_ms": 0.42575
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.17419500000000002,
+          "parameter_flush_snapshot_ms": 0.615739,
+          "dataset_upload_sync_ms": 0.040852,
+          "first_inference_ms": 419.786204,
+          "first_training_update_ms": 2037.956163,
+          "warm_inference_readback_ms": 0.418037
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 1.38684,
+        "min_update_ms": 1.124636,
+        "max_update_ms": 1.489433,
+        "p10_update_ms": 1.16083,
+        "p90_update_ms": 1.4363110000000001,
+        "block_median_update_ms": [
+          1.3984035000000001,
+          1.4087245,
+          1.374006
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0057085,
+          "forward_seconds": 0.6151735,
+          "backward_seconds": 0.6648845,
+          "optimizer_seconds": 0.046546,
+          "readback_seconds": 0.031308,
+          "synchronization_seconds": 0.00023
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 5.3806235000000004,
+        "min_update_ms": 5.162125,
+        "max_update_ms": 30.890945,
+        "p10_update_ms": 5.207364,
+        "p90_update_ms": 5.596287,
+        "block_median_update_ms": [
+          5.442007,
+          5.351569,
+          5.3042715000000005
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0875035,
+          "forward_seconds": 0.7065075000000001,
+          "backward_seconds": 1.0812895,
+          "optimizer_seconds": 1.6054439999999999,
+          "readback_seconds": 1.5106294999999998,
+          "synchronization_seconds": 0.38792249999999995
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        12.121212121212121,
+        9.377930603313535
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        12.121212121212121,
+        13.946216385240776
+      ],
+      "loadavg_before_cpu": [
+        7.5908203125,
+        7.79150390625,
+        8.701171875
+      ],
+      "loadavg_before_gpu": [
+        8.1044921875,
+        7.89501953125,
+        8.72998046875
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 5,
+      "batch": 1024,
+      "cpu_f32_ms": 4.336810999999999,
+      "gpu_f32_ms": 3.0529824999999997,
+      "cpu_over_gpu_speed_ratio": 1.420516167387137,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.0035458043459606855,
+        "first_parameters": 6.613646823720056e-06,
+        "final_prediction": 7.400106790941099e-05,
+        "final_parameters": 1.6968722368556713e-05,
+        "training_losses": 1.2305772910029678e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.042064000000000004,
+          "parameter_flush_snapshot_ms": 0.016285,
+          "dataset_upload_sync_ms": 0.026611,
+          "first_inference_ms": 51.634028,
+          "first_training_update_ms": 4.931382,
+          "warm_inference_readback_ms": 1.5562740000000002
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.110679,
+          "parameter_flush_snapshot_ms": 0.35690500000000003,
+          "dataset_upload_sync_ms": 0.07218000000000001,
+          "first_inference_ms": 390.504405,
+          "first_training_update_ms": 2036.1480369999997,
+          "warm_inference_readback_ms": 0.274229
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 4.336810999999999,
+        "min_update_ms": 3.846759,
+        "max_update_ms": 4.9632510000000005,
+        "p10_update_ms": 3.8544899999999997,
+        "p90_update_ms": 4.699389,
+        "block_median_update_ms": [
+          3.857014,
+          4.336810999999999,
+          4.661116
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.010485999999999999,
+          "forward_seconds": 1.9163085,
+          "backward_seconds": 2.3149665,
+          "optimizer_seconds": 0.046947,
+          "readback_seconds": 0.031358,
+          "synchronization_seconds": 0.00016999999999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 3.0529824999999997,
+        "min_update_ms": 2.954507,
+        "max_update_ms": 5.3435619999999995,
+        "p10_update_ms": 3.025826,
+        "p90_update_ms": 3.1366549999999997,
+        "block_median_update_ms": [
+          3.052667,
+          3.0590965,
+          3.0517405
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.041618499999999996,
+          "forward_seconds": 0.443521,
+          "backward_seconds": 0.8605674999999999,
+          "optimizer_seconds": 0.7707059999999999,
+          "readback_seconds": 0.7597545,
+          "synchronization_seconds": 0.648609
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        5.154639175257732,
+        4.52841973766396
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        3.75,
+        3.1855090568394755
+      ],
+      "loadavg_before_cpu": [
+        8.818359375,
+        8.0615234375,
+        8.775390625
+      ],
+      "loadavg_before_gpu": [
+        8.2177734375,
+        7.95947265625,
+        8.734375
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 5,
+      "batch": 8192,
+      "cpu_f32_ms": 38.479791000000006,
+      "gpu_f32_ms": 11.914255,
+      "cpu_over_gpu_speed_ratio": 3.229726995099568,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.007471738050065673,
+        "first_parameters": 6.613646823720056e-06,
+        "final_prediction": 0.00010181801446639075,
+        "final_parameters": 2.0752827961492926e-05,
+        "training_losses": 2.3129200942311403e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.055513999999999994,
+          "parameter_flush_snapshot_ms": 0.017196,
+          "dataset_upload_sync_ms": 0.44794300000000004,
+          "first_inference_ms": 63.513200000000005,
+          "first_training_update_ms": 40.248679,
+          "warm_inference_readback_ms": 14.374138
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.1771,
+          "parameter_flush_snapshot_ms": 0.615709,
+          "dataset_upload_sync_ms": 0.593185,
+          "first_inference_ms": 412.22682399999997,
+          "first_training_update_ms": 2039.1245740000002,
+          "warm_inference_readback_ms": 0.6297600000000001
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 38.479791000000006,
+        "min_update_ms": 36.661738,
+        "max_update_ms": 47.176497999999995,
+        "p10_update_ms": 37.308404,
+        "p90_update_ms": 40.287098,
+        "block_median_update_ms": [
+          38.640466,
+          38.251092,
+          38.500252
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.122056,
+          "forward_seconds": 20.159358500000003,
+          "backward_seconds": 18.0230795,
+          "optimizer_seconds": 0.06672700000000001,
+          "readback_seconds": 0.041543500000000004,
+          "synchronization_seconds": 0.0005009999999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 11.914255,
+        "min_update_ms": 10.078885,
+        "max_update_ms": 36.002231,
+        "p10_update_ms": 11.435435,
+        "p90_update_ms": 12.324111,
+        "block_median_update_ms": [
+          11.876072,
+          11.9117315,
+          11.947942000000001
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.101339,
+          "forward_seconds": 2.5889995,
+          "backward_seconds": 5.7855810000000005,
+          "optimizer_seconds": 1.575418,
+          "readback_seconds": 1.4859470000000001,
+          "synchronization_seconds": 7.0033895
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        2.374258044361137,
+        2.4375
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        13.01219893650297,
+        3.376055017192873
+      ],
+      "loadavg_before_cpu": [
+        7.3447265625,
+        7.78076171875,
+        8.6630859375
+      ],
+      "loadavg_before_gpu": [
+        7.9033203125,
+        7.8291015625,
+        8.6484375
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 10,
+      "batch": 256,
+      "cpu_f32_ms": 1.495256,
+      "gpu_f32_ms": 2.885942,
+      "cpu_over_gpu_speed_ratio": 0.5181171347171911,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.004241166676889752,
+        "first_parameters": 6.615082342758931e-06,
+        "final_prediction": 8.321079849831137e-05,
+        "final_parameters": 6.527202645909068e-05,
+        "training_losses": 2.6067473125640824e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.046329999999999996,
+          "parameter_flush_snapshot_ms": 0.015384,
+          "dataset_upload_sync_ms": 0.011938,
+          "first_inference_ms": 53.756866,
+          "first_training_update_ms": 1.716228,
+          "warm_inference_readback_ms": 0.453773
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.123278,
+          "parameter_flush_snapshot_ms": 0.339568,
+          "dataset_upload_sync_ms": 0.030716999999999998,
+          "first_inference_ms": 449.494204,
+          "first_training_update_ms": 2750.0877299999997,
+          "warm_inference_readback_ms": 0.250633
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 1.495256,
+        "min_update_ms": 1.2188299999999999,
+        "max_update_ms": 1.5712869999999999,
+        "p10_update_ms": 1.25246,
+        "p90_update_ms": 1.54734,
+        "block_median_update_ms": [
+          1.4475535000000002,
+          1.4969729999999999,
+          1.528116
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.005844,
+          "forward_seconds": 0.671785,
+          "backward_seconds": 0.710584,
+          "optimizer_seconds": 0.05017150000000001,
+          "readback_seconds": 0.0338115,
+          "synchronization_seconds": 0.00016999999999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 2.885942,
+        "min_update_ms": 2.6418600000000003,
+        "max_update_ms": 84.296314,
+        "p10_update_ms": 2.6781349999999997,
+        "p90_update_ms": 5.302989999999999,
+        "block_median_update_ms": [
+          5.241706,
+          2.7023725,
+          2.892868
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.045354,
+          "forward_seconds": 0.427021,
+          "backward_seconds": 0.5957939999999999,
+          "optimizer_seconds": 0.8225695,
+          "readback_seconds": 0.81291,
+          "synchronization_seconds": 0.2821795
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        12.25382932166302,
+        11.62136832239925
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        12.507817385866167,
+        3.090852325944427
+      ],
+      "loadavg_before_cpu": [
+        8.1044921875,
+        7.89501953125,
+        8.72998046875
+      ],
+      "loadavg_before_gpu": [
+        8.97705078125,
+        8.07958984375,
+        8.78515625
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 10,
+      "batch": 1024,
+      "cpu_f32_ms": 5.4529485,
+      "gpu_f32_ms": 3.14342,
+      "cpu_over_gpu_speed_ratio": 1.734718395887282,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.004961238330016224,
+        "first_parameters": 6.615082342758931e-06,
+        "final_prediction": 7.579022584236763e-05,
+        "final_parameters": 6.0338725419529477e-05,
+        "training_losses": 1.3515807730552747e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.046981,
+          "parameter_flush_snapshot_ms": 0.015925,
+          "dataset_upload_sync_ms": 0.07894999999999999,
+          "first_inference_ms": 53.747011,
+          "first_training_update_ms": 5.816834,
+          "warm_inference_readback_ms": 1.8846850000000002
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.120354,
+          "parameter_flush_snapshot_ms": 0.3735,
+          "dataset_upload_sync_ms": 0.116648,
+          "first_inference_ms": 415.125345,
+          "first_training_update_ms": 2362.165939,
+          "warm_inference_readback_ms": 0.256791
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 5.4529485,
+        "min_update_ms": 4.945684,
+        "max_update_ms": 5.6579109999999995,
+        "p10_update_ms": 5.36238,
+        "p90_update_ms": 5.562505,
+        "block_median_update_ms": [
+          5.492389,
+          5.49664,
+          5.391405
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.010561000000000001,
+          "forward_seconds": 2.7520490000000004,
+          "backward_seconds": 2.5955045,
+          "optimizer_seconds": 0.048228999999999994,
+          "readback_seconds": 0.033191,
+          "synchronization_seconds": 0.00019999999999999998
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 3.14342,
+        "min_update_ms": 3.054509,
+        "max_update_ms": 5.32921,
+        "p10_update_ms": 3.08754,
+        "p90_update_ms": 5.287606,
+        "block_median_update_ms": [
+          3.8170080000000004,
+          3.1632854999999998,
+          3.1394089999999997
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.042655,
+          "forward_seconds": 0.4508025,
+          "backward_seconds": 0.882141,
+          "optimizer_seconds": 0.8027095,
+          "readback_seconds": 0.7785625,
+          "synchronization_seconds": 0.6167754999999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        4.934415990006246,
+        5.435801312089972
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        2.467207995003123,
+        2.5608994378513428
+      ],
+      "loadavg_before_cpu": [
+        8.67236328125,
+        8.04345703125,
+        8.765625
+      ],
+      "loadavg_before_gpu": [
+        7.63623046875,
+        7.8447265625,
+        8.6884765625
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 10,
+      "batch": 8192,
+      "cpu_f32_ms": 41.968298,
+      "gpu_f32_ms": 11.1908115,
+      "cpu_over_gpu_speed_ratio": 3.750246172942864,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.008743869123786666,
+        "first_parameters": 6.61508243027756e-06,
+        "final_prediction": 9.680462642475113e-05,
+        "final_parameters": 4.6735013664266454e-05,
+        "training_losses": 0.0
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.051418,
+          "parameter_flush_snapshot_ms": 0.017306,
+          "dataset_upload_sync_ms": 0.719058,
+          "first_inference_ms": 62.754081000000006,
+          "first_training_update_ms": 42.773331,
+          "warm_inference_readback_ms": 15.142469
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.161125,
+          "parameter_flush_snapshot_ms": 0.5114810000000001,
+          "dataset_upload_sync_ms": 1.223867,
+          "first_inference_ms": 415.613821,
+          "first_training_update_ms": 2562.276467,
+          "warm_inference_readback_ms": 0.6499210000000001
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 41.968298,
+        "min_update_ms": 40.037017,
+        "max_update_ms": 48.624737,
+        "p10_update_ms": 40.358397,
+        "p90_update_ms": 44.406342,
+        "block_median_update_ms": [
+          41.927075,
+          41.7128535,
+          42.861761
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.1852275,
+          "forward_seconds": 22.092276499999997,
+          "backward_seconds": 19.620461499999998,
+          "optimizer_seconds": 0.06581000000000001,
+          "readback_seconds": 0.0424795,
+          "synchronization_seconds": 0.000526
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 11.1908115,
+        "min_update_ms": 10.536092,
+        "max_update_ms": 32.582595,
+        "p10_update_ms": 10.575963000000002,
+        "p90_update_ms": 12.357711,
+        "block_median_update_ms": [
+          12.306618499999999,
+          10.638133999999999,
+          11.155798
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.06647149999999999,
+          "forward_seconds": 2.622936,
+          "backward_seconds": 6.094517,
+          "optimizer_seconds": 1.073603,
+          "readback_seconds": 1.0638975,
+          "synchronization_seconds": 7.929060499999999
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        3.90625,
+        4.217432052483599
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        3.03125,
+        3.1875
+      ],
+      "loadavg_before_cpu": [
+        6.99658203125,
+        7.701171875,
+        8.63232421875
+      ],
+      "loadavg_before_gpu": [
+        8.4716796875,
+        7.9482421875,
+        8.6826171875
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 50,
+      "batch": 256,
+      "cpu_f32_ms": 2.3819035,
+      "gpu_f32_ms": 2.7609175,
+      "cpu_over_gpu_speed_ratio": 0.8627217220362433,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.010776974453464731,
+        "first_parameters": 6.611462628621543e-06,
+        "final_prediction": 8.883236939256549e-05,
+        "final_parameters": 0.00022206480164249897,
+        "training_losses": 1.8292559340513722e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.187175,
+          "parameter_flush_snapshot_ms": 0.037908,
+          "dataset_upload_sync_ms": 0.038158000000000004,
+          "first_inference_ms": 50.845745,
+          "first_training_update_ms": 2.6617110000000004,
+          "warm_inference_readback_ms": 0.829636
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.22662600000000002,
+          "parameter_flush_snapshot_ms": 0.36887299999999995,
+          "dataset_upload_sync_ms": 0.06167400000000001,
+          "first_inference_ms": 431.850649,
+          "first_training_update_ms": 2586.9618450000003,
+          "warm_inference_readback_ms": 0.24273999999999998
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 2.3819035,
+        "min_update_ms": 2.1509110000000002,
+        "max_update_ms": 2.73363,
+        "p10_update_ms": 2.2402580000000003,
+        "p90_update_ms": 2.475155,
+        "block_median_update_ms": [
+          2.3164540000000002,
+          2.406311,
+          2.40236
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0060295,
+          "forward_seconds": 1.1236095,
+          "backward_seconds": 1.116784,
+          "optimizer_seconds": 0.06386800000000001,
+          "readback_seconds": 0.05572,
+          "synchronization_seconds": 0.00013
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 2.7609175,
+        "min_update_ms": 2.681511,
+        "max_update_ms": 19.91498,
+        "p10_update_ms": 2.7118469999999997,
+        "p90_update_ms": 5.215716,
+        "block_median_update_ms": [
+          2.7469905,
+          2.760907,
+          2.79925
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.0409325,
+          "forward_seconds": 0.38517250000000003,
+          "backward_seconds": 0.559739,
+          "optimizer_seconds": 0.7940365,
+          "readback_seconds": 0.798929,
+          "synchronization_seconds": 0.2624105
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        12.753985620506409,
+        12.261495151704723
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        2.125,
+        2.4352169840774276
+      ],
+      "loadavg_before_cpu": [
+        8.1044921875,
+        7.89501953125,
+        8.72998046875
+      ],
+      "loadavg_before_gpu": [
+        8.0400390625,
+        7.9267578125,
+        8.71923828125
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 50,
+      "batch": 1024,
+      "cpu_f32_ms": 9.479371,
+      "gpu_f32_ms": 3.5646079999999998,
+      "cpu_over_gpu_speed_ratio": 2.659302509560659,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.012807897886404313,
+        "first_parameters": 3.1016947060212726e-05,
+        "final_prediction": 0.00011509659280131814,
+        "final_parameters": 0.0005076159901981903,
+        "training_losses": 1.8097385324153396e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.171983,
+          "parameter_flush_snapshot_ms": 0.030126,
+          "dataset_upload_sync_ms": 0.41235,
+          "first_inference_ms": 53.232836,
+          "first_training_update_ms": 10.234012,
+          "warm_inference_readback_ms": 3.2870239999999997
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.219515,
+          "parameter_flush_snapshot_ms": 0.39344,
+          "dataset_upload_sync_ms": 0.47172000000000003,
+          "first_inference_ms": 433.715524,
+          "first_training_update_ms": 2526.719869,
+          "warm_inference_readback_ms": 0.301821
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 9.479371,
+        "min_update_ms": 9.133854,
+        "max_update_ms": 10.074038,
+        "p10_update_ms": 9.43258,
+        "p90_update_ms": 9.574717,
+        "block_median_update_ms": [
+          9.5612605,
+          9.470782,
+          9.468910000000001
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.014387,
+          "forward_seconds": 4.699389,
+          "backward_seconds": 4.6118155000000005,
+          "optimizer_seconds": 0.06762299999999999,
+          "readback_seconds": 0.058314000000000005,
+          "synchronization_seconds": 0.0002405
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 3.5646079999999998,
+        "min_update_ms": 3.416041,
+        "max_update_ms": 5.7290600000000005,
+        "p10_update_ms": 3.464025,
+        "p90_update_ms": 5.5281139999999995,
+        "block_median_update_ms": [
+          3.562429,
+          3.536485,
+          5.420519
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.04269,
+          "forward_seconds": 0.529373,
+          "backward_seconds": 1.139609,
+          "optimizer_seconds": 0.829125,
+          "readback_seconds": 0.83592,
+          "synchronization_seconds": 0.95028
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        4.686035613870666,
+        3.6875
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        6.316447779862414,
+        3.189493433395872
+      ],
+      "loadavg_before_cpu": [
+        8.67236328125,
+        8.04345703125,
+        8.765625
+      ],
+      "loadavg_before_gpu": [
+        6.99658203125,
+        7.701171875,
+        8.63232421875
+      ]
+    },
+    {
+      "hardware": "Threadripper PRO7985WX /Linux",
+      "gpu_backend": "cuda",
+      "dimension": 50,
+      "batch": 8192,
+      "cpu_f32_ms": 77.68891450000001,
+      "gpu_f32_ms": 16.134963499999998,
+      "cpu_over_gpu_speed_ratio": 4.8149420666492375,
+      "accuracy_pass": true,
+      "max_tolerance_ratios": {
+        "initial_prediction": 0.020628475357792705,
+        "first_parameters": 1.152064521511775e-05,
+        "final_prediction": 0.00010218384416541405,
+        "final_parameters": 0.00018479262270508363,
+        "training_losses": 1.889117278969878e-05
+      },
+      "setup": {
+        "cpu": {
+          "setup_enqueue_ms": 0.214388,
+          "parameter_flush_snapshot_ms": 0.045389,
+          "dataset_upload_sync_ms": 3.080689,
+          "first_inference_ms": 74.115343,
+          "first_training_update_ms": 78.68227,
+          "warm_inference_readback_ms": 26.180428
+        },
+        "gpu": {
+          "setup_enqueue_ms": 0.24437299999999998,
+          "parameter_flush_snapshot_ms": 0.364566,
+          "dataset_upload_sync_ms": 4.586286,
+          "first_inference_ms": 388.542645,
+          "first_training_update_ms": 2361.632866,
+          "warm_inference_readback_ms": 1.44232
+        }
+      },
+      "cpu_summary": {
+        "median_update_ms": 77.68891450000001,
+        "min_update_ms": 73.636042,
+        "max_update_ms": 85.74283100000001,
+        "p10_update_ms": 76.290141,
+        "p90_update_ms": 80.061764,
+        "block_median_update_ms": [
+          79.07165900000001,
+          77.57376349999998,
+          76.8063085
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.11538100000000001,
+          "forward_seconds": 39.3506695,
+          "backward_seconds": 37.925074499999994,
+          "optimizer_seconds": 0.10176,
+          "readback_seconds": 0.070938,
+          "synchronization_seconds": 0.000962
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "gpu_summary": {
+        "median_update_ms": 16.134963499999998,
+        "min_update_ms": 16.012597,
+        "max_update_ms": 33.242141000000004,
+        "p10_update_ms": 16.07378,
+        "p90_update_ms": 17.855809,
+        "block_median_update_ms": [
+          16.7312485,
+          16.1242275,
+          16.0891395
+        ],
+        "phase_medians_ms": {
+          "upload_seconds": 0.049645999999999996,
+          "forward_seconds": 3.83164,
+          "backward_seconds": 10.401657499999999,
+          "optimizer_seconds": 0.8243425,
+          "readback_seconds": 0.836206,
+          "synchronization_seconds": 13.5109915
+        },
+        "phase_scope": "Phases include their own synchronization; synchronization aggregate is nonadditive nested diagnostic. Inference forward/readback joint; no pure compilation duration inferred."
+      },
+      "cpu_utilization_percent_range": [
+        2.4352169840774276,
+        11.90253045923149
+      ],
+      "gpu_host_cpu_utilization_percent_range": [
+        2.092442223610244,
+        3.3125
+      ],
+      "loadavg_before_cpu": [
+        6.91650390625,
+        7.6728515625,
+        8.6181640625
+      ],
+      "loadavg_before_gpu": [
+        7.978515625,
+        7.86767578125,
+        8.64404296875
+      ]
+    }
+  ],
+  "all18_matched_workload_accuracy_pass": true,
+  "independent_fixture_scope": "Bothrepresentations onCPUf64/f32,Metalf32,CUDAf32 pass fullfirststepparameters/gradient/function/state/actualAdam; originalraw failuresretainedseparately.",
+  "performance_scope": "Samehost matchedF32 comparisons; allGPUcases preflightadmitted,GPUbusyguarded; stage clocksinclude theirsync and aggregate syncisnonadditive. CPU/Metal hardwareAppleM3Max128GiB16CPUcores; remoteCPU/GPUThreadripper7985WX64cores/128threads,RTX409024GiB,Linux6.8,CUDAsdk12.5,driver555.42.02,Rust1.99.1,Burn0.22.1. Recordedbackgroundload/utilization; no cleanidleclaim.",
+  "cold_scope": "Firsttouch includes existingcompiler/cache state, not purecompilation. Inferenceforward/readbackjoint; setupenqueue andweightflush+snapshotseparate; no subtraction labelledpurekernelcompile."
+}

@@ -42,3 +42,20 @@ The [learning guide](../../maxcall-learning.md) describes the declared choices
 for details left unspecified in the paper. The [application guide](../../maxcall-application.md)
 connects a selected holder to a complete vector writer account. This comparison
 covers one pricing row; the writer example has its own observations and loss.
+
+## Device measurements
+
+[Matched float32 timings](performance.json) cover 5/10/50 stocks, batches of
+256/1,024/8,192, and hidden widths `d+50`. Both host sweeps completed 27 cases
+(CPU f64, CPU f32 and GPU f32), with all 18 matched f32 CPU/GPU workload checks
+passing. The optional fixed-zero normalization representation is explicit.
+The scientific CPU-f64 price fits above retain the original representation.
+
+On the M3 Max, CPU f32 beat Metal throughout this sweep. On the Threadripper
+PRO 7985WX/RTX 4090 system, CUDA beat one-thread CPU f32 at batches 1,024 and
+8,192: the 5-stock/8,192-row update took 11.91 ms versus 38.48 ms, while the
+50-stock/8,192-row update took 16.13 ms versus 77.69 ms. Each measured update
+includes gradient calculation, optimizer, synchronization and scalar checks.
+The report retains first-use setup, inference/readback, dispersion and measured
+host load. These observations describe the strict-arithmetic implementation
+and recorded workloads. First-use timings include existing compiler/cache state.

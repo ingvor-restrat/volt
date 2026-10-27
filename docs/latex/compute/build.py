@@ -6,7 +6,7 @@ import shutil
 import subprocess
 
 HERE = Path(__file__).resolve().parent
-PAPERS = ("volt_option_learning_primer", "volt_gpu_pricing_aad", "volt_deep_hedging",
+PAPERS = ("volt_multi_asset_hedging", "volt_option_learning_primer", "volt_gpu_pricing_aad", "volt_deep_hedging",
           "volt_hypercube_live_risk", "volt_volatility_strategies")
 
 def main():

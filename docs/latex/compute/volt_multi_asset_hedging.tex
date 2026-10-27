@@ -1,0 +1,263 @@
+\documentclass[8pt]{strategynet-journal}
+\usepackage{volt-paper-style}
+\hypersetup{pdftitle={Pricing and Hedging a Multi-Asset Option with Volt},pdfauthor={research@strategynet.ai}}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Q}{\mathbb Q}
+\SNHeader{strategynet.ai:Multi-asset option learning}
+\title{Pricing and Hedging a Multi-Asset Option with Volt}
+\author{\href{mailto:research@strategynet.ai}{research@strategynet.ai}}
+\date{October 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+\normalsize An option linked to several stocks can become most exposed to whichever stock leads the group. A hedge must respond as that exposure moves between names, and early exercise can bring the contract to an end before expiry. Valuing the remaining rights and financing the hedge therefore require a joint model of the underlying prices and a consistent account of exercise and trading. We develop this application in Volt using a Bermudan call on the largest of five stock prices. Neural continuation functions determine the holder's exercise decisions; independent simulations then estimate its payment value and a policy-tail upper valuation. The selected holder can also supply settlements to a writer that learns vector hedge holdings through the native application interface. A declared reconstruction of a published pricing experiment provides the numerical comparison. Three independently initialized models recover prices between 26.1576 and 26.1609 against the published 26.154, with wider confidence intervals. The application exposes the market model, backward learning calculation, valuation estimator and financed account through runnable interfaces, with independent numerical controls for CPU, Metal and CUDA execution.
+\end{abstract}
+\SNtwocolumntableofcontents
+\begin{SNcolumns}
+
+\section{The contract and market model}
+Consider a holder who receives the amount by which the best-performing stock
+exceeds a strike. With $d$ underlying prices $S^1,\ldots,S^d$ and strike $K$,
+the cash payment on exercise is
+\[
+ g(S_t)=\left(\max_{1\leq i\leq d} S_t^i-K\right)^+.
+\]
+A different stock can lead at each date. That changes the distribution of
+future payments and the stock positions useful to the writer. The Bermudan
+contract adds a decision for the holder: exercise now or retain the remaining
+opportunities. Our application follows this decision through valuation and
+then into the writer's trading account.
+
+The comparison uses Becker, Cheridito and Jentzen's five-asset case~\cite{american}.
+All stocks start at 100, strike is 100, maturity is three years, and nine equal
+exercise intervals give a four-month calendar. Each stock has annual volatility
+20\% and continuous dividend yield 10\%; the interest rate is 5\%. Under the
+pricing law $\Q$,
+\[
+ dS_t^i=(r-q_i)S_t^i\,dt+\sigma_i S_t^i\,dW_t^i.
+\]
+Thus the ex-dividend drift in this case is $-5\%$. The published row uses
+independent Brownian components. The same generator accepts a supplied
+correlation matrix and heterogeneous stock parameters.
+
+For a time increment $\Delta t$, the exact GBM transition is
+\[
+ S_{t+\Delta t}^i=S_t^i\exp\!\left[
+ (r-q_i-\tfrac12\sigma_i^2)\Delta t+
+ \sigma_i\sqrt{\Delta t}\,Z_i\right].
+\]
+The vector $Z$ is standard Gaussian with the specified correlation. A
+semidefinite Cholesky factor permits perfectly correlated assets as well as
+full-rank inputs. Checked reconstruction and roundoff diagnostics accompany
+the factorization. Indexed random streams bind every stock path to its seed,
+namespace, global path ID and dates, so streaming batches retain their identities.
+
+A portfolio application supplies different liabilities through the same
+financial interface. The max-call is useful here because the published
+benchmark supplies a concrete pricing target, while the underlying joint
+process and vector account exercise the multi-asset implementation.
+
+\section{Backward continuation learning}
+Write $G_n=e^{-rt_n}g(S_{t_n})$ for a payment discounted to time zero. Suppose
+a later exercise rule $\tau_{n+1}$ has already been chosen. The continuation
+function at date $n$ estimates
+\[
+ c_n(x)=\E^{\Q}[G_{\tau_{n+1}}\mid S_{t_n}=x].
+\]
+The regression network minimizes squared error against the future rule's
+realized discounted payments. Once fitted, it exercises where
+$G_n\geq c_n(S_{t_n})$. Moving backward from expiry supplies the later rule
+needed to fit each earlier date. All decisions use the observed state when
+applied to a new path.
+
+The state contains the five raw stock prices and the current discounted unit
+payoff. Two hidden tanh layers each have 55 units; a linear output gives the
+continuation value in currency per option unit. Batch normalization acts on
+the input and hidden affine outputs. The final fitted date receives Xavier
+initialization. Each earlier date starts from the next date's weights and
+normalization statistics, with fresh Adam moments.
+
+The article reports a declared reconstruction of the published settings.
+The paper specifies the architecture, batch size, total update counts and
+learning-rate values. We record the remaining choices explicitly: normalization
+placement and population moments, epsilon 0.001, running-statistic weight
+0.01 for new observations, Xavier-uniform kernels, finite path reuse, and
+Adam's bias-corrected denominator with epsilon $10^{-8}$.
+
+The final date uses 6,000 updates, with rates 0.1, 0.01, 0.001 and 0.0001 for
+1,000, 2,000, 2,000 and 1,000 updates. Earlier dates use 3,500 updates with
+500, 1,000, 1,500 and 500 updates at those rates. Batch size is 8,192.
+Each model uses 1,048,576 training paths and 65,536 separate diagnostic
+validation paths. Row sampling is uniform with replacement from resident
+training tensors.
+
+The scheduled final snapshot at every date supplies the primary exercise rule
+and earlier training targets. Separate validation snapshots remain diagnostic.
+This fixes selection before fresh pricing paths are generated. Completed-date
+archives retain the market identities and selected future networks, allowing
+an interrupted fit to restart the next earlier date reproducibly.
+
+\begin{center}\begin{minipage}{\linewidth}\centering
+\begin{tikzpicture}[font=\normalsize,>=Latex,x=1cm,y=1cm]
+\draw[->] (0,0)--(6.4,0);
+\foreach \x/\lab in {.4/{$0$},1.8/{$t_1$},3.3/{$t_2$},5.9/{$T$}}
+ {\fill (\x,0) circle(1pt);\node[below] at(\x,-.08){\lab};}
+\node[above,align=center] at(5.9,.35){Known\\payoff};
+\draw[->,darkblue,thick] (5.5,.65)--(3.8,.65);
+\draw[->,darkblue,thick] (3,.65)--(2.2,.65);
+\node[above,align=center,darkblue] at(3.1,1.0){Fit continuation and exercise\\from later selected decisions};
+\node[below,align=center] at(3.2,-.7){Apply the selected policy forward on fresh paths};
+\end{tikzpicture}
+\captionof{figure}{Training proceeds backward. Pricing and trading follow
+new paths forward, preserving the information available at each decision.}
+\end{minipage}\end{center}
+
+\section{Independent policy-tail valuation}
+A selected holder produces an expected discounted payment
+$L=\E^{\Q}G_{\tau}$. Its admissible stopping rule makes $L$ a lower value
+relative to optimal exercise. A sample mean estimates $L$ with Monte Carlo
+uncertainty. An upper expectation can be constructed from the policy's value
+martingale using nested conditional simulation~\cite{stopping,american}.
+
+At each outer state $X_n$, simulate independent future paths that continue
+past the current date and apply the selected holder from $n+1$. Their average
+payment $\overline C_n$ estimates the continuation of that actual future rule.
+If $f_n$ is the binary exercise decision on the outer state, define
+\[
+ \Delta\widetilde M_n=f_nG_n+(1-f_n)\overline C_n-\overline C_{n-1},
+ \qquad \overline C_N=0.
+\]
+Starting from $\widetilde M_0=0$, accumulate these increments from date one.
+Each conditional mean is reused in its two adjacent increments. The upper
+estimate averages $\max_n(G_n-\widetilde M_n)$ along the full outer path,
+including exercise opportunities after the holder's first stopping date.
+
+This noisy process is the policy-value martingale plus conditionally centered
+simulation error relative to the outer observations. The paper's conditional
+Jensen argument supplies the upper expectation. The conditional simulations
+retain their own random addresses for each parent state, date and child;
+each outer observation also has its own initial continuation estimate.
+Pooling several parent groups into a device batch preserves those addresses
+and each parent's payoff summation.
+
+The assessment uses 4,096,000 lower-estimate paths, 2,048 upper outer paths and
+2,048 conditional branches per state. Three selected models share common
+assessment market streams, allowing their realized payments to be compared.
+Training, validation, outer and conditional sampling have separate declared
+random domains. Reported intervals use the outer-sample standard errors and
+an asymptotic joint 95\% lower/upper enclosure. The lognormal max-call is
+unbounded, so this calculation uses its finite-variance sampling assumptions.
+
+For the chosen source row, the published lower and upper estimates are 26.156
+and 26.152, with midpoint 26.154 and enclosure $[26.138,26.171]$. Finite
+sample estimates can cross even though their population expectations obey
+the lower/upper inequalities. Our reports retain their observed ordering.
+Before fitting, we set two numerical comparison targets: absolute midpoint
+difference at most 0.05 and enclosure width at most 0.10. Both proximity and
+precision enter the assessment.
+
+\section{The writer's vector account and application API}
+The selected holder can supply settlements to a writer. For continuous yield
+$q_i$, use discounted dividend-reinvested security values
+\[
+ P_n^i=e^{(q_i-r)t_n}S_{t_n}^i.
+\]
+These share the time-zero currency basis of $G_n$. Cash growth is one, and a
+holding $h_n^i$ corresponds to $h_n^i e^{q_i t_n}$ physical shares. Reinvestment
+is included in the security definition.
+
+Let $w_n$ be wealth before rebalancing and let $\lambda_i$ be proportional
+stock costs. Choosing target holdings $h_n$ gives arrival wealth
+\[
+ w_{n+1}^{-}=w_n-
+ \sum_i\lambda_iP_n^i|h_n^i-h_{n-1}^i|
+ +\sum_i h_n^i(P_{n+1}^i-P_n^i).
+\]
+At exercise, the account liquidates its hedge, charges the declared closing
+cost and pays the signed discounted liability once. Later holdings remain
+zero. Quantity and multiplier scale the payment once; the caller supplies
+initial capital for the complete position.
+
+The native writer observes current stocks, discounted unit payoff and previous
+holdings, then chooses a vector of continuous targets. Its complete-account
+squared-loss objective differentiates through trades, fees and settlement.
+The supplied writer example uses date-specific ReLU networks and this terminal
+account objective. The paper's interval hedge method instead learns changes
+in approximate continuation value using reinvested-stock features.
+
+\texttt{maxcall\_episodes} verifies the actual holder checkpoint's digest,
+applies its first admissible exercise decision and prepares native scenario
+batches. The existing training, evaluation, holdings-inference and checkpoint
+operations accept those batches. Jormungandr can supervise the same Volt
+worker through its native HTTP service~\cite{api}.
+\end{SNcolumns}
+\noindent\begin{minipage}{\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\normalsize,frame=single,breaklines=true]
+cargo build --release -p volt-compute --bin maxcall_learning --bin maxcall_episodes --bin native_learner
+python3 examples/maxcall_application.py --output /tmp/volt-maxcall-example
+\end{lstlisting}
+\end{minipage}
+\begin{SNcolumns}
+The example fits a holder, prepares independent writer training/validation
+ranges, selects a writer checkpoint and assesses its restored version on
+fresh paths. Inputs, costs, normalization, market identities and model
+snapshots accompany the outputs. A small default run demonstrates the full
+sequence, while the published-case study uses the larger declared budgets.
+The background primer develops the contract and account arithmetic~\cite{primer}.
+
+\section{Precision and device performance}
+The primary price comparison uses CPU float64. Independent calculations check normalization,
+all parameter gradients, optimizer moments and post-update inference.
+
+Single-precision tests identified a sensitive normalization representation.
+A constant hidden affine bias is removed by the following batch normalization,
+and an input-normalization translation is likewise removed by the next
+normalized affine layer. In exact arithmetic these are redundant training
+directions. Small floating-point cancellation residuals can be amplified by
+Adam, while stored running means adjust over time.
+
+Volt exposes an optional fixed-zero representation for these translations.
+Converting an existing network also adjusts the following running means, so
+its represented inference function is preserved. The remaining biases and
+normalization shifts retain their learned roles. Independent Keras and NumPy
+controls check both the converted and already-fixed forms on CPU, Metal and
+CUDA. The original raw comparison and the stabilized comparison remain
+separate in the evidence records.
+
+The performance workload uses the same network, inputs, normalization,
+arithmetic and precision across its compared devices. Each block restores
+common weights and statistics. Warm-up updates precede synchronized measured
+updates; simulation, upload, first-use setup and readback retain separate
+measurements. CPU runtimes use one thread. Device memory requirements are
+checked before allocation and recorded alongside actual runtime telemetry.
+The implementation builds on Burn's tensor/autodiff interfaces and CubeCL
+execution, using the repository's pinned versions~\cite{burn}.
+
+\section{Pricing results and execution times}
+\input{maxcall-results.tex}
+
+The market generator, selected holder, valuation estimator and writer account
+have separate controls. Correlated-return moments, discounted gains,
+semidefinite correlations, path identity, conditional sampling and account
+cash flows are checked independently. Complete-date resume tests reproduce
+the remaining backward calculation. A holder-to-writer executable test checks
+checkpoint provenance and preserves existing output files atomically.
+
+The comparison covers one specified five-asset pricing case. Additional asset
+counts, starting prices, hedge calendars and execution assumptions extend the
+research through the same interfaces. Empirical factor forecasts require a
+separate model of conditional means, covariance and information timing;
+live vendor integration supplies another application input. Those studies
+retain their own calibration and assessment requirements.
+\end{SNcolumns}
+\clearpage
+\begin{SNcolumns}
+\begin{thebibliography}{99}
+\bibitem{american} S. Becker, P. Cheridito and A. Jentzen. Pricing and hedging American-style options with deep learning. \emph{JRFM} 13(7):158, 2020. \url{https://arxiv.org/abs/1912.11060v3}.
+\bibitem{stopping} S. Becker, P. Cheridito and A. Jentzen. Deep Optimal Stopping. \emph{JMLR} 20(74):1--25, 2019. \url{https://jmlr.org/papers/v20/18-232.html}.
+\bibitem{api} Volt. Multi-asset market, learning and complete writer application guides. \url{https://github.com/ingvor-restrat/volt/blob/main/docs/multi-asset-maxcall.md}. \url{https://github.com/ingvor-restrat/volt/blob/main/docs/maxcall-learning.md}. \url{https://github.com/ingvor-restrat/volt/blob/main/docs/maxcall-application.md}.
+\bibitem{primer} StrategyNet. \emph{Options, Exercise and Learned Hedging: A Practical Primer}. 2026. \url{https://github.com/ingvor-restrat/volt/blob/main/docs/latex/compute/volt_option_learning_primer.pdf}.
+\bibitem{burn} Burn project. Tensor, automatic-differentiation and execution architecture. \url{https://burn.dev/books/burn/}.
+\end{thebibliography}
+\end{SNcolumns}
+\end{document}
