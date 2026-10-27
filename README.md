@@ -148,6 +148,8 @@ assumptions and the adaptive CPU-f64 Heston baseline.
 See [training on a compute host](docs/compute-training.md) for checkout, CPU/CUDA
 builds, background training, resume and held-out evaluation.
 
+The [practical primer](docs/latex/compute/volt_option_learning_primer.pdf) develops
+the financial and mathematical background, with worked examples and a reading guide.
 The [Bermudan application](docs/bermudan-market.md) adds numerical holder rules,
 dated settlement, dividends and complete writer training. The
 [learned-stopping guide](crates/volt-compute/docs-deep-stopping.md) develops the
