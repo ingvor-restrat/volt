@@ -1,0 +1,15 @@
+{
+  "conditional_outer_batch_rows": 16,
+  "inner_samples": 2048,
+  "lower_first_path": 0,
+  "lower_paths": 4096000,
+  "max_transition_asset_steps": 2000000000,
+  "max_working_bytes": 134217728,
+  "namespace": 100301,
+  "outer_batch_rows": 8192,
+  "policy_id": "maxcall-final-41047",
+  "policy_sha256": "7b1bd3f6e5b6ef07f98ab307b24c36848672c36420cf5e075699edd9526fe4bd",
+  "seed": 71001,
+  "upper_first_path": 0,
+  "upper_paths": 2048
+}

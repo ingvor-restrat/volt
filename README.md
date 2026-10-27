@@ -158,6 +158,14 @@ and interval hedging. Run the complete synthetic writer workflow with
 `python3 examples/bermudan_learning.py --output /tmp/volt-bermudan-example`
 after building the `bermudan_market` and `native_learner` release binaries.
 
+The [multi-asset application](docs/maxcall-application.md) adds a learned max-call
+holder, correlated stock scenarios and vector hedge holdings. Its
+[market and valuation API](docs/multi-asset-maxcall.md) also supplies the nested
+policy-tail price estimator used in the published multidimensional benchmark.
+Three full-schedule five-asset fits recover prices 26.1576–26.1609 against the
+published 26.154; [executed requests and results](docs/benchmarks/maxcall-five-asset-20261027/README.md)
+record the comparison and its sampling uncertainty.
+
 Run `cargo test --release --locked --workspace` to test both crates. Plain
 `cargo test` selects the core; GPU support is enabled explicitly in `volt-compute`.
 

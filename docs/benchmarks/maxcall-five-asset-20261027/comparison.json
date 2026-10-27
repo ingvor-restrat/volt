@@ -1,0 +1,200 @@
+{
+  "schema": "volt.maxcall.five_asset_comparison.v1",
+  "models": [
+    {
+      "seed": 41003,
+      "lower": {
+        "mean": 26.139333300212805,
+        "standard_error": 0.009563936151359143,
+        "paths": 4096000
+      },
+      "upper": {
+        "mean": 26.1759089926981,
+        "standard_error": 0.009756389795729457,
+        "paths": 2048
+      },
+      "midpoint": 26.157621146455455,
+      "asymptotic_joint_95_enclosure": [
+        26.1205883298057,
+        26.195031165316866
+      ],
+      "width": 0.07444283551116726,
+      "inverted_enclosure": false,
+      "absolute_midpoint_difference": 0.003621146455454749,
+      "declared_targets_passed": true,
+      "result_sha256": "c49b2cf9b411244f3f278cca48ba1f1df0a5c5a9ab422fbb97acd1a4ee3ef2b7",
+      "training_elapsed_seconds": 769.898924416,
+      "checkpoint_sha256": "ab3dcc2795ad4a2091c2b3715fadd4062c0298afad73833cee266ff4e12f1956",
+      "updates_by_date": [
+        {
+          "date": 8,
+          "updates": 6000
+        },
+        {
+          "date": 7,
+          "updates": 3500
+        },
+        {
+          "date": 6,
+          "updates": 3500
+        },
+        {
+          "date": 5,
+          "updates": 3500
+        },
+        {
+          "date": 4,
+          "updates": 3500
+        },
+        {
+          "date": 3,
+          "updates": 3500
+        },
+        {
+          "date": 2,
+          "updates": 3500
+        },
+        {
+          "date": 1,
+          "updates": 3500
+        }
+      ]
+    },
+    {
+      "seed": 41027,
+      "lower": {
+        "mean": 26.142716118994326,
+        "standard_error": 0.009591991773133867,
+        "paths": 4096000
+      },
+      "upper": {
+        "mean": 26.179043524415714,
+        "standard_error": 0.009893235554859861,
+        "paths": 2048
+      },
+      "midpoint": 26.16087982170502,
+      "asymptotic_joint_95_enclosure": [
+        26.12391616057898,
+        26.19843390979381
+      ],
+      "width": 0.07451774921483079,
+      "inverted_enclosure": false,
+      "absolute_midpoint_difference": 0.006879821705020106,
+      "declared_targets_passed": true,
+      "result_sha256": "a13670974ef24cd633c55894c838f069cd1358308c55537b4bfe041f017ad417",
+      "training_elapsed_seconds": 771.173810292,
+      "checkpoint_sha256": "1f49ead6146444313a03eff4a7db353bab8892ecb874daa9bdde3c69d581bef7",
+      "updates_by_date": [
+        {
+          "date": 8,
+          "updates": 6000
+        },
+        {
+          "date": 7,
+          "updates": 3500
+        },
+        {
+          "date": 6,
+          "updates": 3500
+        },
+        {
+          "date": 5,
+          "updates": 3500
+        },
+        {
+          "date": 4,
+          "updates": 3500
+        },
+        {
+          "date": 3,
+          "updates": 3500
+        },
+        {
+          "date": 2,
+          "updates": 3500
+        },
+        {
+          "date": 1,
+          "updates": 3500
+        }
+      ]
+    },
+    {
+      "seed": 41047,
+      "lower": {
+        "mean": 26.14074107088113,
+        "standard_error": 0.00952395809156913,
+        "paths": 4096000
+      },
+      "upper": {
+        "mean": 26.177074205615853,
+        "standard_error": 0.009870872038797196,
+        "paths": 2048
+      },
+      "midpoint": 26.158907638248493,
+      "asymptotic_joint_95_enclosure": [
+        26.122074456031385,
+        26.196420759307898
+      ],
+      "width": 0.07434630327651348,
+      "inverted_enclosure": false,
+      "absolute_midpoint_difference": 0.0049076382484933845,
+      "declared_targets_passed": true,
+      "result_sha256": "ef0b8355ff2c55c3ec0eca19f53528bfa24d1c1793cd15e55ffff964986b1b99",
+      "training_elapsed_seconds": 770.702573917,
+      "checkpoint_sha256": "7b1bd3f6e5b6ef07f98ab307b24c36848672c36420cf5e075699edd9526fe4bd",
+      "updates_by_date": [
+        {
+          "date": 8,
+          "updates": 6000
+        },
+        {
+          "date": 7,
+          "updates": 3500
+        },
+        {
+          "date": 6,
+          "updates": 3500
+        },
+        {
+          "date": 5,
+          "updates": 3500
+        },
+        {
+          "date": 4,
+          "updates": 3500
+        },
+        {
+          "date": 3,
+          "updates": 3500
+        },
+        {
+          "date": 2,
+          "updates": 3500
+        },
+        {
+          "date": 1,
+          "updates": 3500
+        }
+      ]
+    }
+  ],
+  "published": {
+    "lower": 26.156,
+    "upper": 26.152,
+    "midpoint": 26.154,
+    "interval95": [
+      26.138,
+      26.171
+    ]
+  },
+  "all_three_evaluated": true,
+  "all_targets_passed": true,
+  "scope": "Declared reconstruction with source policy-tail dual; retain each seed and all original estimates. Published LR/BN/path-reuse details were underspecified.",
+  "source": {
+    "title": "Pricing and hedging American-style options with deep learning",
+    "url": "https://arxiv.org/abs/1912.11060v3",
+    "case": "Table 1, five independent assets, initial stock prices 100"
+  },
+  "interpretation": "Three independent training initializations assessed on common market paths. This is one declared reconstruction case. Enclosures are asymptotic Monte Carlo intervals."
+}
