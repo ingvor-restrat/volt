@@ -641,18 +641,49 @@ payment, and the policy observation retains the history needed for its
 hedging decisions. Multiple payments additionally require their dated cash
 flows and financing to be represented in the account.
 
-American and Bermudan exercise introduces a holder's stopping decision.
-The writer responds to the resulting settlement and stock delivery.
-The reported experiment uses European expiry settlement. For exercise-aware
-applications, Becker, Cheridito and Jentzen supply learned stopping rules and
-pricing-and-hedging constructions with independent valuation
-bounds~\cite{stopping,american}. The exercise convention, cash timing and
-holder's rule form part of that application specification. Volt now provides
-a CPU double-precision pricing reference for European, American and dated
-Bermudan rights, including cash dividends, implied volatility and Greeks.
-Applications can use those marks and exercise rules when constructing their
-training accounts; learning the holder's stopping policy is an additional
-optimization problem.
+An American put lets its owner receive $\max(K-S_t,0)$ before expiry; a
+Bermudan put permits exercise on specified dates. A holder may prefer an
+immediate payment to the value of waiting. The writer must then settle and
+close the hedge at that date. Becker, Cheridito and Jentzen study these
+exercise decisions and combine learned policies with valuation bounds and
+dynamic hedges~\cite{stopping,american}.
+
+Volt provides two connected applications for this problem. A CPU
+double-precision finite-difference pricer supplies European, American and
+dated Bermudan values, cash-dividend treatment, implied volatility and
+Greeks. Saved continuation values also provide a numerical holder rule.
+The scenario producer applies that rule along GBM paths and supplies dated
+settlements to the native learner. Its account closes the hedge, charges
+liquidation costs once and finances the remaining cash to a common final
+date. Signed quantities and contract multipliers enter each payment once.
+These tools support a constant-volatility exercise study alongside the
+European Heston experiments reported above.
+
+The learned-holder application implements the 2019 direct stopping objective
+and the 2020 continuation-regression approach. Once the holder is selected,
+fresh paths estimate its discounted exercise payments. An independently
+simulated conditional-value martingale supplies an upper-value estimator;
+this continuation-proxy construction is an alternative to the papers'
+policy-tail estimator. Sampling uncertainty accompanies both estimates.
+A separate interval-regression hedge follows the 2020 construction, while
+the native learner optimizes the writer's complete after-cost account.
+Each study records which holder, capital estimate, financial objective and
+exercise calendar it uses. The accompanying application guides give the
+Rust and command-line calls for assembling these experiments.
+
+A complete-account Bermudan writer study uses a one-year put with spot and
+strike 100, volatility 20\%, funding 5\%, quarterly numerical exercise and
+monthly stock hedging. Six width-16 policies each train for 3,000 updates:
+three seeds without fees and three with 10-basis-point stock fees. Training
+uses 16,384 paths and validation uses 4,096; all selections precede a fresh
+16,384-path comparison. Mean squared terminal-bank loss averages 4.013
+without fees and 4.079 with fees, versus numerical delta's 3.935 and 3.984.
+The corresponding validation-selected trading bands give 3.937 and 3.986;
+the unhedged liability gives 61.443. The learner removes roughly 93\% of
+unhedged squared loss and finishes about 2\% above numerical delta.
+Separate cash-account calculations reconcile all 98,304 learned-policy
+paths within $10^{-12}$. The companion application paper develops the
+exercise objectives and reports the paired comparison intervals.
 
 The implemented straddle study illustrates another use of the same financial
 tooling. Eighteen long/short European configurations compare 30, 60 and 120
