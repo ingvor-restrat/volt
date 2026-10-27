@@ -59,3 +59,21 @@ includes gradient calculation, optimizer, synchronization and scalar checks.
 The report retains first-use setup, inference/readback, dispersion and measured
 host load. These observations describe the strict-arithmetic implementation
 and recorded workloads. First-use timings include existing compiler/cache state.
+
+## Full CUDA training and valuation
+
+One prospectively configured CUDA float32 fit with fixed normalization
+translations completed all 30,500 updates in 263 seconds, including process/generation
+overhead. Full fresh-path pricing took about 66 seconds.
+Its lower/upper estimates were 26.1407/26.1777, midpoint 26.1592 and joint 95%
+enclosure [26.1220, 26.1969]. The [result record](cuda-full-fit.json) retains
+the timings, hashes and comparison. [Training](training-cuda.json) and
+[assessment](evaluation-cuda.json) requests are included.
+
+The original CPU float64 policy's unchanged weights were replayed on the Linux
+CPU to obtain exactly the same generated market cohort as the CUDA policy.
+Across 4,096,000 paired paths, CUDA-minus-CPU discounted payment averaged 0.00136
+with standard error 0.00106 and 95% interval [-0.00071, 0.00344]. This comparison
+is compatible with zero mean difference for those selected policies.
+The full-fit time comparison includes hardware, precision and normalization
+choices; the matched float32 update measurements above retain a common workload.

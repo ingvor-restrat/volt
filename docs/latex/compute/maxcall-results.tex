@@ -30,6 +30,13 @@ independent pricing follows as a separate calculation. The terminal-only
 European value is 23.0516, obtained by independent integration of the
 maximum-price distribution. Early exercise adds about 3.11 in this case.
 
+A separate CUDA fit uses float32 with fixed translations. Its 30,500-update
+fit took 263 seconds, followed by 66 seconds for full fresh-path valuation.
+Its midpoint was 26.1592 with joint enclosure $[26.1220,26.1969]$. Common-path payments from this
+policy and the unchanged CPU reference were statistically compatible.
+Complete-fit durations combine hardware, precision and representation choices;
+the matched table below compares the same declared arithmetic workload.
+
 The optional fixed-translation representation passed twelve independent
 controls spanning CPU float64/float32, Metal float32 and CUDA float32, with
 both converted and already-fixed initial states. The original float32

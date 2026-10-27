@@ -1,0 +1,154 @@
+{
+  "arithmetic": "strict_native_dtype",
+  "batch_rows": 8192,
+  "beta1": 0.9,
+  "beta2": 0.999,
+  "compute_budget_bytes": 4294967296,
+  "earlier_date_schedule": [
+    {
+      "updates": 500,
+      "learning_rate": 0.1
+    },
+    {
+      "updates": 1000,
+      "learning_rate": 0.01
+    },
+    {
+      "updates": 1500,
+      "learning_rate": 0.001
+    },
+    {
+      "updates": 500,
+      "learning_rate": 0.0001
+    }
+  ],
+  "epsilon": 1e-08,
+  "epsilon_convention": "bias_corrected",
+  "final_date_schedule": [
+    {
+      "updates": 1000,
+      "learning_rate": 0.1
+    },
+    {
+      "updates": 2000,
+      "learning_rate": 0.01
+    },
+    {
+      "updates": 2000,
+      "learning_rate": 0.001
+    },
+    {
+      "updates": 1000,
+      "learning_rate": 0.0001
+    }
+  ],
+  "hidden_width": 55,
+  "host_budget_bytes": 8589934592,
+  "initialization_seed": 41003,
+  "market": {
+    "correlation": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "dividend_yields": [
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1
+    ],
+    "exercise": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "rate": 0.05,
+    "spots": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+    ],
+    "strike": 100.0,
+    "times": [
+      0.0,
+      0.3333333333333333,
+      0.6666666666666666,
+      1.0,
+      1.3333333333333333,
+      1.6666666666666667,
+      2.0,
+      2.3333333333333335,
+      2.6666666666666665,
+      3.0
+    ],
+    "volatilities": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ]
+  },
+  "max_expanded_elements": 134217728,
+  "normalization": {
+    "epsilon": 0.001,
+    "hidden": true,
+    "input": true,
+    "new_weight": 0.01,
+    "canonical_zero_translations": true
+  },
+  "precision": "f32",
+  "target": {
+    "cuda": {
+      "index": 0
+    }
+  },
+  "training_paths": 1048576,
+  "training_seed": 51003,
+  "validation_every": 500,
+  "validation_paths": 65536,
+  "validation_seed": 61003,
+  "warm_start": true
+}

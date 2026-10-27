@@ -1,0 +1,59 @@
+{
+  "schema": "volt.maxcall.full_cuda_engineering_comparison.v1",
+  "precision": "f32",
+  "normalization": "canonical_zero_translations",
+  "primary_reference_precision": "f64",
+  "primary_reference_normalization": "original",
+  "hardware": "RTX 4090 24 GiB, Linux",
+  "completion": {
+    "utc": "2026-10-27T18:00:33.598822+00:00",
+    "timings": {
+      "full_training_seconds": 262.7811343623325,
+      "cuda_full_evaluation_seconds": 65.51166357845068,
+      "cpu_reference_replay_seconds": 78.3826258033514
+    },
+    "seconds_remaining": 2291.1915433444083,
+    "cuda_lower": {
+      "mean": 26.14069381651991,
+      "standard_error": 0.009561051470342152,
+      "paths": 4096000
+    },
+    "cuda_upper": {
+      "mean": 26.177732633174802,
+      "standard_error": 0.00975811657539874,
+      "paths": 2048
+    },
+    "cuda_midpoint": 26.159213224847356,
+    "cuda_enclosure": [
+      26.121954499983705,
+      26.196858190219526
+    ],
+    "reference_replay": true,
+    "lower_cohort_sha256": "4261523865de5e9b1a3e7cb001b0ff83cc9e93779702405e06d3e3801121d2cd",
+    "prices_sha256": "f267edd071e4eb95c873f13f6874ea9d0814338425eb79c153fdcda29e3e47de",
+    "scope": "Different precision and engineering parameterization; fixed-model common-path comparison."
+  },
+  "paired_stopped_payments": {
+    "schema": "volt.maxcall.fixed_model_paired_payment_comparison.v1",
+    "utc": "2026-10-27T18:01:06.957102+00:00",
+    "paths": 4096000,
+    "market_sha256": "e25063250b7dc0c8b51bcf01b360b0e7dd7c39a3ad81a9bc00864df2c70f9bbb",
+    "cohort_sha256": "4261523865de5e9b1a3e7cb001b0ff83cc9e93779702405e06d3e3801121d2cd",
+    "cuda_checkpoint_sha256": "034d53307b4197a9bba75ea49dcad5f984e02921579d301639b21cdd680c0ae3",
+    "cpu_checkpoint_sha256": "ab3dcc2795ad4a2091c2b3715fadd4062c0298afad73833cee266ff4e12f1956",
+    "cuda_prices_sha256": "f267edd071e4eb95c873f13f6874ea9d0814338425eb79c153fdcda29e3e47de",
+    "cpu_reference_sha256": "bef786c6f877ed26dd5fde71cc595d657f7950bf1112ea4f959d1eba197b22f8",
+    "cuda_lower_mean": 26.140693816522273,
+    "cpu_lower_mean": 26.139333300212733,
+    "cuda_minus_cpu_mean": 0.001360516309549363,
+    "paired_standard_error": 0.0010587523304726113,
+    "pointwise_95_confidence_interval": [
+      -0.0007146001267248046,
+      0.0034356327458235306
+    ],
+    "different_stopped_payment_fraction": 0.016080322265625,
+    "maximum_absolute_payment_difference": 108.74427366500584,
+    "scope": "Globally discounted held-out stopped payments, common generated paths, fixed selected strategies. Different precision and optional engineering representation; training randomness and hardware effects are jointly present."
+  },
+  "scope": "One prospectively specified full CUDA fit, separately from the three primary CPU-f64 reconstruction fits. Both policies are fixed before common-path evaluation."
+}

@@ -1,0 +1,15 @@
+{
+  "seed": 71001,
+  "namespace": 100301,
+  "lower_first_path": 0,
+  "upper_first_path": 0,
+  "lower_paths": 4096000,
+  "upper_paths": 2048,
+  "inner_samples": 2048,
+  "outer_batch_rows": 8192,
+  "conditional_outer_batch_rows": 16,
+  "max_working_bytes": 134217728,
+  "max_transition_asset_steps": 2000000000,
+  "policy_id": "gpu-canonical-engineering-41003",
+  "policy_sha256": "034d53307b4197a9bba75ea49dcad5f984e02921579d301639b21cdd680c0ae3"
+}

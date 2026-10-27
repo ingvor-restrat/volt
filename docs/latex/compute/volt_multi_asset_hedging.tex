@@ -236,19 +236,13 @@ execution, using the repository's pinned versions~\cite{burn}.
 \section{Pricing results and execution times}
 \input{maxcall-results.tex}
 
-The market generator, selected holder, valuation estimator and writer account
-have separate controls. Correlated-return moments, discounted gains,
-semidefinite correlations, path identity, conditional sampling and account
-cash flows are checked independently. Complete-date resume tests reproduce
-the remaining backward calculation. A holder-to-writer executable test checks
-checkpoint provenance and preserves existing output files atomically.
+Independent tests cover market moments, financed cash flows, conditional
+sampling, completed-date recovery and executable checkpoint provenance.
 
-The comparison covers one specified five-asset pricing case. Additional asset
-counts, starting prices, hedge calendars and execution assumptions extend the
-research through the same interfaces. Empirical factor forecasts require a
-separate model of conditional means, covariance and information timing;
-live vendor integration supplies another application input. Those studies
-retain their own calibration and assessment requirements.
+This study establishes one five-asset pricing comparison and a runnable vector
+hedging application. Other contract parameters and hedge objectives can be
+assessed through the same interfaces. Factor forecasts and live vendor inputs
+require their own calibration and observation-timing studies.
 \end{SNcolumns}
 \clearpage
 \begin{SNcolumns}
