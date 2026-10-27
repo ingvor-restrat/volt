@@ -92,6 +92,16 @@ papers' multidimensional max-call experiments provide a subsequent benchmark.
 
 Build `cargo build -p volt-compute --release --bin deep_stopping`. Then:
 
+```sh
+python3 examples/deep_stopping.py --output /tmp/volt-stopping-example
+```
+
+This standard-library client fits a continuation holder and interval hedge,
+selects both models before independent assessment, and retains their inputs,
+checkpoints, valuation estimates and hedge-error report. The default bounded
+example uses 4,096 training paths and 100 updates per date. Individual commands
+provide the same workflow with explicit configurations:
+
 ```
 deep_stopping example --output example.json
 # Split the example's training/evaluation objects into the respective files.
