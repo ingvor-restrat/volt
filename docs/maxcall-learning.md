@@ -32,11 +32,10 @@ future policy.
 
 Training and validation market pools are generated once with disjoint seeds and
 logical namespaces. Their SHA-256 identities are stored. Raw date features and
-frozen-future targets are uploaded once per date. Every update draws a
+selected-future targets are uploaded once per date. Every update draws a
 deterministic uniform batch **with replacement** from the resident training
 split; updates transfer indices to the device and return a small completed-step check.
-Validation and checkpoints download predictions or parameters at declared
-boundaries. The fixed finite pool is an explicit reconstruction choice; the paper leaves
+Scheduled validation and checkpoint operations download predictions or parameters. The fixed finite pool is an explicit reconstruction choice; the paper leaves
 its path-reuse convention unspecified.
 
 The explicit default schedules contain:
@@ -78,8 +77,7 @@ The request, timings and accuracy controls identify the actual arithmetic.
 
 Every step computes loss, gradient norm and proposed-state finiteness, then reads
 those three scalars together. Parameters, moments and running statistics commit
-only after all checks pass. Full gradients/optimizer snapshots are available for
-independent controls; ordinary training does not read full weights each update.
+only after all checks pass. Full gradient and optimizer snapshots are available for independent controls.
 
 ### Optional fixed redundant translations
 
@@ -159,7 +157,7 @@ work; `total_seconds` includes the single scalar completion/readback. Inference
 and readback are identified together where the API returns host predictions.
 
 Device/dtype, logical path streams, matrix arithmetic, normalization, warm starts,
-optimizer and sample-role boundaries belong in every benchmark record. The
+optimizer and separate training, validation and assessment samples belong in every benchmark record. The
 working-byte plan estimates conservative admission requirements. Runtime
 allocator telemetry measures actual physical allocation separately. Pricing reports include independent sampling uncertainty for their lower and
 upper expectation estimates.

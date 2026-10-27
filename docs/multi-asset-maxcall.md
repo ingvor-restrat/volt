@@ -9,16 +9,16 @@ between the supplied dates; stopping opportunities remain discrete.
 
 `MaxCallMarket::paper_five()` specifies five independent stocks initially 100,
 strike 100, continuously compounded rate 5%, dividend yield 10%, volatility 20%,
-horizon 3 years and nine four-month exercise intervals. This is a model
-specification from Becker, Cheridito and Jentzen; a successful simulation of the
-model alone carries no learned-policy accuracy claim.
+horizon 3 years and nine four-month exercise intervals. The [executed comparison](benchmarks/maxcall-five-asset-20261027/README.md)
+trains three holders for this Becker, Cheridito and Jentzen case and values
+their selected exercise decisions independently.
 
 ## Paths and conditional branches
 
 `generate_paths(&market, paths, seed, first_path, namespace, max_working_bytes)`
 returns `MaxCallPaths`. Its `values` layout is `[path,date,asset]`; `state(path,date)`
-provides a checked slice. A supplied starting path ID makes chunk boundaries
-irrelevant to the generated physical states. `market_sha256` binds model inputs;
+provides a checked slice. A supplied starting path ID preserves the generated states across different
+streaming batch sizes. `market_sha256` binds model inputs;
 `content_sha256` additionally binds the realized states, seed, namespace and path
 range. Episode output preserves that identity as `physical_cohort_sha256` across
 holder, position-size, premium and fee changes.
