@@ -66,6 +66,11 @@ are bounded; unsupported scales fail rather than emitting nonfinite statistics.
 
 ## Interval hedging
 
+Training uses the configured Burn device and precision. Selected stopping
+decisions, value proxies and interval-hedge evaluation use CPU f64 arithmetic
+over stored weights, including the exported f32 weights of a GPU-trained model.
+The reported six-holder and three-hedge study uses CPU f64 throughout.
+
 `train_interval_hedge` implements the distinct 2020 Section 4.2 regression, with
 one rebalance per exercise interval:
 
