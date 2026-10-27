@@ -94,3 +94,28 @@ fn selected_holder_cli_binds_checkpoint_and_preserves_existing_episode_file() {
     assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn generated_training_request_uses_cpu_f64_reference() {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let output = std::env::temp_dir().join(format!(
+        "volt-maxcall-default-{}-{stamp}.json",
+        std::process::id()
+    ));
+    let status = Command::new(env!("CARGO_BIN_EXE_maxcall_learning"))
+        .args(["example", "--output"])
+        .arg(&output)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let request: serde_json::Value = serde_json::from_slice(&fs::read(&output).unwrap()).unwrap();
+    assert_eq!(request["training"]["target"], "cpu");
+    assert_eq!(request["training"]["precision"], "f64");
+    let restored: MaxCallTrainingConfig =
+        serde_json::from_value(request["training"].clone()).unwrap();
+    assert!(!restored.normalization.canonical_zero_translations);
+    fs::remove_file(output).unwrap();
+}

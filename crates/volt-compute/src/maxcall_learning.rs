@@ -84,7 +84,7 @@ impl Default for MaxCallTrainingConfig {
         Self {
             market: MaxCallMarket::paper_five(),
             target: ExecutionTarget::Cpu,
-            precision: Precision::F32,
+            precision: Precision::F64,
             hidden_width: 55,
             batch_rows: 8192,
             training_paths: 131072,
