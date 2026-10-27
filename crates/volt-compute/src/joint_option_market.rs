@@ -739,6 +739,9 @@ fn assemble(
     }
     let batch = EpisodeBatch {
         force_trade_signal: None,
+        exercise: None,
+        cash_income: None,
+        initial_wealth: None,
         paths: range.paths,
         provenance: BatchProvenance {
             dataset_id: id.clone(),

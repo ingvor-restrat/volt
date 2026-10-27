@@ -217,6 +217,16 @@ pub struct BatchProvenance {
     pub first_path: u64,
 }
 
+/// One settlement per path. Arrival step 0 settles before any hedge is opened;
+/// step j>0 settles after interval j-1 and before decision j. Amounts are positive
+/// for payments owed. After hedge liquidation/settlement only bank financing runs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExerciseEpisode {
+    pub settlement_step: Vec<usize>,
+    pub settlement_amounts: Vec<f64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EpisodeBatch {
@@ -233,6 +243,22 @@ pub struct EpisodeBatch {
     /// Static instruments omit this field. This does not itself model roll cash flows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub force_trade_signal: Option<Vec<f64>>,
+    /// Optional stopping/settlement data; terminal payoffs must be zero in this mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exercise: Option<ExerciseEpisode>,
+    /// Exact cash per held unit arriving after each interval, [path,interval,asset].
+    /// Producers specify event ordering, including zero dividend credit for an
+    /// exercise immediately before its ex-date and the matching pre-dividend mark.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cash_income: Option<Vec<f64>>,
+    /// Optional per-path initial capital, e.g. continuation values for interval hedging.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initial_wealth: Option<Vec<f64>>,
+}
+struct ResidentExercise {
+    active: Vec<Tensor<1>>,
+    settle: Vec<Tensor<1>>,
+    amounts: Tensor<1>,
 }
 struct ResidentBatch {
     split: Split,
@@ -243,6 +269,9 @@ struct ResidentBatch {
     features: Vec<Tensor<2>>,
     force_trade_signal: Option<Vec<Tensor<2>>>,
     payoffs: Tensor<1>,
+    initial_wealth: Option<Tensor<1>>,
+    exercise: Option<ResidentExercise>,
+    cash_income: Option<Vec<Tensor<2>>>,
     compute_bytes: u64,
     host_bytes: u64,
     update_compute_bytes: u64,
@@ -484,6 +513,11 @@ impl NativeLearner {
                     return Err(invalid("nonfinite evaluation"));
                 }
                 let mut result = json!({"version":self.policy.updates(),"split":batch.split,"batch_sha256":batch.hash,"loss":loss,"pnl":pnl,"costs":costs,"holdings":holdings});
+                if let Some(e) = &batch.batch.exercise {
+                    result["exercise"] = serde_json::to_value(e).map_err(execution)?;
+                    result["pnl_reference"] =
+                        json!("common_terminal_bank_account_after_settlement");
+                }
                 if let Some(fraction) = tracking {
                     let penalty = fraction
                         * self
@@ -674,6 +708,58 @@ impl NativeLearner {
         {
             return Err(invalid("invalid forced-trade episode observations"));
         }
+        if let Some(e) = &batch.exercise
+            && (e.settlement_step.len() != batch.paths
+                || e.settlement_amounts.len() != batch.paths
+                || e.settlement_step.iter().any(|j| *j > c.time_steps)
+                || e.settlement_amounts.iter().any(|x| {
+                    !x.is_finite()
+                        || (self.config.precision == Precision::F32 && !(*x as f32).is_finite())
+                })
+                || batch.payoffs.iter().any(|x| *x != 0.0))
+        {
+            return Err(invalid(
+                "exercise settlement requires one valid step/amount per path and zero terminal payoffs",
+            ));
+        }
+        if let Some(income) = &batch.cash_income
+            && (batch
+                .paths
+                .checked_mul(c.time_steps)
+                .and_then(|x| x.checked_mul(c.hedge_count))
+                != Some(income.len())
+                || income.iter().any(|x| {
+                    !x.is_finite()
+                        || (self.config.precision == Precision::F32 && !(*x as f32).is_finite())
+                }))
+        {
+            return Err(invalid("invalid per-interval cash income"));
+        }
+        if let Some(initial) = &batch.initial_wealth
+            && (initial.len() != batch.paths
+                || initial.iter().any(|x| {
+                    !x.is_finite()
+                        || (self.config.precision == Precision::F32 && !(*x as f32).is_finite())
+                }))
+        {
+            return Err(invalid(
+                "initial wealth must be finite and match path count",
+            ));
+        }
+        let scalar = if self.config.precision == Precision::F64 {
+            8u64
+        } else {
+            4u64
+        };
+        let extra_work = if batch.exercise.is_some() || batch.cash_income.is_some() {
+            (batch.paths as u64)
+                .checked_mul(c.time_steps as u64)
+                .and_then(|n| n.checked_mul(12 * c.hedge_count as u64 + 32))
+                .and_then(|n| n.checked_mul(scalar))
+                .ok_or_else(|| invalid("exercise working-memory overflow"))?
+        } else {
+            0
+        };
         // Reuse Volt's full recurrent-policy planner. Reserve a second full job
         // for transactional candidate weights and this financed recurrence.
         let plan = plan_hedging(
@@ -688,11 +774,13 @@ impl NativeLearner {
         // reserves. Keep a second complete candidate for transactional updates.
         let update_compute = plan
             .estimated_compute_bytes
-            .checked_mul(2)
+            .checked_add(extra_work)
+            .and_then(|n| n.checked_mul(2))
             .ok_or_else(|| invalid("memory overflow"))?;
         let update_host = plan
             .estimated_host_working_bytes
-            .checked_mul(2)
+            .checked_add(extra_work)
+            .and_then(|n| n.checked_mul(2))
             .ok_or_else(|| invalid("memory overflow"))?;
         let old_compute: u64 = self.batches.values().map(|b| b.compute_bytes).sum();
         let old_host: u64 = self.batches.values().map(|b| b.host_bytes).sum();
@@ -704,7 +792,14 @@ impl NativeLearner {
         let elements = (batch.marks.len()
             + batch.features.len()
             + batch.payoffs.len()
-            + batch.force_trade_signal.as_ref().map_or(0, Vec::len)) as u64;
+            + batch.force_trade_signal.as_ref().map_or(0, Vec::len)
+            + batch.cash_income.as_ref().map_or(0, Vec::len)
+            + batch.initial_wealth.as_ref().map_or(0, Vec::len)
+            + if batch.exercise.is_some() {
+                batch.paths * (2 * c.time_steps + 2)
+            } else {
+                0
+            }) as u64;
         let compute = elements.saturating_mul(scalar);
         let host = elements
             .saturating_mul(8)
@@ -792,6 +887,49 @@ impl NativeLearner {
                 })
                 .collect()
         });
+        let exercise = batch.exercise.as_ref().map(|e| ResidentExercise {
+            active: (0..c.time_steps)
+                .map(|t| {
+                    self.session.vector(
+                        e.settlement_step
+                            .iter()
+                            .map(|j| if *j > t { 1. } else { 0. })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            settle: (0..=c.time_steps)
+                .map(|t| {
+                    self.session.vector(
+                        e.settlement_step
+                            .iter()
+                            .map(|j| if *j == t { 1. } else { 0. })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            amounts: self.session.vector(e.settlement_amounts.clone()),
+        });
+        let cash_income = batch.cash_income.as_ref().map(|income| {
+            (0..c.time_steps)
+                .map(|t| {
+                    tensor2(
+                        &self.session,
+                        (0..batch.paths)
+                            .flat_map(|p| {
+                                let at = (p * c.time_steps + t) * c.hedge_count;
+                                income[at..at + c.hedge_count].iter().copied()
+                            })
+                            .collect(),
+                        [batch.paths, c.hedge_count],
+                    )
+                })
+                .collect()
+        });
+        let initial_wealth = batch
+            .initial_wealth
+            .as_ref()
+            .map(|v| self.session.vector(v.clone()));
         let payoffs = self.session.vector(batch.payoffs.clone());
         self.session.synchronize()?;
         let paths = batch.paths;
@@ -805,6 +943,9 @@ impl NativeLearner {
                 features,
                 force_trade_signal,
                 payoffs,
+                exercise,
+                cash_income,
+                initial_wealth,
                 compute_bytes: compute,
                 host_bytes: host,
                 update_compute_bytes: update_compute,
@@ -848,7 +989,10 @@ fn rollout(
     let n = batch.batch.paths;
     let h = config.policy.hedge_count;
     let mut previous = tensor2(session, vec![0.0; n * h], [n, h]);
-    let mut value = session.vector(vec![config.premium; n]);
+    let mut value = batch
+        .initial_wealth
+        .clone()
+        .unwrap_or_else(|| session.vector(vec![config.premium; n]));
     let mut costs = session.vector(vec![0.0; n]);
     let fees = tensor2(session, config.trading_costs.clone(), [1, h]);
     let mut holdings = Vec::new();
@@ -856,20 +1000,35 @@ fn rollout(
         .tracking_penalty
         .as_ref()
         .map(|_| session.vector(vec![0.0; n]).greater_elem(0.0));
+    if let Some(e) = &batch.exercise {
+        value = value - e.amounts.clone() * e.settle[0].clone();
+    }
     for t in 0..config.policy.time_steps {
-        let wealth = config.policy.include_wealth.then(|| value.clone());
+        let active = batch.exercise.as_ref().map(|e| e.active[t].clone());
+        let wealth = config.policy.include_wealth.then(|| match &active {
+            Some(mask) => value.clone() * mask.clone(),
+            None => value.clone(),
+        });
+        let features = match &active {
+            Some(mask) => batch.features[t].clone() * mask.clone().unsqueeze_dim::<2>(1),
+            None => batch.features[t].clone(),
+        };
+        let signal = batch.force_trade_signal.as_ref().map(|v| match &active {
+            Some(mask) => v[t].clone() * mask.clone().unsqueeze_dim::<2>(1),
+            None => v[t].clone(),
+        });
         let context = PolicyForwardContext {
             wealth,
-            force_trade_signal: batch.force_trade_signal.as_ref().map(|v| v[t].clone()),
+            force_trade_signal: signal,
             sharpen_gate: config.policy.small_trade_gate.as_ref().and(sharpen_gate),
         };
-        let target = policy.forward_at_with_context(
-            t,
-            batch.features[t].clone(),
-            previous.clone(),
-            context,
-            train,
-        )?;
+        let target =
+            policy.forward_at_with_context(t, features, previous.clone(), context, train)?;
+        let target = if let Some(e) = &batch.exercise {
+            target * e.active[t].clone().unsqueeze_dim::<2>(1)
+        } else {
+            target
+        };
         let charge = ((target.clone() - previous).abs() * batch.marks[t].clone() * fees.clone())
             .sum_dim(1)
             .reshape([n]);
@@ -887,6 +1046,9 @@ fn rollout(
             + (target.clone() * batch.marks[t + 1].clone() * income)
                 .sum_dim(1)
                 .reshape([n]);
+        if let Some(income) = &batch.cash_income {
+            value = value + (target.clone() * income[t].clone()).sum_dim(1).reshape([n]);
+        }
         if t + 1 < config.policy.time_steps
             && let Some(rule) = &config.tracking_penalty
         {
@@ -900,6 +1062,11 @@ fn rollout(
                 .reshape([n])
                 * rule.threshold_multiple;
             let violation = (liability - value.clone().without_autodiff()).greater(threshold);
+            let violation = if let Some(e) = &batch.exercise {
+                violation.bool_and(e.active[t].clone().greater_elem(0.0))
+            } else {
+                violation
+            };
             tracking = Some(
                 tracking
                     .take()
@@ -908,10 +1075,25 @@ fn rollout(
             );
         }
         costs = costs + charge.without_autodiff();
-        previous = target.clone();
+        if let Some(e) = &batch.exercise {
+            let close = (target.clone().abs()
+                * batch.marks[t + 1].clone()
+                * tensor2(session, config.liquidation_costs.clone(), [1, h]))
+            .sum_dim(1)
+            .reshape([n])
+                * e.settle[t + 1].clone();
+            value = value - close.clone() - e.amounts.clone() * e.settle[t + 1].clone();
+            costs = costs + close.without_autodiff();
+            previous = target.clone() * (-e.settle[t + 1].clone() + 1.).unsqueeze_dim::<2>(1);
+        } else {
+            previous = target.clone();
+        }
         if retain {
             holdings.push(target.without_autodiff());
         }
+    }
+    if batch.exercise.is_some() {
+        return Ok((value, costs, holdings, tracking));
     }
     let terminal = (previous.abs()
         * batch.marks[config.policy.time_steps].clone()

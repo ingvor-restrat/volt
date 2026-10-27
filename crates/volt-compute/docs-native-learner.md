@@ -47,6 +47,58 @@ At each decision the policy outputs target holdings. The cash account pays for t
 
 `trading_costs` and `liquidation_costs` contain one fraction of notional per instrument. `cash_growth` has one positive factor per interval; `income_growth` has `[interval, instrument]` positive factors. This profile assumes exogenous market paths and proportional trading costs. More detailed execution and funding models require an explicit recurrence extension.
 
+### Exercise and intermediate cash payments
+
+A Bermudan option can settle at one of several contractual dates. The producer
+evaluates the holder's exercise rule along each path and supplies the resulting
+settlement to the writer's learner. The policy then learns stock or other hedge
+holdings until that settlement. The [Bermudan scenario application](../../docs/bermudan-market.md)
+provides numerical exercise decisions, dated dividends and a financed delta control.
+
+Three optional batch fields extend the same worker protocol:
+
+```json
+{
+  "exercise": {"settlement_step": [1, 2], "settlement_amounts": [8.0, 3.0]},
+  "cash_income": [0.5, 0.0, 0.5, 0.0],
+  "initial_wealth": [6.0, 6.0]
+}
+```
+
+This fragment describes two paths, two intervals and one hedge instrument;
+the complete upload also contains marks, features, provenance and zero terminal
+`payoffs`. Settlement indices range from zero through the final date. A positive
+amount is paid by the writer; a negative amount is received. Contract quantity
+and multiplier belong in the producer's settlement amounts exactly once.
+`cash_income` has layout `[path, interval, instrument]` and gives the cash paid
+per held instrument unit on arrival at the next date. `initial_wealth` supplies
+one starting portfolio value per path; omission uses the configured `premium`.
+This supports both whole-contract hedging and separately financed interval
+regressions whose starting continuation value depends on the current state.
+
+At decision date `t`, a contract with settlement index greater than `t` can
+trade. Holdings earn the declared price return and cash income over the next
+interval, while cash earns `cash_growth[t]`. Upon settlement the account closes
+all hedge holdings, charges liquidation costs once and pays the settlement.
+Its remaining cash accrues to the common final date. Settlement at date zero
+pays from the initial cash before any hedge trade. Evaluation labels this P&L
+convention `common_terminal_bank_account_after_settlement`. The loss therefore
+compares every path in currency units at the same date.
+
+After settlement, future features and market prices have zero financial effect
+and contribute zero policy gradient. Applications stop requesting hedge actions
+when the contract settles. The producer defines event order: for example, exercise
+immediately before a cash dividend uses the pre-dividend stock mark; continuing
+holders use the ex-dividend mark and receive the declared cash payment. The
+scenario application records this convention with its output.
+
+With `exercise` present, legacy terminal `payoffs` must all be zero. Omitting
+all three fields retains the terminal-liability account and checkpoint format.
+Memory admission includes settlement masks, payments and their differentiation
+workspace. CPU f64/f32 and Metal/fusion controls reconcile signed settlements,
+cash income, early liquidation and parameter gradients against separate scalar
+calculations.
+
 Objectives are `squared_loss`, `semi_squared_loss`, `cvar {alpha}` and `entropic {risk_aversion}`. P&L is positive for gains; CVaR and entropic risk operate on its negative. CVaR integrates exactly the declared fraction of the worst-loss observations, including a fractional last observation. Its gradient is an empirical subgradient; tied losses and zero trades contain nonsmooth points.
 
 Requests/responses are limited to 16 MiB. At most four batches are resident, with conservative admission of the full job plus a second-job reserve for transactional updates. A candidate update replaces live policy/optimizer state only after successful completion. `expected_version` prevents duplicate retries from training twice. Keep timeout recovery and checkpoint persistence in the supervising service.
